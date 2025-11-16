@@ -1,0 +1,243 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Calendar, MapPin, Users, LogOut, Settings } from "lucide-react";
+import { toast } from "sonner";
+import { format } from "date-fns";
+
+interface Event {
+  id: string;
+  title: string;
+  type: string;
+  date_time: string;
+  price: number;
+  venues: { name: string } | null;
+}
+
+interface Booking {
+  id: string;
+  status: string;
+  events: Event;
+}
+
+interface Announcement {
+  id: string;
+  title: string;
+  body: string;
+}
+
+const Dashboard = () => {
+  const navigate = useNavigate();
+  const [profile, setProfile] = useState<any>(null);
+  const [upcomingBookings, setUpcomingBookings] = useState<Booking[]>([]);
+  const [pastBookings, setPastBookings] = useState<Booking[]>([]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Fetch profile
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+
+      setProfile(profileData);
+
+      // Fetch bookings with events
+      const { data: bookings } = await supabase
+        .from("bookings")
+        .select(`
+          *,
+          events (
+            *,
+            venues (name)
+          )
+        `)
+        .eq("user_id", user.id)
+        .eq("status", "confirmed")
+        .order("created_at", { ascending: false });
+
+      if (bookings) {
+        const now = new Date();
+        const upcoming = bookings.filter(b => new Date(b.events.date_time) > now);
+        const past = bookings.filter(b => new Date(b.events.date_time) <= now);
+        setUpcomingBookings(upcoming);
+        setPastBookings(past);
+      }
+
+      // Fetch announcements
+      const { data: announcementsData } = await supabase
+        .from("announcements")
+        .select("*")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(3);
+
+      setAnnouncements(announcementsData || []);
+    } catch (error: any) {
+      toast.error("Failed to load dashboard");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    navigate("/");
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-pulse">Loading...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted">
+      <header className="bg-card border-b sticky top-0 z-10 shadow-sm">
+        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            Enqoy
+          </h1>
+          <div className="flex gap-2">
+            {profile?.role === "admin" && (
+              <Button variant="outline" onClick={() => navigate("/admin")}>
+                <Settings className="h-4 w-4 mr-2" />
+                Admin
+              </Button>
+            )}
+            <Button variant="outline" onClick={handleSignOut}>
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign Out
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <main className="container mx-auto px-4 py-8 space-y-8">
+        <section>
+          <Card className="shadow-card">
+            <CardHeader>
+              <CardTitle>Welcome back, {profile?.full_name}!</CardTitle>
+              <CardDescription>
+                Ready to meet amazing people?
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button onClick={() => navigate("/events")} size="lg" className="w-full sm:w-auto">
+                <Users className="h-4 w-4 mr-2" />
+                Browse Events
+              </Button>
+            </CardContent>
+          </Card>
+        </section>
+
+        {announcements.length > 0 && (
+          <section>
+            <h2 className="text-2xl font-bold mb-4">Announcements</h2>
+            <div className="space-y-3">
+              {announcements.map((announcement) => (
+                <Card key={announcement.id} className="shadow-card">
+                  <CardHeader>
+                    <CardTitle className="text-lg">{announcement.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-muted-foreground">{announcement.body}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <section>
+          <h2 className="text-2xl font-bold mb-4">Upcoming Events</h2>
+          {upcomingBookings.length === 0 ? (
+            <Card className="shadow-card">
+              <CardContent className="py-8 text-center">
+                <p className="text-muted-foreground mb-4">
+                  No upcoming events yet. Book your first event!
+                </p>
+                <Button onClick={() => navigate("/events")}>
+                  Explore Events
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2">
+              {upcomingBookings.map((booking) => (
+                <Card
+                  key={booking.id}
+                  className="shadow-card hover:shadow-elevated transition-shadow cursor-pointer"
+                  onClick={() => navigate(`/events/${booking.events.id}`)}
+                >
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <CardTitle>{booking.events.title}</CardTitle>
+                      <Badge>{booking.events.type}</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Calendar className="h-4 w-4 text-primary" />
+                      <span>{format(new Date(booking.events.date_time), "PPP 'at' p")}</span>
+                    </div>
+                    {booking.events.venues && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <MapPin className="h-4 w-4 text-primary" />
+                        <span>{booking.events.venues.name}</span>
+                      </div>
+                    )}
+                    <Badge variant="secondary" className="mt-2">
+                      {booking.status}
+                    </Badge>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {pastBookings.length > 0 && (
+          <section>
+            <h2 className="text-2xl font-bold mb-4">Past Events</h2>
+            <div className="grid gap-4 md:grid-cols-2">
+              {pastBookings.map((booking) => (
+                <Card key={booking.id} className="shadow-card opacity-75">
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <CardTitle>{booking.events.title}</CardTitle>
+                      <Badge variant="outline">{booking.events.type}</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Calendar className="h-4 w-4" />
+                      <span>{format(new Date(booking.events.date_time), "PPP")}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </section>
+        )}
+      </main>
+    </div>
+  );
+};
+
+export default Dashboard;
