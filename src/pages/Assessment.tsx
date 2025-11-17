@@ -128,7 +128,10 @@ const Assessment = () => {
       if (assessmentError) throw assessmentError;
 
       toast.success("Assessment complete! Welcome to Enqoy!");
-      navigate("/dashboard");
+      // Small delay to ensure database updates propagate
+      setTimeout(() => {
+        navigate("/dashboard", { replace: true });
+      }, 500);
     } catch (error: any) {
       toast.error(error.message || "Failed to save assessment");
     } finally {

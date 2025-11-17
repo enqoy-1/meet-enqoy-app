@@ -43,14 +43,23 @@ const ProtectedRoute = ({
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("assessment_completed, role")
+        .select("assessment_completed")
         .eq("id", user.id)
         .single();
 
       if (profile) {
         setHasCompletedAssessment(profile.assessment_completed);
-        setIsAdmin(profile.role === "admin");
       }
+
+      // Check admin role from user_roles table
+      const { data: userRole } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("role", "admin")
+        .maybeSingle();
+
+      setIsAdmin(!!userRole);
     } catch (error) {
       console.error("Auth check error:", error);
     } finally {
