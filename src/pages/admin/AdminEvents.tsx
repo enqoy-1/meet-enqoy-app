@@ -241,10 +241,9 @@ const AdminEvents = () => {
                   <Label htmlFor="venue">Venue</Label>
                   <Select value={venueId} onValueChange={setVenueId}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select venue" />
+                      <SelectValue placeholder="Select venue (optional)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">No venue</SelectItem>
                       {venues.map((venue) => (
                         <SelectItem key={venue.id} value={venue.id}>
                           {venue.name}
