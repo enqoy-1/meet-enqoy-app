@@ -165,7 +165,7 @@ const Dashboard = () => {
         )}
 
         <section>
-          <h2 className="text-2xl font-bold mb-4">Upcoming Events</h2>
+          <h2 className="text-2xl font-bold mb-4">My upcoming events</h2>
           {upcomingBookings.length === 0 ? (
             <Card className="shadow-card">
               <CardContent className="py-8 text-center">
