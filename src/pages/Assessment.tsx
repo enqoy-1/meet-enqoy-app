@@ -54,10 +54,6 @@ const Assessment = () => {
       navigate("/dashboard");
       return;
     }
-
-    if (profile) {
-      setFullName(profile.full_name || "");
-    }
   };
 
   const handleNext = () => {
