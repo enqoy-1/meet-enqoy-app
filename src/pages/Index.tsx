@@ -1,107 +1,338 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, Users, Sparkles, ArrowRight } from "lucide-react";
-import heroImage from "@/assets/hero-dining.jpg";
+import { Badge } from "@/components/ui/badge";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Sparkles, Calendar, Users, ArrowRight, Heart, MessageCircle, MapPin } from "lucide-react";
+import { format } from "date-fns";
+
+interface Event {
+  id: string;
+  title: string;
+  type: string;
+  date_time: string;
+  price: number;
+}
 
 const Index = () => {
   const navigate = useNavigate();
+  const [upcomingEvents, setUpcomingEvents] = useState<Event[]>([]);
+
+  useEffect(() => {
+    fetchUpcomingEvents();
+  }, []);
+
+  const fetchUpcomingEvents = async () => {
+    try {
+      const cutoffTime = new Date();
+      cutoffTime.setHours(cutoffTime.getHours() + 48);
+
+      const { data } = await supabase
+        .from("events")
+        .select("id, title, type, date_time, price")
+        .eq("is_visible", true)
+        .gte("date_time", cutoffTime.toISOString())
+        .order("date_time", { ascending: true })
+        .limit(4);
+
+      if (data) setUpcomingEvents(data);
+    } catch (error) {
+      console.error("Error fetching events:", error);
+    }
+  };
+
+  const getEventEmoji = (type: string) => {
+    switch (type.toLowerCase()) {
+      case "dinner": return "🍽️";
+      case "lunch": return "🥗";
+      case "scavenger_hunt": return "🔍";
+      case "mixer": return "🎉";
+      default: return "✨";
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
-      <section className="relative h-[90vh] min-h-[600px] flex items-center justify-center overflow-hidden">
-        <div className="absolute inset-0 z-0">
-          <img 
-            src={heroImage} 
-            alt="People enjoying dining experience in Addis Ababa" 
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/80 to-background/60" />
-        </div>
+      <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden px-4 py-16">
+        <div className="absolute inset-0 bg-[var(--gradient-hero)] opacity-50" />
         
-        <div className="container mx-auto px-4 relative z-10">
-          <div className="max-w-3xl">
-            <h1 className="text-6xl md:text-7xl lg:text-8xl font-bold mb-6 bg-gradient-to-r from-primary via-primary to-accent bg-clip-text text-transparent leading-tight">
-              Enqoy
-            </h1>
-            <p className="text-2xl md:text-3xl lg:text-4xl text-foreground/90 mb-4 font-medium">
-              Meet amazing people over great food
-            </p>
-            <p className="text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl">
-              Join curated small group dining experiences in Addis Ababa. Connect with like-minded people who share your interests while enjoying delicious meals at the city's best restaurants.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Button 
-                size="lg" 
-                onClick={() => navigate("/auth")} 
-                className="text-lg px-10 py-6 h-auto group"
-              >
-                Get Started
-                <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
-              </Button>
-              <Button 
-                size="lg" 
-                variant="outline" 
-                onClick={() => navigate("/auth")} 
-                className="text-lg px-10 py-6 h-auto border-2"
-              >
-                Browse Events
-              </Button>
-            </div>
+        <div className="container mx-auto max-w-4xl relative z-10 text-center">
+          <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 text-primary leading-tight">
+            Meet New People.<br />
+            Share Great Conversations.
+          </h1>
+          <p className="text-xl md:text-2xl text-foreground/80 mb-4 max-w-2xl mx-auto leading-relaxed">
+            Enqoy connects you to small group lunches and dinners with people you'll actually enjoy meeting.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mt-10">
+            <Button 
+              size="lg" 
+              onClick={() => navigate("/assessment")} 
+              className="text-lg px-10 py-6 h-auto rounded-full shadow-elevated hover:shadow-[var(--shadow-elevated)] transition-all group"
+            >
+              Take the Assessment
+              <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+            </Button>
+            <Button 
+              size="lg" 
+              variant="outline" 
+              onClick={() => navigate("/events")} 
+              className="text-lg px-10 py-6 h-auto rounded-full border-2 border-primary hover:bg-primary/5"
+            >
+              See Upcoming Events
+            </Button>
           </div>
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="py-24 bg-muted/30">
-        <div className="container mx-auto px-4">
+      {/* How It Works */}
+      <section className="py-20 px-4 bg-muted/30">
+        <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-4">How It Works</h2>
+            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-primary">How It Works</h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
               Three simple steps to meaningful connections
             </p>
           </div>
           
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            <Card className="shadow-lg hover:shadow-xl transition-shadow border-2">
-              <CardHeader className="text-center pb-4">
-                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                  <Sparkles className="h-8 w-8 text-primary" />
+          <div className="grid md:grid-cols-3 gap-8">
+            <Card className="text-center shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-elevated)] transition-all rounded-3xl border-2 border-border/50">
+              <CardHeader className="pb-4 pt-8">
+                <div className="w-20 h-20 rounded-full bg-secondary/50 flex items-center justify-center mx-auto mb-6">
+                  <Sparkles className="h-10 w-10 text-primary" />
                 </div>
-                <CardTitle className="text-2xl">Take the Assessment</CardTitle>
-                <CardDescription className="text-base mt-3">
-                  Tell us about yourself so we can match you with the perfect group of people
+                <CardTitle className="text-2xl mb-3">Take the Assessment</CardTitle>
+                <CardDescription className="text-base leading-relaxed px-4">
+                  Tell us a little about yourself so we can match you well.
                 </CardDescription>
               </CardHeader>
             </Card>
             
-            <Card className="shadow-lg hover:shadow-xl transition-shadow border-2">
-              <CardHeader className="text-center pb-4">
-                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                  <Calendar className="h-8 w-8 text-primary" />
+            <Card className="text-center shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-elevated)] transition-all rounded-3xl border-2 border-border/50">
+              <CardHeader className="pb-4 pt-8">
+                <div className="w-20 h-20 rounded-full bg-secondary/50 flex items-center justify-center mx-auto mb-6">
+                  <Calendar className="h-10 w-10 text-primary" />
                 </div>
-                <CardTitle className="text-2xl">Get Matched</CardTitle>
-                <CardDescription className="text-base mt-3">
-                  We'll curate small group lunches and dinners based on your interests and profile
+                <CardTitle className="text-2xl mb-3">Book a Dinner or Lunch</CardTitle>
+                <CardDescription className="text-base leading-relaxed px-4">
+                  Choose from curated events happening every week.
                 </CardDescription>
               </CardHeader>
             </Card>
             
-            <Card className="shadow-lg hover:shadow-xl transition-shadow border-2">
-              <CardHeader className="text-center pb-4">
-                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                  <Users className="h-8 w-8 text-primary" />
+            <Card className="text-center shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-elevated)] transition-all rounded-3xl border-2 border-border/50">
+              <CardHeader className="pb-4 pt-8">
+                <div className="w-20 h-20 rounded-full bg-secondary/50 flex items-center justify-center mx-auto mb-6">
+                  <Users className="h-10 w-10 text-primary" />
                 </div>
-                <CardTitle className="text-2xl">Meet New People</CardTitle>
-                <CardDescription className="text-base mt-3">
-                  Show up and enjoy meaningful connections over delicious food at great venues
+                <CardTitle className="text-2xl mb-3">Show Up & Connect</CardTitle>
+                <CardDescription className="text-base leading-relaxed px-4">
+                  Meet new people in a relaxed, meaningful setting.
                 </CardDescription>
               </CardHeader>
             </Card>
           </div>
         </div>
       </section>
+
+      {/* Upcoming Events Preview */}
+      {upcomingEvents.length > 0 && (
+        <section className="py-20 px-4">
+          <div className="container mx-auto max-w-6xl">
+            <div className="text-center mb-12">
+              <h2 className="text-4xl md:text-5xl font-bold mb-4 text-primary">Upcoming Events</h2>
+              <p className="text-xl text-muted-foreground">Join us for one of these experiences</p>
+            </div>
+            
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              {upcomingEvents.map((event) => (
+                <Card 
+                  key={event.id}
+                  className="shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-elevated)] transition-all cursor-pointer group rounded-2xl border-2 border-border/50"
+                  onClick={() => navigate(`/events/${event.id}`)}
+                >
+                  <CardHeader className="pb-4">
+                    <div className="text-4xl mb-3">{getEventEmoji(event.type)}</div>
+                    <Badge className="w-fit mb-2 rounded-full">{event.type}</Badge>
+                    <CardTitle className="text-lg group-hover:text-primary transition-colors leading-tight">
+                      {event.title}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <Calendar className="h-4 w-4 mr-2" />
+                      {format(new Date(event.date_time), "MMM d, h:mm a")}
+                    </div>
+                    <div className="flex items-center text-sm font-semibold text-primary">
+                      {event.price} Birr
+                    </div>
+                    <Button 
+                      size="sm" 
+                      className="w-full mt-3 rounded-full"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/events/${event.id}`);
+                      }}
+                    >
+                      View Event
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            <div className="text-center">
+              <Button 
+                variant="outline" 
+                size="lg"
+                onClick={() => navigate("/events")}
+                className="rounded-full border-2 border-primary hover:bg-primary/5"
+              >
+                View All Events
+              </Button>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Testimonials */}
+      <section className="py-20 px-4 bg-muted/30">
+        <div className="container mx-auto max-w-6xl">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-primary">What People Are Saying</h2>
+          </div>
+          
+          <div className="grid md:grid-cols-3 gap-8">
+            <Card className="shadow-[var(--shadow-card)] rounded-2xl border-2 border-border/50">
+              <CardContent className="pt-8 pb-6 px-6">
+                <MessageCircle className="h-8 w-8 text-secondary mb-4" />
+                <p className="text-lg leading-relaxed mb-4 italic">
+                  "I met two of my closest friends through Enqoy. Such a wholesome experience."
+                </p>
+                <p className="font-semibold text-primary">— Hana</p>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-[var(--shadow-card)] rounded-2xl border-2 border-border/50">
+              <CardContent className="pt-8 pb-6 px-6">
+                <MessageCircle className="h-8 w-8 text-secondary mb-4" />
+                <p className="text-lg leading-relaxed mb-4 italic">
+                  "I was nervous at first, but the dinner felt so natural. Highly recommended."
+                </p>
+                <p className="font-semibold text-primary">— Nati</p>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-[var(--shadow-card)] rounded-2xl border-2 border-border/50">
+              <CardContent className="pt-8 pb-6 px-6">
+                <MessageCircle className="h-8 w-8 text-secondary mb-4" />
+                <p className="text-lg leading-relaxed mb-4 italic">
+                  "I've never connected with strangers this easily. The vibe is unmatched."
+                </p>
+                <p className="font-semibold text-primary">— Ruth</p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* Emotional Section */}
+      <section className="py-20 px-4">
+        <div className="container mx-auto max-w-4xl text-center">
+          <div className="inline-flex items-center justify-center mb-6">
+            <Heart className="h-12 w-12 text-accent" />
+          </div>
+          <h2 className="text-3xl md:text-4xl font-bold text-primary mb-6 leading-relaxed px-4">
+            New friends, new stories, new memories. Enqoy makes meeting people easier and more meaningful.
+          </h2>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="py-20 px-4 bg-muted/30">
+        <div className="container mx-auto max-w-3xl">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-primary">Frequently Asked Questions</h2>
+          </div>
+          
+          <Accordion type="single" collapsible className="space-y-4">
+            <AccordionItem value="item-1" className="bg-card rounded-2xl px-6 border-2 border-border/50 shadow-[var(--shadow-card)]">
+              <AccordionTrigger className="text-lg font-semibold hover:text-primary text-left">
+                How does Enqoy work?
+              </AccordionTrigger>
+              <AccordionContent className="text-base leading-relaxed text-muted-foreground">
+                You sign up, take the assessment, book an event, and show up for a curated small group experience.
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="item-2" className="bg-card rounded-2xl px-6 border-2 border-border/50 shadow-[var(--shadow-card)]">
+              <AccordionTrigger className="text-lg font-semibold hover:text-primary text-left">
+                Do I need to take the assessment before booking?
+              </AccordionTrigger>
+              <AccordionContent className="text-base leading-relaxed text-muted-foreground">
+                Yes. It helps us match you with people you'll genuinely enjoy meeting.
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="item-3" className="bg-card rounded-2xl px-6 border-2 border-border/50 shadow-[var(--shadow-card)]">
+              <AccordionTrigger className="text-lg font-semibold hover:text-primary text-left">
+                What happens after I book an event?
+              </AccordionTrigger>
+              <AccordionContent className="text-base leading-relaxed text-muted-foreground">
+                You'll get an immediate confirmation. The location is revealed 48 hours before the event, and the attendee snapshot 24 hours before.
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="item-4" className="bg-card rounded-2xl px-6 border-2 border-border/50 shadow-[var(--shadow-card)]">
+              <AccordionTrigger className="text-lg font-semibold hover:text-primary text-left">
+                What if I can't make it?
+              </AccordionTrigger>
+              <AccordionContent className="text-base leading-relaxed text-muted-foreground">
+                You can reschedule if you cancel at least 48 hours before the event.
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="item-5" className="bg-card rounded-2xl px-6 border-2 border-border/50 shadow-[var(--shadow-card)]">
+              <AccordionTrigger className="text-lg font-semibold hover:text-primary text-left">
+                Do I need photos or a profile?
+              </AccordionTrigger>
+              <AccordionContent className="text-base leading-relaxed text-muted-foreground">
+                No photos needed for now. Just your assessment and basic details.
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="item-6" className="bg-card rounded-2xl px-6 border-2 border-border/50 shadow-[var(--shadow-card)]">
+              <AccordionTrigger className="text-lg font-semibold hover:text-primary text-left">
+                Is this a dating app?
+              </AccordionTrigger>
+              <AccordionContent className="text-base leading-relaxed text-muted-foreground">
+                No. Enqoy is for building friendships and meaningful conversations.
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="py-12 px-4 bg-primary text-primary-foreground">
+        <div className="container mx-auto max-w-6xl">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-6">
+            <div className="text-2xl font-bold">Enqoy</div>
+            <nav className="flex flex-wrap justify-center gap-6 text-sm">
+              <a href="#" className="hover:text-accent transition-colors">About</a>
+              <a href="#" className="hover:text-accent transition-colors">Contact</a>
+              <a href="#" className="hover:text-accent transition-colors">Terms</a>
+              <a href="#" className="hover:text-accent transition-colors">Privacy</a>
+            </nav>
+          </div>
+          <div className="text-center text-sm opacity-80">
+            Made with ❤️ in Addis Ababa
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };
