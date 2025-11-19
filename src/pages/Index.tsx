@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Sparkles, Calendar, Users, ArrowRight, Heart, MessageCircle, MapPin } from "lucide-react";
 import { format } from "date-fns";
+import useEmblaCarousel from "embla-carousel-react";
+import heroDinnerTable from "@/assets/hero-dinner-table.jpg";
 
 interface Event {
   id: string;
@@ -53,11 +55,27 @@ const Index = () => {
     }
   };
 
+  const [emblaRefHowItWorks] = useEmblaCarousel({ 
+    align: "start",
+    containScroll: "trimSnaps",
+    dragFree: true
+  });
+  
+  const [emblaRefTestimonials] = useEmblaCarousel({ 
+    align: "start",
+    containScroll: "trimSnaps",
+    dragFree: true
+  });
+
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
       <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden px-4 py-16">
-        <div className="absolute inset-0 bg-[var(--gradient-hero)] opacity-50" />
+        <div 
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: `url(${heroDinnerTable})` }}
+        />
+        <div className="absolute inset-0 bg-primary/60" />
         
         <div className="container mx-auto max-w-4xl relative z-10 text-center">
           <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 text-primary leading-tight">
@@ -98,7 +116,8 @@ const Index = () => {
             </p>
           </div>
           
-          <div className="grid md:grid-cols-3 gap-8">
+          {/* Desktop: Grid */}
+          <div className="hidden md:grid md:grid-cols-3 gap-8">
             <Card className="text-center shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-elevated)] transition-all rounded-3xl border-2 border-border/50">
               <CardHeader className="pb-4 pt-8">
                 <div className="w-20 h-20 rounded-full bg-secondary/50 flex items-center justify-center mx-auto mb-6">
@@ -134,6 +153,53 @@ const Index = () => {
                 </CardDescription>
               </CardHeader>
             </Card>
+          </div>
+
+          {/* Mobile: Swipeable Carousel */}
+          <div className="md:hidden overflow-hidden" ref={emblaRefHowItWorks}>
+            <div className="flex gap-4">
+              <div className="flex-[0_0_85%] min-w-0">
+                <Card className="text-center shadow-[var(--shadow-card)] rounded-3xl border-2 border-border/50 h-full">
+                  <CardHeader className="pb-4 pt-8">
+                    <div className="w-20 h-20 rounded-full bg-secondary/50 flex items-center justify-center mx-auto mb-6">
+                      <Sparkles className="h-10 w-10 text-primary" />
+                    </div>
+                    <CardTitle className="text-2xl mb-3">Take the Assessment</CardTitle>
+                    <CardDescription className="text-base leading-relaxed px-4">
+                      Tell us a little about yourself so we can match you well.
+                    </CardDescription>
+                  </CardHeader>
+                </Card>
+              </div>
+              
+              <div className="flex-[0_0_85%] min-w-0">
+                <Card className="text-center shadow-[var(--shadow-card)] rounded-3xl border-2 border-border/50 h-full">
+                  <CardHeader className="pb-4 pt-8">
+                    <div className="w-20 h-20 rounded-full bg-secondary/50 flex items-center justify-center mx-auto mb-6">
+                      <Calendar className="h-10 w-10 text-primary" />
+                    </div>
+                    <CardTitle className="text-2xl mb-3">Book a Dinner or Lunch</CardTitle>
+                    <CardDescription className="text-base leading-relaxed px-4">
+                      Choose from curated events happening every week.
+                    </CardDescription>
+                  </CardHeader>
+                </Card>
+              </div>
+              
+              <div className="flex-[0_0_85%] min-w-0">
+                <Card className="text-center shadow-[var(--shadow-card)] rounded-3xl border-2 border-border/50 h-full">
+                  <CardHeader className="pb-4 pt-8">
+                    <div className="w-20 h-20 rounded-full bg-secondary/50 flex items-center justify-center mx-auto mb-6">
+                      <Users className="h-10 w-10 text-primary" />
+                    </div>
+                    <CardTitle className="text-2xl mb-3">Show Up & Connect</CardTitle>
+                    <CardDescription className="text-base leading-relaxed px-4">
+                      Meet new people in a relaxed, meaningful setting.
+                    </CardDescription>
+                  </CardHeader>
+                </Card>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -205,7 +271,8 @@ const Index = () => {
             <h2 className="text-4xl md:text-5xl font-bold mb-4 text-primary">What People Are Saying</h2>
           </div>
           
-          <div className="grid md:grid-cols-3 gap-8">
+          {/* Desktop: Grid */}
+          <div className="hidden md:grid md:grid-cols-3 gap-8">
             <Card className="shadow-[var(--shadow-card)] rounded-2xl border-2 border-border/50">
               <CardContent className="pt-8 pb-6 px-6">
                 <MessageCircle className="h-8 w-8 text-secondary mb-4" />
@@ -235,6 +302,47 @@ const Index = () => {
                 <p className="font-semibold text-primary">— Ruth</p>
               </CardContent>
             </Card>
+          </div>
+
+          {/* Mobile: Swipeable Carousel */}
+          <div className="md:hidden overflow-hidden" ref={emblaRefTestimonials}>
+            <div className="flex gap-4">
+              <div className="flex-[0_0_85%] min-w-0">
+                <Card className="shadow-[var(--shadow-card)] rounded-2xl border-2 border-border/50 h-full">
+                  <CardContent className="pt-8 pb-6 px-6">
+                    <MessageCircle className="h-8 w-8 text-secondary mb-4" />
+                    <p className="text-lg leading-relaxed mb-4 italic">
+                      "I met two of my closest friends through Enqoy. Such a wholesome experience."
+                    </p>
+                    <p className="font-semibold text-primary">— Hana</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="flex-[0_0_85%] min-w-0">
+                <Card className="shadow-[var(--shadow-card)] rounded-2xl border-2 border-border/50 h-full">
+                  <CardContent className="pt-8 pb-6 px-6">
+                    <MessageCircle className="h-8 w-8 text-secondary mb-4" />
+                    <p className="text-lg leading-relaxed mb-4 italic">
+                      "I was nervous at first, but the dinner felt so natural. Highly recommended."
+                    </p>
+                    <p className="font-semibold text-primary">— Nati</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="flex-[0_0_85%] min-w-0">
+                <Card className="shadow-[var(--shadow-card)] rounded-2xl border-2 border-border/50 h-full">
+                  <CardContent className="pt-8 pb-6 px-6">
+                    <MessageCircle className="h-8 w-8 text-secondary mb-4" />
+                    <p className="text-lg leading-relaxed mb-4 italic">
+                      "I've never connected with strangers this easily. The vibe is unmatched."
+                    </p>
+                    <p className="font-semibold text-primary">— Ruth</p>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
           </div>
         </div>
       </section>
