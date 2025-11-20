@@ -9,6 +9,7 @@ import { Sparkles, Calendar, Users, ArrowRight, Heart, MessageCircle, MapPin } f
 import { format } from "date-fns";
 import useEmblaCarousel from "embla-carousel-react";
 import heroDinnerTable from "@/assets/hero-dinner-table.jpg";
+import heroDining from "@/assets/hero-dining.jpg";
 
 interface Event {
   id: string;
@@ -78,11 +79,11 @@ const Index = () => {
         <div className="absolute inset-0 bg-primary/60" />
         
         <div className="container mx-auto max-w-4xl relative z-10 text-center">
-          <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 text-primary leading-tight">
+          <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 text-white leading-tight drop-shadow-lg">
             Meet New People.<br />
             Share Great Conversations.
           </h1>
-          <p className="text-xl md:text-2xl text-foreground/80 mb-4 max-w-2xl mx-auto leading-relaxed">
+          <p className="text-xl md:text-2xl text-white/90 mb-4 max-w-2xl mx-auto leading-relaxed drop-shadow-md">
             Enqoy connects you to small group lunches and dinners with people you'll actually enjoy meeting.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center mt-10">
@@ -348,12 +349,18 @@ const Index = () => {
       </section>
 
       {/* Emotional Section */}
-      <section className="py-20 px-4">
-        <div className="container mx-auto max-w-4xl text-center">
+      <section className="relative py-32 px-4 overflow-hidden">
+        <div 
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: `url(${heroDining})` }}
+        />
+        <div className="absolute inset-0 bg-primary/70" />
+        
+        <div className="container mx-auto max-w-4xl text-center relative z-10">
           <div className="inline-flex items-center justify-center mb-6">
-            <Heart className="h-12 w-12 text-accent" />
+            <Heart className="h-12 w-12 text-secondary drop-shadow-md" />
           </div>
-          <h2 className="text-3xl md:text-4xl font-bold text-primary mb-6 leading-relaxed px-4">
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-6 leading-relaxed px-4 drop-shadow-lg">
             New friends, new stories, new memories. Enqoy makes meeting people easier and more meaningful.
           </h2>
         </div>
