@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar, MapPin, Users, LogOut, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import heroDining from "@/assets/hero-dining.jpg";
 
 interface Event {
   id: string;
@@ -29,12 +30,22 @@ interface Announcement {
   body: string;
 }
 
+interface UpcomingEvent {
+  id: string;
+  title: string;
+  type: string;
+  date_time: string;
+  price: number;
+  venues: { name: string } | null;
+}
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<any>(null);
   const [upcomingBookings, setUpcomingBookings] = useState<Booking[]>([]);
   const [pastBookings, setPastBookings] = useState<Booking[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -83,9 +94,24 @@ const Dashboard = () => {
         .select("*")
         .eq("is_active", true)
         .order("created_at", { ascending: false })
-        .limit(3);
+        .limit(1);
 
       setAnnouncements(announcementsData || []);
+
+      // Fetch upcoming events (next 2)
+      const now = new Date().toISOString();
+      const { data: eventsData } = await supabase
+        .from("events")
+        .select(`
+          *,
+          venues (name)
+        `)
+        .eq("is_visible", true)
+        .gte("date_time", now)
+        .order("date_time", { ascending: true })
+        .limit(2);
+
+      setUpcomingEvents(eventsData || []);
     } catch (error: any) {
       toast.error("Failed to load dashboard");
     } finally {
@@ -129,40 +155,91 @@ const Dashboard = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8 space-y-8">
-        <section>
-          <Card className="shadow-card">
-            <CardHeader>
-              <CardTitle>Welcome back, {profile?.full_name}!</CardTitle>
-              <CardDescription>
-                Ready to meet amazing people?
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button onClick={() => navigate("/events")} size="lg" className="w-full sm:w-auto">
-                <Users className="h-4 w-4 mr-2" />
-                Browse Events
-              </Button>
-            </CardContent>
-          </Card>
-        </section>
-
         {announcements.length > 0 && (
-          <section>
-            <h2 className="text-2xl font-bold mb-4">Announcements</h2>
-            <div className="space-y-3">
-              {announcements.map((announcement) => (
-                <Card key={announcement.id} className="shadow-card">
-                  <CardHeader>
-                    <CardTitle className="text-lg">{announcement.title}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground">{announcement.body}</p>
-                  </CardContent>
-                </Card>
-              ))}
+          <section className="relative rounded-xl overflow-hidden shadow-elevated">
+            <div 
+              className="absolute inset-0 bg-cover bg-center"
+              style={{ backgroundImage: `url(${heroDining})` }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/60 to-transparent" />
+            <div className="relative z-10 px-8 py-16 md:py-24 max-w-2xl">
+              <h2 className="text-4xl md:text-5xl font-bold text-white mb-4 drop-shadow-lg">
+                {announcements[0].title}
+              </h2>
+              <p className="text-lg text-white/90 mb-8 drop-shadow-lg leading-relaxed">
+                {announcements[0].body}
+              </p>
+              <Button size="lg" onClick={() => navigate("/events")} className="shadow-lg">
+                Explore Events
+              </Button>
             </div>
           </section>
         )}
+
+        <section>
+          <div className="mb-6">
+            <h2 className="text-2xl font-bold mb-2">Upcoming Events</h2>
+            <p className="text-muted-foreground">Check out what's coming up next</p>
+          </div>
+          
+          {upcomingEvents.length === 0 ? (
+            <Card className="shadow-card">
+              <CardContent className="py-8 text-center">
+                <p className="text-muted-foreground mb-4">
+                  No upcoming events available at the moment.
+                </p>
+                <Button onClick={() => navigate("/events")}>
+                  Browse All Events
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              <div className="grid gap-4 md:grid-cols-2 mb-4">
+                {upcomingEvents.map((event) => (
+                  <Card
+                    key={event.id}
+                    className="shadow-card hover:shadow-elevated transition-shadow cursor-pointer"
+                    onClick={() => navigate(`/events/${event.id}`)}
+                  >
+                    <CardHeader>
+                      <div className="flex justify-between items-start">
+                        <CardTitle>{event.title}</CardTitle>
+                        <Badge>{event.type}</Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm">
+                        <Calendar className="h-4 w-4 text-primary" />
+                        <span>{format(new Date(event.date_time), "PPP 'at' p")}</span>
+                      </div>
+                      {event.venues && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <MapPin className="h-4 w-4 text-primary" />
+                          <span>{event.venues.name}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between mt-4">
+                        <span className="text-lg font-semibold text-primary">
+                          {event.price} ETB
+                        </span>
+                        <Button size="sm" variant="secondary">
+                          View Details
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+              <div className="flex justify-center">
+                <Button onClick={() => navigate("/events")} variant="outline" size="lg">
+                  <Users className="h-4 w-4 mr-2" />
+                  Browse All Events
+                </Button>
+              </div>
+            </>
+          )}
+        </section>
 
         <section>
           <h2 className="text-2xl font-bold mb-4">My upcoming events</h2>
