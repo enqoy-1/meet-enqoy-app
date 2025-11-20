@@ -8,7 +8,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Sparkles, Calendar, Users, ArrowRight, Heart, MessageCircle, MapPin } from "lucide-react";
 import { format } from "date-fns";
 import useEmblaCarousel from "embla-carousel-react";
-import heroDinnerTable from "@/assets/hero-dinner-table.jpg";
+import heroDinnerTable from "@/assets/hero-dinner-group.jpg";
 import heroDining from "@/assets/hero-dining.jpg";
 
 interface Event {
