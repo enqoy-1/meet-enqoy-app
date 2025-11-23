@@ -4,12 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, Download } from "lucide-react";
+import { Plus, Pencil, Trash2, Download, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { IceBreakerGame } from "@/components/IceBreakerGame";
 
 interface IcebreakerQuestion {
   id: string;
@@ -23,6 +24,7 @@ export default function AdminIcebreakers() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isGameOpen, setIsGameOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<IcebreakerQuestion | null>(null);
   const [formData, setFormData] = useState({
     question_text: "",
@@ -149,6 +151,10 @@ export default function AdminIcebreakers() {
             <p className="text-muted-foreground">Manage icebreaker questions</p>
           </div>
           <div className="flex gap-2">
+            <Button onClick={() => setIsGameOpen(true)} variant="outline">
+              <Eye className="h-4 w-4 mr-2" />
+              Preview Game
+            </Button>
             <Button onClick={exportToCSV} variant="outline">
               <Download className="h-4 w-4 mr-2" />
               Export CSV
@@ -242,6 +248,13 @@ export default function AdminIcebreakers() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Ice Breaker Game Preview */}
+      <IceBreakerGame
+        isOpen={isGameOpen}
+        onClose={() => setIsGameOpen(false)}
+        eventId="preview"
+      />
     </AdminLayout>
   );
 }
