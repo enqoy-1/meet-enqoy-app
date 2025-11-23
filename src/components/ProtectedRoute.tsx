@@ -61,7 +61,10 @@ const ProtectedRoute = ({
 
       setIsAdmin(!!userRole);
     } catch (error) {
-      console.error("Auth check error:", error);
+      // Security: Only log in development to prevent information leakage
+      if (import.meta.env.DEV) {
+        console.error("Auth check error:", error);
+      }
     } finally {
       setIsLoading(false);
     }

@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { authSchemas, validateData } from "@/lib/validation";
+
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -19,6 +21,25 @@ const Auth = () => {
     e.preventDefault();
     if (!email || !password || !fullName) {
       toast.error("Please fill in all fields");
+      return;
+    }
+
+    // Validate inputs
+    const emailValidation = validateData(authSchemas.email, email);
+    if (!emailValidation.success) {
+      toast.error(emailValidation.error.errors[0].message);
+      return;
+    }
+
+    const passwordValidation = validateData(authSchemas.password, password);
+    if (!passwordValidation.success) {
+      toast.error(passwordValidation.error.errors[0].message);
+      return;
+    }
+
+    const nameValidation = validateData(authSchemas.fullName, fullName);
+    if (!nameValidation.success) {
+      toast.error(nameValidation.error.errors[0].message);
       return;
     }
 
@@ -50,6 +71,13 @@ const Auth = () => {
     e.preventDefault();
     if (!email || !password) {
       toast.error("Please fill in all fields");
+      return;
+    }
+
+    // Validate email format
+    const emailValidation = validateData(authSchemas.email, email);
+    if (!emailValidation.success) {
+      toast.error(emailValidation.error.errors[0].message);
       return;
     }
 

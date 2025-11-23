@@ -116,15 +116,21 @@ const EventDetail = () => {
     if (!userId || !event) return;
 
     try {
-      // Mock payment flow - in production, integrate with Telebirr
-      const paymentReference = `PAY-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      // Generate secure payment reference on backend
+      const { data: paymentData, error: paymentError } = await supabase.functions.invoke(
+        'generate-payment-reference'
+      );
+
+      if (paymentError || !paymentData?.paymentReference) {
+        throw new Error('Failed to generate payment reference');
+      }
 
       const { error } = await supabase.from("bookings").insert({
         user_id: userId,
         event_id: event.id,
         status: "confirmed",
         amount_paid: event.price,
-        payment_reference: paymentReference,
+        payment_reference: paymentData.paymentReference,
       });
 
       if (error) {
