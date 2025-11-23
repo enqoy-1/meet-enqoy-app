@@ -784,10 +784,6 @@ const Assessment = () => {
       case 18:
         return (
           <div className="space-y-4">
-            <div className="mb-4">
-              <h3 className="text-lg font-semibold mb-2">Section 3: Personal Details</h3>
-              <p className="text-sm text-muted-foreground">You're almost done! Next, tell us a little about yourself! These details help us personalize your experience.</p>
-            </div>
             <Label className="text-base">Gender</Label>
             <RadioGroup value={gender} onValueChange={setGender}>
               <div className="flex items-center space-x-2">
