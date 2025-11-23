@@ -1137,28 +1137,30 @@ const Assessment = () => {
           <Progress value={(step / TOTAL_STEPS) * 100} className="mt-2" />
         </CardHeader>
         <CardContent className="space-y-6">
-          {renderStep()}
-          
-          <div className="flex justify-between pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleBack}
-              disabled={step === 1}
-            >
-              Back
-            </Button>
+          <form onSubmit={(e) => e.preventDefault()}>
+            {renderStep()}
             
-            {step < TOTAL_STEPS ? (
-              <Button type="button" onClick={handleNext}>
-                Next
+            <div className="flex justify-between pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleBack}
+                disabled={step === 1}
+              >
+                Back
               </Button>
-            ) : (
-              <Button type="button" onClick={handleSubmit} disabled={loading}>
-                {loading ? "Submitting..." : "Complete Assessment"}
-              </Button>
-            )}
-          </div>
+              
+              {step < TOTAL_STEPS ? (
+                <Button type="button" onClick={handleNext}>
+                  Next
+                </Button>
+              ) : (
+                <Button type="button" onClick={handleSubmit} disabled={loading}>
+                  {loading ? "Submitting..." : "Complete Assessment"}
+                </Button>
+              )}
+            </div>
+          </form>
         </CardContent>
       </Card>
       )}
