@@ -72,31 +72,31 @@ const AdminAssessmentResponses = () => {
       "Name",
       "Email",
       "Submission Date",
-      "City",
-      "Preferred Time",
-      "Dinner Vibe",
-      "Talk Topic",
-      "Group Dynamic",
-      "Humor Type",
-      "Wardrobe Style",
-      "Introvert Scale",
-      "Alone Time Scale",
-      "Family Scale",
-      "Spirituality Scale",
-      "Humor Scale",
-      "Meeting Priority",
-      "Dietary Preferences",
-      "Custom Dietary",
-      "Restaurant Frequency",
-      "Spending",
+      "Which city would you like to attend Enqoy from?",
+      "Would you prefer to attend an Enqoy experience during lunch or dinner?",
+      "Which statement best describes your vibe at dinner?",
+      "If you could talk about one topic all night, what would it be?",
+      "What does your ideal group dynamic look like?",
+      "What kind of humor do you enjoy?",
+      "If your personality were a wardrobe, would it be filled with",
+      "I am an introverted person (1-5 scale)",
+      "I enjoy spending time alone to recharge and reflect (1-5 scale)",
+      "How important is staying close to family and loved ones? (1-5 scale)",
+      "How important is having a sense of spirituality or deeper meaning in life? (1-5 scale)",
+      "How important is sharing laughter and enjoying humor with others? (1-5 scale)",
+      "What's most important to you when meeting new people?",
+      "Do you have any dietary preferences or restrictions?",
+      "Custom Dietary Restrictions",
+      "How often do you go out to restaurants every month?",
+      "How much do you usually spend on yourself when out with friends?",
       "Gender",
-      "Relationship Status",
-      "Has Children",
-      "Country",
-      "Birthday",
+      "What is your relationship status?",
+      "Do you have children?",
+      "What country are you from?",
+      "When is your birthday?",
       "Nickname",
-      "Never Guess",
-      "Fun Fact",
+      "What's one thing people would never guess about you?",
+      "Share a fun fact about yourself",
     ];
 
     const csvData = filteredResponses.map((response) => {
@@ -196,34 +196,34 @@ const AdminAssessmentResponses = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="min-w-[150px]">Name</TableHead>
-                    <TableHead className="min-w-[200px]">Email</TableHead>
+                    <TableHead className="sticky left-0 z-20 bg-background min-w-[150px]">Name</TableHead>
+                    <TableHead className="sticky left-[150px] z-20 bg-background min-w-[200px]">Email</TableHead>
                     <TableHead className="min-w-[120px]">Submitted</TableHead>
-                    <TableHead className="min-w-[120px]">City</TableHead>
-                    <TableHead className="min-w-[140px]">Preferred Time</TableHead>
-                    <TableHead className="min-w-[140px]">Dinner Vibe</TableHead>
-                    <TableHead className="min-w-[140px]">Talk Topic</TableHead>
-                    <TableHead className="min-w-[140px]">Group Dynamic</TableHead>
-                    <TableHead className="min-w-[140px]">Humor Type</TableHead>
-                    <TableHead className="min-w-[140px]">Wardrobe Style</TableHead>
-                    <TableHead className="min-w-[140px]">Introvert Scale</TableHead>
-                    <TableHead className="min-w-[140px]">Alone Time Scale</TableHead>
-                    <TableHead className="min-w-[140px]">Family Importance</TableHead>
-                    <TableHead className="min-w-[140px]">Spirituality</TableHead>
-                    <TableHead className="min-w-[140px]">Humor Importance</TableHead>
-                    <TableHead className="min-w-[140px]">Meeting Priority</TableHead>
-                    <TableHead className="min-w-[160px]">Dietary Preferences</TableHead>
-                    <TableHead className="min-w-[160px]">Custom Dietary</TableHead>
-                    <TableHead className="min-w-[160px]">Restaurant Frequency</TableHead>
-                    <TableHead className="min-w-[140px]">Spending Range</TableHead>
+                    <TableHead className="min-w-[300px]">Which city would you like to attend Enqoy from?</TableHead>
+                    <TableHead className="min-w-[350px]">Would you prefer to attend an Enqoy experience during lunch or dinner?</TableHead>
+                    <TableHead className="min-w-[350px]">Which statement best describes your vibe at dinner?</TableHead>
+                    <TableHead className="min-w-[350px]">If you could talk about one topic all night, what would it be?</TableHead>
+                    <TableHead className="min-w-[300px]">What does your ideal group dynamic look like?</TableHead>
+                    <TableHead className="min-w-[300px]">What kind of humor do you enjoy?</TableHead>
+                    <TableHead className="min-w-[350px]">If your personality were a wardrobe, would it be filled with</TableHead>
+                    <TableHead className="min-w-[300px]">I am an introverted person (1-5 scale)</TableHead>
+                    <TableHead className="min-w-[350px]">I enjoy spending time alone to recharge and reflect (1-5 scale)</TableHead>
+                    <TableHead className="min-w-[350px]">How important is staying close to family and loved ones? (1-5 scale)</TableHead>
+                    <TableHead className="min-w-[400px]">How important is having a sense of spirituality or deeper meaning in life? (1-5 scale)</TableHead>
+                    <TableHead className="min-w-[400px]">How important is sharing laughter and enjoying humor with others? (1-5 scale)</TableHead>
+                    <TableHead className="min-w-[350px]">What&apos;s most important to you when meeting new people?</TableHead>
+                    <TableHead className="min-w-[350px]">Do you have any dietary preferences or restrictions?</TableHead>
+                    <TableHead className="min-w-[300px]">Custom Dietary Restrictions</TableHead>
+                    <TableHead className="min-w-[350px]">How often do you go out to restaurants every month?</TableHead>
+                    <TableHead className="min-w-[400px]">How much do you usually spend on yourself when out with friends?</TableHead>
                     <TableHead className="min-w-[100px]">Gender</TableHead>
-                    <TableHead className="min-w-[160px]">Relationship Status</TableHead>
-                    <TableHead className="min-w-[120px]">Has Children</TableHead>
-                    <TableHead className="min-w-[120px]">Country</TableHead>
-                    <TableHead className="min-w-[120px]">Birthday</TableHead>
+                    <TableHead className="min-w-[300px]">What is your relationship status?</TableHead>
+                    <TableHead className="min-w-[200px]">Do you have children?</TableHead>
+                    <TableHead className="min-w-[250px]">What country are you from?</TableHead>
+                    <TableHead className="min-w-[200px]">When is your birthday?</TableHead>
                     <TableHead className="min-w-[140px]">Nickname</TableHead>
-                    <TableHead className="min-w-[250px]">Never Guess About Me</TableHead>
-                    <TableHead className="min-w-[250px]">Fun Fact</TableHead>
+                    <TableHead className="min-w-[400px]">What&apos;s one thing people would never guess about you?</TableHead>
+                    <TableHead className="min-w-[400px]">Share a fun fact about yourself</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -231,40 +231,42 @@ const AdminAssessmentResponses = () => {
                     const answers = response.answers;
                     return (
                       <TableRow key={response.id}>
-                        <TableCell className="font-medium">
+                        <TableCell className="sticky left-0 z-10 bg-background font-medium border-r">
                           {response.profiles?.full_name || "N/A"}
                         </TableCell>
-                        <TableCell>{response.profiles?.email || "N/A"}</TableCell>
+                        <TableCell className="sticky left-[150px] z-10 bg-background border-r">
+                          {response.profiles?.email || "N/A"}
+                        </TableCell>
                         <TableCell>
                           {new Date(response.created_at).toLocaleDateString()}
                         </TableCell>
-                        <TableCell>{formatAnswer("city", answers.city)}</TableCell>
-                        <TableCell>{formatAnswer("preferredTime", answers.preferredTime)}</TableCell>
-                        <TableCell>{formatAnswer("dinnerVibe", answers.dinnerVibe)}</TableCell>
-                        <TableCell>{formatAnswer("talkTopic", answers.talkTopic)}</TableCell>
-                        <TableCell>{formatAnswer("groupDynamic", answers.groupDynamic)}</TableCell>
-                        <TableCell>{formatAnswer("humorType", answers.humorType)}</TableCell>
-                        <TableCell>{formatAnswer("wardrobeStyle", answers.wardrobeStyle)}</TableCell>
+                        <TableCell className="whitespace-normal">{formatAnswer("city", answers.city)}</TableCell>
+                        <TableCell className="whitespace-normal">{formatAnswer("preferredTime", answers.preferredTime)}</TableCell>
+                        <TableCell className="whitespace-normal">{formatAnswer("dinnerVibe", answers.dinnerVibe)}</TableCell>
+                        <TableCell className="whitespace-normal">{formatAnswer("talkTopic", answers.talkTopic)}</TableCell>
+                        <TableCell className="whitespace-normal">{formatAnswer("groupDynamic", answers.groupDynamic)}</TableCell>
+                        <TableCell className="whitespace-normal">{formatAnswer("humorType", answers.humorType)}</TableCell>
+                        <TableCell className="whitespace-normal">{formatAnswer("wardrobeStyle", answers.wardrobeStyle)}</TableCell>
                         <TableCell>{answers.introvertScale}/5</TableCell>
                         <TableCell>{answers.aloneTimeScale}/5</TableCell>
                         <TableCell>{answers.familyScale}/5</TableCell>
                         <TableCell>{answers.spiritualityScale}/5</TableCell>
                         <TableCell>{answers.humorScale}/5</TableCell>
-                        <TableCell>{formatAnswer("meetingPriority", answers.meetingPriority)}</TableCell>
-                        <TableCell>{formatAnswer("dietaryPreferences", answers.dietaryPreferences)}</TableCell>
-                        <TableCell>{formatAnswer("customDietary", answers.customDietary)}</TableCell>
-                        <TableCell>{formatAnswer("restaurantFrequency", answers.restaurantFrequency)}</TableCell>
-                        <TableCell>{formatAnswer("spending", answers.spending)}</TableCell>
+                        <TableCell className="whitespace-normal">{formatAnswer("meetingPriority", answers.meetingPriority)}</TableCell>
+                        <TableCell className="whitespace-normal">{formatAnswer("dietaryPreferences", answers.dietaryPreferences)}</TableCell>
+                        <TableCell className="whitespace-normal">{formatAnswer("customDietary", answers.customDietary)}</TableCell>
+                        <TableCell className="whitespace-normal">{formatAnswer("restaurantFrequency", answers.restaurantFrequency)}</TableCell>
+                        <TableCell className="whitespace-normal">{formatAnswer("spending", answers.spending)}</TableCell>
                         <TableCell>{formatAnswer("gender", answers.gender)}</TableCell>
-                        <TableCell>{formatAnswer("relationshipStatus", answers.relationshipStatus)}</TableCell>
+                        <TableCell className="whitespace-normal">{formatAnswer("relationshipStatus", answers.relationshipStatus)}</TableCell>
                         <TableCell>{formatAnswer("hasChildren", answers.hasChildren)}</TableCell>
-                        <TableCell>{formatAnswer("country", answers.country)}</TableCell>
+                        <TableCell className="whitespace-normal">{formatAnswer("country", answers.country)}</TableCell>
                         <TableCell>{formatAnswer("birthday", answers.birthday)}</TableCell>
-                        <TableCell>{formatAnswer("nickName", answers.nickName)}</TableCell>
-                        <TableCell className="whitespace-normal max-w-[250px]">
+                        <TableCell className="whitespace-normal">{formatAnswer("nickName", answers.nickName)}</TableCell>
+                        <TableCell className="whitespace-normal">
                           {formatAnswer("neverGuess", answers.neverGuess)}
                         </TableCell>
-                        <TableCell className="whitespace-normal max-w-[250px]">
+                        <TableCell className="whitespace-normal">
                           {formatAnswer("funFact", answers.funFact)}
                         </TableCell>
                       </TableRow>
