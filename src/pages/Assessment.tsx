@@ -311,7 +311,18 @@ const Assessment = () => {
       case 19: return !!relationshipStatus;
       case 20: return !!hasChildren;
       case 21: return !!country;
-      case 22: return !!birthday;
+      case 22: 
+        if (!birthday) return false;
+        const age = new Date().getFullYear() - birthday.getFullYear();
+        const monthDiff = new Date().getMonth() - birthday.getMonth();
+        const dayDiff = new Date().getDate() - birthday.getDate();
+        const actualAge = monthDiff < 0 || (monthDiff === 0 && dayDiff < 0) ? age - 1 : age;
+        
+        if (actualAge < 18) {
+          toast.error("You must be at least 18 years old to create an account");
+          return false;
+        }
+        return true;
       case 23: return !!nickName && !!neverGuess && !!funFact;
       default: return false;
     }
