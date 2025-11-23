@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,6 +14,14 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+
+interface Venue {
+  id: string;
+  name: string;
+  address: string;
+  google_maps_link: string | null;
+  notes: string | null;
+}
 
 interface Table {
   id: string;
@@ -38,6 +47,8 @@ interface RestaurantManagerProps {
 }
 
 export const RestaurantManager = ({ eventId, restaurants, onRefresh }: RestaurantManagerProps) => {
+  const [venues, setVenues] = useState<Venue[]>([]);
+  const [selectedVenueId, setSelectedVenueId] = useState<string>("");
   const [newRestaurant, setNewRestaurant] = useState({
     name: "",
     address: "",
@@ -46,6 +57,38 @@ export const RestaurantManager = ({ eventId, restaurants, onRefresh }: Restauran
     notes: "",
   });
   const [newTables, setNewTables] = useState<Record<string, { name: string; capacity: string }>>({});
+
+  useEffect(() => {
+    fetchVenues();
+  }, []);
+
+  const fetchVenues = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("venues")
+        .select("*")
+        .order("name", { ascending: true });
+
+      if (error) throw error;
+      setVenues(data || []);
+    } catch (error) {
+      toast.error("Failed to load venues");
+    }
+  };
+
+  const handleVenueSelect = (venueId: string) => {
+    setSelectedVenueId(venueId);
+    const venue = venues.find(v => v.id === venueId);
+    if (venue) {
+      setNewRestaurant({
+        name: venue.name,
+        address: venue.address,
+        contact_name: "",
+        contact_phone: "",
+        notes: venue.notes || "",
+      });
+    }
+  };
 
   const handleAddRestaurant = async () => {
     if (!newRestaurant.name) {
@@ -67,6 +110,7 @@ export const RestaurantManager = ({ eventId, restaurants, onRefresh }: Restauran
       if (error) throw error;
 
       toast.success("Restaurant added successfully");
+      setSelectedVenueId("");
       setNewRestaurant({
         name: "",
         address: "",
@@ -145,57 +189,78 @@ export const RestaurantManager = ({ eventId, restaurants, onRefresh }: Restauran
           <CardTitle>Add New Restaurant</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="rest_name">Restaurant Name *</Label>
-              <Input
-                id="rest_name"
-                value={newRestaurant.name}
-                onChange={(e) => setNewRestaurant({ ...newRestaurant, name: e.target.value })}
-                placeholder="Restaurant name"
-              />
+              <Label htmlFor="venue_select">Select from Venues</Label>
+              <Select value={selectedVenueId} onValueChange={handleVenueSelect}>
+                <SelectTrigger id="venue_select">
+                  <SelectValue placeholder="Choose a venue or enter manually below" />
+                </SelectTrigger>
+                <SelectContent>
+                  {venues.map((venue) => (
+                    <SelectItem key={venue.id} value={venue.id}>
+                      {venue.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Or fill in the details manually below
+              </p>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="address">Address</Label>
-              <Input
-                id="address"
-                value={newRestaurant.address}
-                onChange={(e) => setNewRestaurant({ ...newRestaurant, address: e.target.value })}
-                placeholder="123 Main St"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="contact_name">Contact Name</Label>
-              <Input
-                id="contact_name"
-                value={newRestaurant.contact_name}
-                onChange={(e) => setNewRestaurant({ ...newRestaurant, contact_name: e.target.value })}
-                placeholder="Manager name"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="contact_phone">Contact Phone</Label>
-              <Input
-                id="contact_phone"
-                value={newRestaurant.contact_phone}
-                onChange={(e) => setNewRestaurant({ ...newRestaurant, contact_phone: e.target.value })}
-                placeholder="+251912345678"
-              />
-            </div>
-            <div className="col-span-2 space-y-2">
-              <Label htmlFor="notes">Notes</Label>
-              <Textarea
-                id="notes"
-                value={newRestaurant.notes}
-                onChange={(e) => setNewRestaurant({ ...newRestaurant, notes: e.target.value })}
-                placeholder="Special instructions or notes"
-              />
-            </div>
-            <div className="col-span-2">
-              <Button onClick={handleAddRestaurant}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Restaurant
-              </Button>
+
+            <div className="grid grid-cols-2 gap-4 pt-2">
+              <div className="space-y-2">
+                <Label htmlFor="rest_name">Restaurant Name *</Label>
+                <Input
+                  id="rest_name"
+                  value={newRestaurant.name}
+                  onChange={(e) => setNewRestaurant({ ...newRestaurant, name: e.target.value })}
+                  placeholder="Restaurant name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="address">Address</Label>
+                <Input
+                  id="address"
+                  value={newRestaurant.address}
+                  onChange={(e) => setNewRestaurant({ ...newRestaurant, address: e.target.value })}
+                  placeholder="123 Main St"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="contact_name">Contact Name</Label>
+                <Input
+                  id="contact_name"
+                  value={newRestaurant.contact_name}
+                  onChange={(e) => setNewRestaurant({ ...newRestaurant, contact_name: e.target.value })}
+                  placeholder="Manager name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="contact_phone">Contact Phone</Label>
+                <Input
+                  id="contact_phone"
+                  value={newRestaurant.contact_phone}
+                  onChange={(e) => setNewRestaurant({ ...newRestaurant, contact_phone: e.target.value })}
+                  placeholder="+251912345678"
+                />
+              </div>
+              <div className="col-span-2 space-y-2">
+                <Label htmlFor="notes">Notes</Label>
+                <Textarea
+                  id="notes"
+                  value={newRestaurant.notes}
+                  onChange={(e) => setNewRestaurant({ ...newRestaurant, notes: e.target.value })}
+                  placeholder="Special instructions or notes"
+                />
+              </div>
+              <div className="col-span-2">
+                <Button onClick={handleAddRestaurant}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Restaurant
+                </Button>
+              </div>
             </div>
           </div>
         </CardContent>
