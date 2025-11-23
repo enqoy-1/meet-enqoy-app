@@ -433,7 +433,11 @@ const Assessment = () => {
         .eq("id", user.id);
 
       toast.success("Assessment completed successfully!");
-      navigate("/dashboard");
+      
+      // Add delay to ensure database update propagates before navigation
+      setTimeout(() => {
+        navigate("/dashboard");
+      }, 500);
     } catch (error) {
       console.error("Error submitting assessment:", error);
       toast.error("Failed to submit assessment");
