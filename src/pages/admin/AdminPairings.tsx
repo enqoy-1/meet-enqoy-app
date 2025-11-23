@@ -7,9 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Calendar, ArrowLeft, Users, MapPin, Search } from "lucide-react";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar, ArrowLeft, Users, MapPin, Search, X } from "lucide-react";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, isWithinInterval, startOfDay, endOfDay } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface Event {
   id: string;
@@ -27,6 +30,8 @@ const AdminPairings = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [startDate, setStartDate] = useState<Date | undefined>();
+  const [endDate, setEndDate] = useState<Date | undefined>();
 
   useEffect(() => {
     fetchEvents();
@@ -58,9 +63,25 @@ const AdminPairings = () => {
         event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         event.venues?.name.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesType = typeFilter === "all" || event.type === typeFilter;
-      return matchesSearch && matchesType;
+      
+      let matchesDate = true;
+      if (startDate || endDate) {
+        const eventDate = new Date(event.date_time);
+        if (startDate && endDate) {
+          matchesDate = isWithinInterval(eventDate, {
+            start: startOfDay(startDate),
+            end: endOfDay(endDate),
+          });
+        } else if (startDate) {
+          matchesDate = eventDate >= startOfDay(startDate);
+        } else if (endDate) {
+          matchesDate = eventDate <= endOfDay(endDate);
+        }
+      }
+      
+      return matchesSearch && matchesType && matchesDate;
     });
-  }, [events, searchQuery, typeFilter]);
+  }, [events, searchQuery, typeFilter, startDate, endDate]);
 
   if (isLoading) {
     return (
@@ -104,8 +125,8 @@ const AdminPairings = () => {
           </Card>
         ) : (
           <div className="space-y-4">
-            <div className="flex gap-4">
-              <div className="relative flex-1">
+            <div className="flex flex-wrap gap-4">
+              <div className="relative flex-1 min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search events or venues..."
@@ -114,6 +135,7 @@ const AdminPairings = () => {
                   className="pl-9"
                 />
               </div>
+              
               <Select value={typeFilter} onValueChange={setTypeFilter}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Filter by type" />
@@ -127,6 +149,68 @@ const AdminPairings = () => {
                   <SelectItem value="other">Other</SelectItem>
                 </SelectContent>
               </Select>
+
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-[200px] justify-start text-left font-normal",
+                      !startDate && "text-muted-foreground"
+                    )}
+                  >
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {startDate ? format(startDate, "PPP") : "Start date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={startDate}
+                    onSelect={setStartDate}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-[200px] justify-start text-left font-normal",
+                      !endDate && "text-muted-foreground"
+                    )}
+                  >
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {endDate ? format(endDate, "PPP") : "End date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={endDate}
+                    onSelect={setEndDate}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+
+              {(startDate || endDate) && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    setStartDate(undefined);
+                    setEndDate(undefined);
+                  }}
+                  title="Clear date filters"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
             </div>
 
             <Card>
