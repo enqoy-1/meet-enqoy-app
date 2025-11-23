@@ -256,7 +256,21 @@ const Assessment = () => {
 
   useEffect(() => {
     checkAuth();
-  }, []);
+    
+    // Add beforeunload event listener to warn about leaving during assessment
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!showUnderageMessage && !showOutsideCityMessage) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [showUnderageMessage, showOutsideCityMessage]);
 
   const checkAuth = async () => {
     const { data: { user } } = await supabase.auth.getUser();
