@@ -926,33 +926,111 @@ const Assessment = () => {
         );
 
       case 22:
+        const currentYear = new Date().getFullYear();
+        const years = Array.from({ length: currentYear - 1900 + 1 }, (_, i) => currentYear - i);
+        const months = [
+          { value: 0, label: "January" },
+          { value: 1, label: "February" },
+          { value: 2, label: "March" },
+          { value: 3, label: "April" },
+          { value: 4, label: "May" },
+          { value: 5, label: "June" },
+          { value: 6, label: "July" },
+          { value: 7, label: "August" },
+          { value: 8, label: "September" },
+          { value: 9, label: "October" },
+          { value: 10, label: "November" },
+          { value: 11, label: "December" },
+        ];
+        
+        const selectedYear = birthday?.getFullYear();
+        const selectedMonth = birthday?.getMonth();
+        const selectedDay = birthday?.getDate();
+        
+        // Calculate days in month
+        const daysInMonth = selectedYear && selectedMonth !== undefined 
+          ? new Date(selectedYear, selectedMonth + 1, 0).getDate() 
+          : 31;
+        const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+        
+        const handleDateChange = (type: 'year' | 'month' | 'day', value: string) => {
+          const year = type === 'year' ? parseInt(value) : (selectedYear || currentYear);
+          const month = type === 'month' ? parseInt(value) : (selectedMonth ?? 0);
+          const day = type === 'day' ? parseInt(value) : (selectedDay || 1);
+          
+          // Adjust day if it's invalid for the selected month
+          const maxDays = new Date(year, month + 1, 0).getDate();
+          const validDay = Math.min(day, maxDays);
+          
+          setBirthday(new Date(year, month, validDay));
+        };
+        
         return (
           <div className="space-y-4">
             <Label className="text-base">When is your birthday?</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !birthday && "text-muted-foreground"
-                  )}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="year" className="text-sm">Year</Label>
+                <Select 
+                  value={selectedYear?.toString()} 
+                  onValueChange={(value) => handleDateChange('year', value)}
                 >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {birthday ? format(birthday, "PPP") : <span>Pick your birthday</span>}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={birthday}
-                  onSelect={setBirthday}
-                  disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
-                  initialFocus
-                  className="pointer-events-auto"
-                />
-              </PopoverContent>
-            </Popover>
+                  <SelectTrigger id="year">
+                    <SelectValue placeholder="Year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {years.map((year) => (
+                      <SelectItem key={year} value={year.toString()}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="month" className="text-sm">Month</Label>
+                <Select 
+                  value={selectedMonth?.toString()} 
+                  onValueChange={(value) => handleDateChange('month', value)}
+                >
+                  <SelectTrigger id="month">
+                    <SelectValue placeholder="Month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {months.map((month) => (
+                      <SelectItem key={month.value} value={month.value.toString()}>
+                        {month.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="day" className="text-sm">Day</Label>
+                <Select 
+                  value={selectedDay?.toString()} 
+                  onValueChange={(value) => handleDateChange('day', value)}
+                >
+                  <SelectTrigger id="day">
+                    <SelectValue placeholder="Day" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {days.map((day) => (
+                      <SelectItem key={day} value={day.toString()}>
+                        {day}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {birthday && (
+              <p className="text-sm text-muted-foreground text-center">
+                Selected: {format(birthday, "PPP")}
+              </p>
+            )}
           </div>
         );
 
