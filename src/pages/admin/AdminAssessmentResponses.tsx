@@ -2,12 +2,11 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ArrowLeft, Download, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface AssessmentResponse {
   id: string;
@@ -25,7 +24,6 @@ const AdminAssessmentResponses = () => {
   const [responses, setResponses] = useState<AssessmentResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedResponse, setSelectedResponse] = useState<AssessmentResponse | null>(null);
 
   useEffect(() => {
     fetchResponses();
@@ -198,175 +196,86 @@ const AdminAssessmentResponses = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Submitted</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead className="min-w-[150px]">Name</TableHead>
+                    <TableHead className="min-w-[200px]">Email</TableHead>
+                    <TableHead className="min-w-[120px]">Submitted</TableHead>
+                    <TableHead className="min-w-[120px]">City</TableHead>
+                    <TableHead className="min-w-[140px]">Preferred Time</TableHead>
+                    <TableHead className="min-w-[140px]">Dinner Vibe</TableHead>
+                    <TableHead className="min-w-[140px]">Talk Topic</TableHead>
+                    <TableHead className="min-w-[140px]">Group Dynamic</TableHead>
+                    <TableHead className="min-w-[140px]">Humor Type</TableHead>
+                    <TableHead className="min-w-[140px]">Wardrobe Style</TableHead>
+                    <TableHead className="min-w-[140px]">Introvert Scale</TableHead>
+                    <TableHead className="min-w-[140px]">Alone Time Scale</TableHead>
+                    <TableHead className="min-w-[140px]">Family Importance</TableHead>
+                    <TableHead className="min-w-[140px]">Spirituality</TableHead>
+                    <TableHead className="min-w-[140px]">Humor Importance</TableHead>
+                    <TableHead className="min-w-[140px]">Meeting Priority</TableHead>
+                    <TableHead className="min-w-[160px]">Dietary Preferences</TableHead>
+                    <TableHead className="min-w-[160px]">Custom Dietary</TableHead>
+                    <TableHead className="min-w-[160px]">Restaurant Frequency</TableHead>
+                    <TableHead className="min-w-[140px]">Spending Range</TableHead>
+                    <TableHead className="min-w-[100px]">Gender</TableHead>
+                    <TableHead className="min-w-[160px]">Relationship Status</TableHead>
+                    <TableHead className="min-w-[120px]">Has Children</TableHead>
+                    <TableHead className="min-w-[120px]">Country</TableHead>
+                    <TableHead className="min-w-[120px]">Birthday</TableHead>
+                    <TableHead className="min-w-[140px]">Nickname</TableHead>
+                    <TableHead className="min-w-[250px]">Never Guess About Me</TableHead>
+                    <TableHead className="min-w-[250px]">Fun Fact</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredResponses.map((response) => (
-                    <TableRow key={response.id}>
-                      <TableCell className="font-medium">
-                        {response.profiles?.full_name || "N/A"}
-                      </TableCell>
-                      <TableCell>{response.profiles?.email || "N/A"}</TableCell>
-                      <TableCell>
-                        {new Date(response.created_at).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setSelectedResponse(response)}
-                        >
-                          View Details
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {filteredResponses.map((response) => {
+                    const answers = response.answers;
+                    return (
+                      <TableRow key={response.id}>
+                        <TableCell className="font-medium">
+                          {response.profiles?.full_name || "N/A"}
+                        </TableCell>
+                        <TableCell>{response.profiles?.email || "N/A"}</TableCell>
+                        <TableCell>
+                          {new Date(response.created_at).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>{formatAnswer("city", answers.city)}</TableCell>
+                        <TableCell>{formatAnswer("preferredTime", answers.preferredTime)}</TableCell>
+                        <TableCell>{formatAnswer("dinnerVibe", answers.dinnerVibe)}</TableCell>
+                        <TableCell>{formatAnswer("talkTopic", answers.talkTopic)}</TableCell>
+                        <TableCell>{formatAnswer("groupDynamic", answers.groupDynamic)}</TableCell>
+                        <TableCell>{formatAnswer("humorType", answers.humorType)}</TableCell>
+                        <TableCell>{formatAnswer("wardrobeStyle", answers.wardrobeStyle)}</TableCell>
+                        <TableCell>{answers.introvertScale}/5</TableCell>
+                        <TableCell>{answers.aloneTimeScale}/5</TableCell>
+                        <TableCell>{answers.familyScale}/5</TableCell>
+                        <TableCell>{answers.spiritualityScale}/5</TableCell>
+                        <TableCell>{answers.humorScale}/5</TableCell>
+                        <TableCell>{formatAnswer("meetingPriority", answers.meetingPriority)}</TableCell>
+                        <TableCell>{formatAnswer("dietaryPreferences", answers.dietaryPreferences)}</TableCell>
+                        <TableCell>{formatAnswer("customDietary", answers.customDietary)}</TableCell>
+                        <TableCell>{formatAnswer("restaurantFrequency", answers.restaurantFrequency)}</TableCell>
+                        <TableCell>{formatAnswer("spending", answers.spending)}</TableCell>
+                        <TableCell>{formatAnswer("gender", answers.gender)}</TableCell>
+                        <TableCell>{formatAnswer("relationshipStatus", answers.relationshipStatus)}</TableCell>
+                        <TableCell>{formatAnswer("hasChildren", answers.hasChildren)}</TableCell>
+                        <TableCell>{formatAnswer("country", answers.country)}</TableCell>
+                        <TableCell>{formatAnswer("birthday", answers.birthday)}</TableCell>
+                        <TableCell>{formatAnswer("nickName", answers.nickName)}</TableCell>
+                        <TableCell className="whitespace-normal max-w-[250px]">
+                          {formatAnswer("neverGuess", answers.neverGuess)}
+                        </TableCell>
+                        <TableCell className="whitespace-normal max-w-[250px]">
+                          {formatAnswer("funFact", answers.funFact)}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
           )}
         </CardContent>
       </Card>
-
-      <Dialog open={!!selectedResponse} onOpenChange={() => setSelectedResponse(null)}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              Assessment Response - {selectedResponse?.profiles?.full_name}
-            </DialogTitle>
-          </DialogHeader>
-          {selectedResponse && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 pb-4 border-b">
-                <div>
-                  <p className="text-sm font-semibold text-muted-foreground">Email</p>
-                  <p>{selectedResponse.profiles?.email}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-muted-foreground">Submitted</p>
-                  <p>{new Date(selectedResponse.created_at).toLocaleDateString()}</p>
-                </div>
-              </div>
-
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-1/3">Question</TableHead>
-                    <TableHead>Answer</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow>
-                    <TableCell className="font-medium">City</TableCell>
-                    <TableCell>{formatAnswer("city", selectedResponse.answers.city)}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Preferred Time</TableCell>
-                    <TableCell>{formatAnswer("preferredTime", selectedResponse.answers.preferredTime)}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Dinner Vibe</TableCell>
-                    <TableCell>{formatAnswer("dinnerVibe", selectedResponse.answers.dinnerVibe)}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Talk Topic</TableCell>
-                    <TableCell>{formatAnswer("talkTopic", selectedResponse.answers.talkTopic)}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Group Dynamic</TableCell>
-                    <TableCell>{formatAnswer("groupDynamic", selectedResponse.answers.groupDynamic)}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Humor Type</TableCell>
-                    <TableCell>{formatAnswer("humorType", selectedResponse.answers.humorType)}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Wardrobe Style</TableCell>
-                    <TableCell>{formatAnswer("wardrobeStyle", selectedResponse.answers.wardrobeStyle)}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Introvert Scale (1-5)</TableCell>
-                    <TableCell>{selectedResponse.answers.introvertScale}/5</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Alone Time Scale (1-5)</TableCell>
-                    <TableCell>{selectedResponse.answers.aloneTimeScale}/5</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Family Importance (1-5)</TableCell>
-                    <TableCell>{selectedResponse.answers.familyScale}/5</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Spirituality (1-5)</TableCell>
-                    <TableCell>{selectedResponse.answers.spiritualityScale}/5</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Humor Importance (1-5)</TableCell>
-                    <TableCell>{selectedResponse.answers.humorScale}/5</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Meeting Priority</TableCell>
-                    <TableCell>{formatAnswer("meetingPriority", selectedResponse.answers.meetingPriority)}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Dietary Preferences</TableCell>
-                    <TableCell>
-                      {formatAnswer("dietaryPreferences", selectedResponse.answers.dietaryPreferences)}
-                      {selectedResponse.answers.customDietary && (
-                        <span className="text-muted-foreground"> ({selectedResponse.answers.customDietary})</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Restaurant Frequency</TableCell>
-                    <TableCell>{formatAnswer("restaurantFrequency", selectedResponse.answers.restaurantFrequency)}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Spending Range</TableCell>
-                    <TableCell>{formatAnswer("spending", selectedResponse.answers.spending)}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Gender</TableCell>
-                    <TableCell>{formatAnswer("gender", selectedResponse.answers.gender)}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Relationship Status</TableCell>
-                    <TableCell>{formatAnswer("relationshipStatus", selectedResponse.answers.relationshipStatus)}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Has Children</TableCell>
-                    <TableCell>{formatAnswer("hasChildren", selectedResponse.answers.hasChildren)}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Country</TableCell>
-                    <TableCell>{formatAnswer("country", selectedResponse.answers.country)}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Birthday</TableCell>
-                    <TableCell>{formatAnswer("birthday", selectedResponse.answers.birthday)}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Nickname</TableCell>
-                    <TableCell>{formatAnswer("nickName", selectedResponse.answers.nickName)}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Never Guess About Me</TableCell>
-                    <TableCell className="whitespace-pre-wrap">{formatAnswer("neverGuess", selectedResponse.answers.neverGuess)}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell className="font-medium">Fun Fact</TableCell>
-                    <TableCell className="whitespace-pre-wrap">{formatAnswer("funFact", selectedResponse.answers.funFact)}</TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
