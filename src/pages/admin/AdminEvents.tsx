@@ -40,8 +40,8 @@ const AdminEvents = () => {
   
   // Form state
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [title, setTitle] = useState("");
   const [type, setType] = useState("");
+  const [customTitle, setCustomTitle] = useState("");
   const [description, setDescription] = useState("");
   const [dateTime, setDateTime] = useState("");
   const [price, setPrice] = useState("");
@@ -76,8 +76,8 @@ const AdminEvents = () => {
 
   const resetForm = () => {
     setEditingId(null);
-    setTitle("");
     setType("");
+    setCustomTitle("");
     setDescription("");
     setDateTime("");
     setPrice("");
@@ -85,10 +85,28 @@ const AdminEvents = () => {
     setIsVisible(true);
   };
 
+  const getTitle = () => {
+    if (type === "other") {
+      return customTitle;
+    }
+    const titleMap: { [key: string]: string } = {
+      dinner: "Dinner",
+      lunch: "Lunch",
+      scavenger_hunt: "Scavenger Hunt",
+      mixer: "Mixer",
+    };
+    return titleMap[type] || "";
+  };
+
   const handleEdit = (event: Event) => {
     setEditingId(event.id);
-    setTitle(event.title);
     setType(event.type);
+    // For "other" type, extract the custom title
+    if (event.type === "other") {
+      setCustomTitle(event.title);
+    } else {
+      setCustomTitle("");
+    }
     setDateTime(format(new Date(event.date_time), "yyyy-MM-dd'T'HH:mm"));
     setPrice(event.price.toString());
     setVenueId(event.venue_id || "");
@@ -99,10 +117,17 @@ const AdminEvents = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!title || !type || !dateTime || !price) {
+    if (!type || !dateTime || !price) {
       toast.error("Please fill in all required fields");
       return;
     }
+
+    if (type === "other" && !customTitle.trim()) {
+      toast.error("Please provide a custom title for 'Other' event type");
+      return;
+    }
+
+    const title = getTitle();
 
     try {
       const eventData = {
@@ -179,20 +204,10 @@ const AdminEvents = () => {
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="title">Title *</Label>
-                  <Input
-                    id="title"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="type">Type *</Label>
+                  <Label htmlFor="type">Event Type *</Label>
                   <Select value={type} onValueChange={setType} required>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select type" />
+                      <SelectValue placeholder="Select event type" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="dinner">Dinner</SelectItem>
@@ -203,6 +218,19 @@ const AdminEvents = () => {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {type === "other" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="customTitle">Custom Event Title *</Label>
+                    <Input
+                      id="customTitle"
+                      value={customTitle}
+                      onChange={(e) => setCustomTitle(e.target.value)}
+                      placeholder="Enter custom event title"
+                      required
+                    />
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <Label htmlFor="description">Description</Label>
@@ -289,7 +317,7 @@ const AdminEvents = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Title</TableHead>
+                      <TableHead>Event</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Date & Time</TableHead>
                       <TableHead>Price</TableHead>
