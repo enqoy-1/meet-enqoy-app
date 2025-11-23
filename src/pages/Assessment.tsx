@@ -337,12 +337,35 @@ const Assessment = () => {
     
     // Special handling for users outside Addis Ababa
     if (step === 2 && city === "outside") {
-      setShowOutsideCityMessage(true);
+      saveOutsideCityInterest();
       return;
     }
     
     if (step < TOTAL_STEPS) {
       setStep(step + 1);
+    }
+  };
+
+  const saveOutsideCityInterest = async () => {
+    try {
+      const fullPhone = `${countryCode}${phone}`;
+      
+      const { error } = await supabase
+        .from("outside_city_interests")
+        .insert({
+          phone: fullPhone,
+          city: city,
+          specified_city: specifiedCity,
+        });
+
+      if (error) {
+        console.error("Error saving outside city interest:", error);
+      }
+      
+      setShowOutsideCityMessage(true);
+    } catch (error) {
+      console.error("Error saving outside city interest:", error);
+      setShowOutsideCityMessage(true);
     }
   };
 

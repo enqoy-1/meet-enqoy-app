@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Users, Calendar, MessageSquare, MapPin, HelpCircle, BarChart, FileText } from "lucide-react";
+import { ArrowLeft, Users, Calendar, MessageSquare, MapPin, HelpCircle, BarChart, FileText, MapPinOff } from "lucide-react";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -54,6 +54,12 @@ const AdminDashboard = () => {
       description: "View and export user assessments",
       icon: FileText,
       path: "/admin/assessment-responses",
+    },
+    {
+      title: "Outside City Interests",
+      description: "View users from outside Addis Ababa",
+      icon: MapPinOff,
+      path: "/admin/outside-city-interests",
     },
   ];
 
