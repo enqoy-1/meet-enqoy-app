@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Sparkles, Calendar, Users, ArrowRight, Heart, MessageCircle, MapPin } from "lucide-react";
+import { Sparkles, Calendar, Users, ArrowRight, Heart, MessageCircle, MapPin, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import useEmblaCarousel from "embla-carousel-react";
 import heroDinnerTable from "@/assets/hero-dinner-group.jpg";
@@ -56,17 +56,57 @@ const Index = () => {
     }
   };
 
-  const [emblaRefHowItWorks] = useEmblaCarousel({ 
+  const [emblaRefHowItWorks, emblaApiHowItWorks] = useEmblaCarousel({ 
     align: "start",
     containScroll: "trimSnaps",
     dragFree: true
   });
+  const [canScrollPrevHowItWorks, setCanScrollPrevHowItWorks] = useState(false);
+  const [canScrollNextHowItWorks, setCanScrollNextHowItWorks] = useState(false);
   
-  const [emblaRefTestimonials] = useEmblaCarousel({ 
+  const [emblaRefTestimonials, emblaApiTestimonials] = useEmblaCarousel({ 
     align: "start",
     containScroll: "trimSnaps",
     dragFree: true
   });
+  const [canScrollPrevTestimonials, setCanScrollPrevTestimonials] = useState(false);
+  const [canScrollNextTestimonials, setCanScrollNextTestimonials] = useState(false);
+
+  useEffect(() => {
+    if (!emblaApiHowItWorks) return;
+    
+    const onSelect = () => {
+      setCanScrollPrevHowItWorks(emblaApiHowItWorks.canScrollPrev());
+      setCanScrollNextHowItWorks(emblaApiHowItWorks.canScrollNext());
+    };
+    
+    emblaApiHowItWorks.on('select', onSelect);
+    emblaApiHowItWorks.on('reInit', onSelect);
+    onSelect();
+    
+    return () => {
+      emblaApiHowItWorks.off('select', onSelect);
+      emblaApiHowItWorks.off('reInit', onSelect);
+    };
+  }, [emblaApiHowItWorks]);
+
+  useEffect(() => {
+    if (!emblaApiTestimonials) return;
+    
+    const onSelect = () => {
+      setCanScrollPrevTestimonials(emblaApiTestimonials.canScrollPrev());
+      setCanScrollNextTestimonials(emblaApiTestimonials.canScrollNext());
+    };
+    
+    emblaApiTestimonials.on('select', onSelect);
+    emblaApiTestimonials.on('reInit', onSelect);
+    onSelect();
+    
+    return () => {
+      emblaApiTestimonials.off('select', onSelect);
+      emblaApiTestimonials.off('reInit', onSelect);
+    };
+  }, [emblaApiTestimonials]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -157,8 +197,9 @@ const Index = () => {
           </div>
 
           {/* Mobile: Swipeable Carousel */}
-          <div className="md:hidden overflow-hidden" ref={emblaRefHowItWorks}>
-            <div className="flex gap-4">
+          <div className="md:hidden relative">
+            <div className="overflow-hidden" ref={emblaRefHowItWorks}>
+              <div className="flex gap-4">
               <div className="flex-[0_0_85%] min-w-0">
                 <Card className="text-center shadow-[var(--shadow-card)] rounded-3xl border-2 border-border/50 h-full">
                   <CardHeader className="pb-4 pt-8">
@@ -201,6 +242,27 @@ const Index = () => {
                 </Card>
               </div>
             </div>
+            </div>
+            
+            {/* Navigation Arrows */}
+            <Button
+              variant="outline"
+              size="icon"
+              className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-background/80 backdrop-blur-sm shadow-lg disabled:opacity-30 z-10"
+              onClick={() => emblaApiHowItWorks?.scrollPrev()}
+              disabled={!canScrollPrevHowItWorks}
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-background/80 backdrop-blur-sm shadow-lg disabled:opacity-30 z-10"
+              onClick={() => emblaApiHowItWorks?.scrollNext()}
+              disabled={!canScrollNextHowItWorks}
+            >
+              <ChevronRight className="h-5 w-5" />
+            </Button>
           </div>
         </div>
       </section>
@@ -306,8 +368,9 @@ const Index = () => {
           </div>
 
           {/* Mobile: Swipeable Carousel */}
-          <div className="md:hidden overflow-hidden" ref={emblaRefTestimonials}>
-            <div className="flex gap-4">
+          <div className="md:hidden relative">
+            <div className="overflow-hidden" ref={emblaRefTestimonials}>
+              <div className="flex gap-4">
               <div className="flex-[0_0_85%] min-w-0">
                 <Card className="shadow-[var(--shadow-card)] rounded-2xl border-2 border-border/50 h-full">
                   <CardContent className="pt-8 pb-6 px-6">
@@ -344,6 +407,27 @@ const Index = () => {
                 </Card>
               </div>
             </div>
+            </div>
+            
+            {/* Navigation Arrows */}
+            <Button
+              variant="outline"
+              size="icon"
+              className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-background/80 backdrop-blur-sm shadow-lg disabled:opacity-30 z-10"
+              onClick={() => emblaApiTestimonials?.scrollPrev()}
+              disabled={!canScrollPrevTestimonials}
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-background/80 backdrop-blur-sm shadow-lg disabled:opacity-30 z-10"
+              onClick={() => emblaApiTestimonials?.scrollNext()}
+              disabled={!canScrollNextTestimonials}
+            >
+              <ChevronRight className="h-5 w-5" />
+            </Button>
           </div>
         </div>
       </section>
