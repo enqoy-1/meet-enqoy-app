@@ -285,28 +285,11 @@ const EventDetail = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted">
       <header className="bg-card border-b sticky top-0 z-10 shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+        <div className="container mx-auto px-4 py-4">
           <Button variant="ghost" onClick={() => navigate("/events")}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Events
           </Button>
-          {booking && hoursUntilEvent >= 48 && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <MoreVertical className="h-5 w-5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-popover z-50">
-                <DropdownMenuItem onClick={handleOpenReschedule}>
-                  Reschedule Booking
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleCancelBooking} className="text-destructive">
-                  Cancel Booking
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
         </div>
       </header>
 
@@ -314,8 +297,29 @@ const EventDetail = () => {
         <Card className="shadow-elevated">
           <CardHeader>
             <div className="flex justify-between items-start">
-              <CardTitle className="text-3xl">{event.title}</CardTitle>
-              <Badge className="text-base">{event.type}</Badge>
+              <div className="flex-1">
+                <CardTitle className="text-3xl">{event.title}</CardTitle>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge className="text-base">{event.type}</Badge>
+                {booking && hoursUntilEvent >= 48 && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                        <MoreVertical className="h-5 w-5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="bg-popover z-50">
+                      <DropdownMenuItem onClick={handleOpenReschedule}>
+                        Reschedule Booking
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleCancelBooking} className="text-destructive">
+                        Cancel Booking
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
             </div>
             {event.description && (
               <CardDescription className="text-base mt-4">
