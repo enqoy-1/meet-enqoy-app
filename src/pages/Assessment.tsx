@@ -29,6 +29,8 @@ const Assessment = () => {
   const [phone, setPhone] = useState("");
   const [phoneVerify, setPhoneVerify] = useState("");
   const [city, setCity] = useState("");
+  const [specifiedCity, setSpecifiedCity] = useState("");
+  const [showOutsideCityMessage, setShowOutsideCityMessage] = useState(false);
   const [preferredTime, setPreferredTime] = useState("");
   const [dinnerVibe, setDinnerVibe] = useState("");
   const [talkTopic, setTalkTopic] = useState("");
@@ -283,7 +285,13 @@ const Assessment = () => {
           return false;
         }
         return true;
-      case 2: return !!city;
+      case 2: 
+        if (!city) return false;
+        if (city === "outside" && !specifiedCity.trim()) {
+          toast.error("Please specify your city");
+          return false;
+        }
+        return true;
       case 3: return !!preferredTime;
       case 4: return !!dinnerVibe;
       case 5: return !!talkTopic;
@@ -314,6 +322,13 @@ const Assessment = () => {
       toast.error("Please answer the question before continuing");
       return;
     }
+    
+    // Special handling for users outside Addis Ababa
+    if (step === 2 && city === "outside") {
+      setShowOutsideCityMessage(true);
+      return;
+    }
+    
     if (step < TOTAL_STEPS) {
       setStep(step + 1);
     }
@@ -488,6 +503,18 @@ const Assessment = () => {
                 <Label htmlFor="outside">Outside Addis Ababa</Label>
               </div>
             </RadioGroup>
+            
+            {city === "outside" && (
+              <div className="space-y-2 mt-4">
+                <Label htmlFor="specifiedCity">If you select outside of Addis Ababa, can you please specify which city? *</Label>
+                <Input
+                  id="specifiedCity"
+                  value={specifiedCity}
+                  onChange={(e) => setSpecifiedCity(e.target.value)}
+                  placeholder="Enter your city"
+                />
+              </div>
+            )}
           </div>
         );
 
@@ -948,7 +975,25 @@ const Assessment = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background to-muted">
-      <Card className="w-full max-w-2xl">
+      {showOutsideCityMessage ? (
+        <Card className="w-full max-w-2xl">
+          <CardHeader>
+            <CardTitle>Thank you!</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <p className="text-center">
+              You submitted the form successfully. Unfortunately, we're not hosting dinners in your city just yet. 
+              But don't worry—we'll reach out as soon as Enqoy arrives in your area!
+            </p>
+            <div className="flex justify-center">
+              <Button onClick={() => navigate("/")}>
+                Go back to the main page
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="w-full max-w-2xl">
         <CardHeader>
           <CardTitle>Assessment</CardTitle>
           <CardDescription>
@@ -981,6 +1026,7 @@ const Assessment = () => {
           </div>
         </CardContent>
       </Card>
+      )}
     </div>
   );
 };
