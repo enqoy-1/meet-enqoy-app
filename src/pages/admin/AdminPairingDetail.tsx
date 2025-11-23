@@ -37,6 +37,73 @@ const AdminPairingDetail = () => {
     }
   }, [eventId]);
 
+  const autoImportBookedGuests = async () => {
+    try {
+      // Fetch existing guests to check for duplicates
+      const { data: existingGuests } = await supabase
+        .from("pairing_guests")
+        .select("email")
+        .eq("event_id", eventId);
+
+      const existingEmails = new Set(
+        (existingGuests || [])
+          .map(g => g.email?.toLowerCase())
+          .filter(Boolean)
+      );
+
+      // Fetch confirmed bookings for this event
+      const { data: bookings, error: bookingsError } = await supabase
+        .from("bookings")
+        .select(`
+          user_id,
+          profiles:user_id (
+            full_name,
+            email,
+            phone,
+            gender,
+            age
+          )
+        `)
+        .eq("event_id", eventId)
+        .eq("status", "confirmed");
+
+      if (bookingsError) throw bookingsError;
+
+      if (!bookings || bookings.length === 0) return;
+
+      // Prepare guests to import (only new ones)
+      const guestsToImport = bookings
+        .filter(booking => {
+          const profile = booking.profiles;
+          return profile && profile.email && !existingEmails.has(profile.email.toLowerCase());
+        })
+        .map(booking => {
+          const profile = booking.profiles;
+          const nameParts = profile.full_name.split(" ");
+          const firstName = nameParts[0] || "";
+          const lastName = nameParts.slice(1).join(" ") || nameParts[0] || "";
+
+          return {
+            event_id: eventId,
+            first_name: firstName,
+            last_name: lastName,
+            email: profile.email,
+            phone: profile.phone || null,
+            gender: profile.gender || null,
+            age_range: profile.age ? `${profile.age}` : null,
+            tags: ["booked"],
+          };
+        });
+
+      if (guestsToImport.length > 0) {
+        await supabase.from("pairing_guests").insert(guestsToImport);
+      }
+    } catch (error) {
+      // Silent fail - don't disrupt the main flow
+      console.error("Failed to auto-import booked guests:", error);
+    }
+  };
+
   const fetchAllData = async () => {
     try {
       // Fetch event
@@ -48,6 +115,9 @@ const AdminPairingDetail = () => {
 
       if (eventError) throw eventError;
       setEvent(eventData);
+
+      // Auto-import booked guests first
+      await autoImportBookedGuests();
 
       // Fetch guests
       const { data: guestsData } = await supabase
