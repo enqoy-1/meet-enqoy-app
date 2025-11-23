@@ -26,6 +26,12 @@ const AdminDashboard = () => {
       path: "/admin/venues",
     },
     {
+      title: "Event Pairings",
+      description: "Manage guest pairings and restaurant assignments",
+      icon: Users,
+      path: "/admin/pairings",
+    },
+    {
       title: "Icebreakers",
       description: "Manage icebreaker questions",
       icon: HelpCircle,

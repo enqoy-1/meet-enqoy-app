@@ -16,6 +16,8 @@ import AdminVenues from "./pages/admin/AdminVenues";
 import AdminIcebreakers from "./pages/admin/AdminIcebreakers";
 import AdminAnnouncements from "./pages/admin/AdminAnnouncements";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
+import AdminPairings from "./pages/admin/AdminPairings";
+import AdminPairingDetail from "./pages/admin/AdminPairingDetail";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 
@@ -38,6 +40,8 @@ const App = () => (
           <Route path="/admin/users" element={<ProtectedRoute requireAdmin><AdminUsers /></ProtectedRoute>} />
           <Route path="/admin/events" element={<ProtectedRoute requireAdmin><AdminEvents /></ProtectedRoute>} />
           <Route path="/admin/venues" element={<ProtectedRoute requireAdmin><AdminVenues /></ProtectedRoute>} />
+          <Route path="/admin/pairings" element={<ProtectedRoute requireAdmin><AdminPairings /></ProtectedRoute>} />
+          <Route path="/admin/pairings/:eventId" element={<ProtectedRoute requireAdmin><AdminPairingDetail /></ProtectedRoute>} />
           <Route path="/admin/icebreakers" element={<ProtectedRoute requireAdmin><AdminIcebreakers /></ProtectedRoute>} />
           <Route path="/admin/announcements" element={<ProtectedRoute requireAdmin><AdminAnnouncements /></ProtectedRoute>} />
           <Route path="/admin/analytics" element={<ProtectedRoute requireAdmin><AdminAnalytics /></ProtectedRoute>} />
