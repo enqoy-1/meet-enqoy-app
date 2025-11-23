@@ -148,11 +148,102 @@ const AdminAssessmentResponses = () => {
     toast.success("CSV exported successfully");
   };
 
+  const getFullAnswerText = (key: string, value: any): string => {
+    if (!value) return "N/A";
+    
+    const answerMappings: Record<string, Record<string, string>> = {
+      city: {
+        "addis": "Addis Ababa",
+        "outside": "Outside Addis Ababa"
+      },
+      preferredTime: {
+        "dinner": "Dinner (7pm - 9pm)",
+        "lunch": "Lunch (2pm - 4pm)"
+      },
+      dinnerVibe: {
+        "steering": "I love steering the conversation and asking questions",
+        "sharing": "I enjoy sharing stories and experiences",
+        "observing": "I prefer to quietly observe and listen",
+        "adapting": "I adapt to whatever the group needs"
+      },
+      talkTopic: {
+        "current_events": "Current events and world issues",
+        "arts": "Arts, entertainment, and pop culture",
+        "personal_growth": "Personal growth and philosophy",
+        "experiences": "Food, travel, and experiences",
+        "hobbies": "Hobbies and niche interests"
+      },
+      groupDynamic: {
+        "similar": "A mix of people with shared interests and similar personalities",
+        "diverse": "A diverse group with different viewpoints and experiences"
+      },
+      humorType: {
+        "sarcastic": "Sarcastic humor",
+        "playful": "Playful and lighthearted jokes",
+        "witty": "Clever and witty banter",
+        "none": "I'm not a big fan of humor at the table"
+      },
+      wardrobeStyle: {
+        "classics": "Timeless classics that never go out of style",
+        "trendy": "Bold, trendy pieces that make a statement"
+      },
+      meetingPriority: {
+        "shared_values": "Shared values and interests",
+        "engaging": "Fun and engaging conversations",
+        "learning": "Learning something new from others",
+        "connection": "Feeling a sense of connection"
+      },
+      dietaryPreferences: {
+        "none": "None",
+        "fasting": "Fasting",
+        "vegan": "Vegan",
+        "gluten_free": "Gluten-free",
+        "other": "Other"
+      },
+      restaurantFrequency: {
+        "1-2": "1-2 times",
+        "3-5": "3-5 times",
+        "6+": "6+ times"
+      },
+      spending: {
+        "500-1000": "500 - 1000 ETB",
+        "1000-1500": "1000 - 1500 ETB",
+        "1500+": "More than 1500 ETB"
+      },
+      gender: {
+        "male": "Male",
+        "female": "Female"
+      },
+      relationshipStatus: {
+        "single": "Single",
+        "married": "Married",
+        "relationship": "In a relationship",
+        "complicated": "It's complicated"
+      },
+      hasChildren: {
+        "yes": "Yes",
+        "no": "No",
+        "prefer_not_say": "Prefer not to say"
+      }
+    };
+
+    if (key === "birthday" && value) {
+      return new Date(value).toLocaleDateString();
+    }
+
+    if (typeof value === "boolean") {
+      return value ? "Yes" : "No";
+    }
+
+    if (answerMappings[key] && answerMappings[key][value]) {
+      return answerMappings[key][value];
+    }
+
+    return String(value);
+  };
+
   const formatAnswer = (key: string, value: any) => {
-    if (typeof value === "number") return value;
-    if (typeof value === "boolean") return value ? "Yes" : "No";
-    if (key === "birthday" && value) return new Date(value).toLocaleDateString();
-    return value || "N/A";
+    return getFullAnswerText(key, value);
   };
 
   return (
