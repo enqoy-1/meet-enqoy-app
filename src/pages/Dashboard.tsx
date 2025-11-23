@@ -8,6 +8,8 @@ import { Calendar, MapPin, Users, LogOut, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import heroDining from "@/assets/hero-dining.jpg";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Event {
   id: string;
@@ -41,6 +43,7 @@ interface UpcomingEvent {
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [profile, setProfile] = useState<any>(null);
   const [upcomingBookings, setUpcomingBookings] = useState<Booking[]>([]);
   const [pastBookings, setPastBookings] = useState<Booking[]>([]);
@@ -195,42 +198,86 @@ const Dashboard = () => {
             </Card>
           ) : (
             <>
-              <div className="grid gap-4 md:grid-cols-2 mb-4">
-                {upcomingEvents.map((event) => (
-                  <Card
-                    key={event.id}
-                    className="shadow-card hover:shadow-elevated transition-shadow cursor-pointer"
-                    onClick={() => navigate(`/events/${event.id}`)}
-                  >
-                    <CardHeader>
-                      <div className="flex justify-between items-start">
-                        <CardTitle>{event.title}</CardTitle>
-                        <Badge>{event.type}</Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      <div className="flex items-center gap-2 text-sm">
-                        <Calendar className="h-4 w-4 text-primary" />
-                        <span>{format(new Date(event.date_time), "PPP 'at' p")}</span>
-                      </div>
-                      {event.venues && (
-                        <div className="flex items-center gap-2 text-sm">
-                          <MapPin className="h-4 w-4 text-primary" />
-                          <span>{event.venues.name}</span>
+              {isMobile && upcomingEvents.length > 1 ? (
+                <Carousel className="w-full mb-4">
+                  <CarouselContent>
+                    {upcomingEvents.map((event) => (
+                      <CarouselItem key={event.id}>
+                        <Card
+                          className="shadow-card hover:shadow-elevated transition-shadow cursor-pointer"
+                          onClick={() => navigate(`/events/${event.id}`)}
+                        >
+                          <CardHeader>
+                            <div className="flex justify-between items-start">
+                              <CardTitle>{event.title}</CardTitle>
+                              <Badge>{event.type}</Badge>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="space-y-2">
+                            <div className="flex items-center gap-2 text-sm">
+                              <Calendar className="h-4 w-4 text-primary" />
+                              <span>{format(new Date(event.date_time), "PPP 'at' p")}</span>
+                            </div>
+                            {event.venues && (
+                              <div className="flex items-center gap-2 text-sm">
+                                <MapPin className="h-4 w-4 text-primary" />
+                                <span>{event.venues.name}</span>
+                              </div>
+                            )}
+                            <div className="flex items-center justify-between mt-4">
+                              <span className="text-lg font-semibold text-primary">
+                                {event.price} ETB
+                              </span>
+                              <Button size="sm" variant="secondary">
+                                View Details
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </CarouselItem>
+                    ))}
+                  </CarouselContent>
+                  <CarouselPrevious className="left-2" />
+                  <CarouselNext className="right-2" />
+                </Carousel>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2 mb-4">
+                  {upcomingEvents.map((event) => (
+                    <Card
+                      key={event.id}
+                      className="shadow-card hover:shadow-elevated transition-shadow cursor-pointer"
+                      onClick={() => navigate(`/events/${event.id}`)}
+                    >
+                      <CardHeader>
+                        <div className="flex justify-between items-start">
+                          <CardTitle>{event.title}</CardTitle>
+                          <Badge>{event.type}</Badge>
                         </div>
-                      )}
-                      <div className="flex items-center justify-between mt-4">
-                        <span className="text-lg font-semibold text-primary">
-                          {event.price} ETB
-                        </span>
-                        <Button size="sm" variant="secondary">
-                          View Details
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm">
+                          <Calendar className="h-4 w-4 text-primary" />
+                          <span>{format(new Date(event.date_time), "PPP 'at' p")}</span>
+                        </div>
+                        {event.venues && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <MapPin className="h-4 w-4 text-primary" />
+                            <span>{event.venues.name}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between mt-4">
+                          <span className="text-lg font-semibold text-primary">
+                            {event.price} ETB
+                          </span>
+                          <Button size="sm" variant="secondary">
+                            View Details
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
               <div className="flex justify-center">
                 <Button onClick={() => navigate("/events")} variant="outline" size="lg">
                   <Users className="h-4 w-4 mr-2" />
