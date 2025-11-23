@@ -130,6 +130,7 @@ export type Database = {
           created_at: string
           event_id: string
           id: string
+          is_sandbox: boolean | null
           payment_reference: string | null
           refunded: boolean
           status: Database["public"]["Enums"]["booking_status"]
@@ -141,6 +142,7 @@ export type Database = {
           created_at?: string
           event_id: string
           id?: string
+          is_sandbox?: boolean | null
           payment_reference?: string | null
           refunded?: boolean
           status?: Database["public"]["Enums"]["booking_status"]
@@ -152,6 +154,7 @@ export type Database = {
           created_at?: string
           event_id?: string
           id?: string
+          is_sandbox?: boolean | null
           payment_reference?: string | null
           refunded?: boolean
           status?: Database["public"]["Enums"]["booking_status"]
@@ -181,6 +184,7 @@ export type Database = {
           date_time: string
           description: string | null
           id: string
+          is_sandbox: boolean | null
           is_visible: boolean
           price: number
           title: string
@@ -193,6 +197,7 @@ export type Database = {
           date_time: string
           description?: string | null
           id?: string
+          is_sandbox?: boolean | null
           is_visible?: boolean
           price: number
           title: string
@@ -205,6 +210,7 @@ export type Database = {
           date_time?: string
           description?: string | null
           id?: string
+          is_sandbox?: boolean | null
           is_visible?: boolean
           price?: number
           title?: string
@@ -660,6 +666,7 @@ export type Database = {
           full_name: string
           gender: Database["public"]["Enums"]["gender_type"] | null
           id: string
+          is_sandbox: boolean | null
           phone: string | null
           updated_at: string
         }
@@ -671,6 +678,7 @@ export type Database = {
           full_name: string
           gender?: Database["public"]["Enums"]["gender_type"] | null
           id: string
+          is_sandbox?: boolean | null
           phone?: string | null
           updated_at?: string
         }
@@ -682,8 +690,93 @@ export type Database = {
           full_name?: string
           gender?: Database["public"]["Enums"]["gender_type"] | null
           id?: string
+          is_sandbox?: boolean | null
           phone?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      sandbox_notifications: {
+        Row: {
+          channel: string
+          created_at: string | null
+          event_id: string | null
+          id: string
+          message_body: string
+          metadata: Json | null
+          notification_type: string
+          recipient: string
+          simulated_time: string | null
+          status: string | null
+          subject: string | null
+          user_id: string | null
+        }
+        Insert: {
+          channel: string
+          created_at?: string | null
+          event_id?: string | null
+          id?: string
+          message_body: string
+          metadata?: Json | null
+          notification_type: string
+          recipient: string
+          simulated_time?: string | null
+          status?: string | null
+          subject?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          channel?: string
+          created_at?: string | null
+          event_id?: string | null
+          id?: string
+          message_body?: string
+          metadata?: Json | null
+          notification_type?: string
+          recipient?: string
+          simulated_time?: string | null
+          status?: string | null
+          subject?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sandbox_notifications_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sandbox_notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sandbox_time_state: {
+        Row: {
+          created_at: string | null
+          frozen_time: string | null
+          id: string
+          is_frozen: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          frozen_time?: string | null
+          id?: string
+          is_frozen?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          frozen_time?: string | null
+          id?: string
+          is_frozen?: boolean | null
+          updated_at?: string | null
         }
         Relationships: []
       }

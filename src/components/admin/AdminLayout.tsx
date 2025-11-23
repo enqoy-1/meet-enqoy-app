@@ -11,7 +11,8 @@ import {
   MapPinOff, 
   ClipboardList,
   Home,
-  Menu
+  Menu,
+  TestTube
 } from "lucide-react";
 import {
   Sidebar,
@@ -81,6 +82,11 @@ const adminSections = [
     title: "Outside City Interests",
     path: "/admin/outside-city-interests",
     icon: MapPinOff,
+  },
+  {
+    title: "Testing Sandbox",
+    path: "/admin/sandbox",
+    icon: TestTube,
   },
 ];
 
