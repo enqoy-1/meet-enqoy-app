@@ -12,7 +12,8 @@ import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { CalendarIcon, Check, ChevronsUpDown } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -48,10 +49,207 @@ const Assessment = () => {
   const [relationshipStatus, setRelationshipStatus] = useState("");
   const [hasChildren, setHasChildren] = useState("");
   const [country, setCountry] = useState("");
+  const [countryOpen, setCountryOpen] = useState(false);
   const [birthday, setBirthday] = useState<Date>();
   const [nickName, setNickName] = useState("");
   const [neverGuess, setNeverGuess] = useState("");
   const [funFact, setFunFact] = useState("");
+
+  const countries = [
+    { value: "afghanistan", label: "Afghanistan" },
+    { value: "albania", label: "Albania" },
+    { value: "algeria", label: "Algeria" },
+    { value: "andorra", label: "Andorra" },
+    { value: "angola", label: "Angola" },
+    { value: "argentina", label: "Argentina" },
+    { value: "armenia", label: "Armenia" },
+    { value: "australia", label: "Australia" },
+    { value: "austria", label: "Austria" },
+    { value: "azerbaijan", label: "Azerbaijan" },
+    { value: "bahamas", label: "Bahamas" },
+    { value: "bahrain", label: "Bahrain" },
+    { value: "bangladesh", label: "Bangladesh" },
+    { value: "barbados", label: "Barbados" },
+    { value: "belarus", label: "Belarus" },
+    { value: "belgium", label: "Belgium" },
+    { value: "belize", label: "Belize" },
+    { value: "benin", label: "Benin" },
+    { value: "bhutan", label: "Bhutan" },
+    { value: "bolivia", label: "Bolivia" },
+    { value: "bosnia", label: "Bosnia and Herzegovina" },
+    { value: "botswana", label: "Botswana" },
+    { value: "brazil", label: "Brazil" },
+    { value: "brunei", label: "Brunei" },
+    { value: "bulgaria", label: "Bulgaria" },
+    { value: "burkina_faso", label: "Burkina Faso" },
+    { value: "burundi", label: "Burundi" },
+    { value: "cambodia", label: "Cambodia" },
+    { value: "cameroon", label: "Cameroon" },
+    { value: "canada", label: "Canada" },
+    { value: "cape_verde", label: "Cape Verde" },
+    { value: "central_african_republic", label: "Central African Republic" },
+    { value: "chad", label: "Chad" },
+    { value: "chile", label: "Chile" },
+    { value: "china", label: "China" },
+    { value: "colombia", label: "Colombia" },
+    { value: "comoros", label: "Comoros" },
+    { value: "congo", label: "Congo" },
+    { value: "costa_rica", label: "Costa Rica" },
+    { value: "croatia", label: "Croatia" },
+    { value: "cuba", label: "Cuba" },
+    { value: "cyprus", label: "Cyprus" },
+    { value: "czech_republic", label: "Czech Republic" },
+    { value: "denmark", label: "Denmark" },
+    { value: "djibouti", label: "Djibouti" },
+    { value: "dominica", label: "Dominica" },
+    { value: "dominican_republic", label: "Dominican Republic" },
+    { value: "ecuador", label: "Ecuador" },
+    { value: "egypt", label: "Egypt" },
+    { value: "el_salvador", label: "El Salvador" },
+    { value: "equatorial_guinea", label: "Equatorial Guinea" },
+    { value: "eritrea", label: "Eritrea" },
+    { value: "estonia", label: "Estonia" },
+    { value: "ethiopia", label: "Ethiopia" },
+    { value: "fiji", label: "Fiji" },
+    { value: "finland", label: "Finland" },
+    { value: "france", label: "France" },
+    { value: "gabon", label: "Gabon" },
+    { value: "gambia", label: "Gambia" },
+    { value: "georgia", label: "Georgia" },
+    { value: "germany", label: "Germany" },
+    { value: "ghana", label: "Ghana" },
+    { value: "greece", label: "Greece" },
+    { value: "grenada", label: "Grenada" },
+    { value: "guatemala", label: "Guatemala" },
+    { value: "guinea", label: "Guinea" },
+    { value: "guinea_bissau", label: "Guinea-Bissau" },
+    { value: "guyana", label: "Guyana" },
+    { value: "haiti", label: "Haiti" },
+    { value: "honduras", label: "Honduras" },
+    { value: "hungary", label: "Hungary" },
+    { value: "iceland", label: "Iceland" },
+    { value: "india", label: "India" },
+    { value: "indonesia", label: "Indonesia" },
+    { value: "iran", label: "Iran" },
+    { value: "iraq", label: "Iraq" },
+    { value: "ireland", label: "Ireland" },
+    { value: "israel", label: "Israel" },
+    { value: "italy", label: "Italy" },
+    { value: "jamaica", label: "Jamaica" },
+    { value: "japan", label: "Japan" },
+    { value: "jordan", label: "Jordan" },
+    { value: "kazakhstan", label: "Kazakhstan" },
+    { value: "kenya", label: "Kenya" },
+    { value: "kiribati", label: "Kiribati" },
+    { value: "korea_north", label: "Korea, North" },
+    { value: "korea_south", label: "Korea, South" },
+    { value: "kosovo", label: "Kosovo" },
+    { value: "kuwait", label: "Kuwait" },
+    { value: "kyrgyzstan", label: "Kyrgyzstan" },
+    { value: "laos", label: "Laos" },
+    { value: "latvia", label: "Latvia" },
+    { value: "lebanon", label: "Lebanon" },
+    { value: "lesotho", label: "Lesotho" },
+    { value: "liberia", label: "Liberia" },
+    { value: "libya", label: "Libya" },
+    { value: "liechtenstein", label: "Liechtenstein" },
+    { value: "lithuania", label: "Lithuania" },
+    { value: "luxembourg", label: "Luxembourg" },
+    { value: "madagascar", label: "Madagascar" },
+    { value: "malawi", label: "Malawi" },
+    { value: "malaysia", label: "Malaysia" },
+    { value: "maldives", label: "Maldives" },
+    { value: "mali", label: "Mali" },
+    { value: "malta", label: "Malta" },
+    { value: "marshall_islands", label: "Marshall Islands" },
+    { value: "mauritania", label: "Mauritania" },
+    { value: "mauritius", label: "Mauritius" },
+    { value: "mexico", label: "Mexico" },
+    { value: "micronesia", label: "Micronesia" },
+    { value: "moldova", label: "Moldova" },
+    { value: "monaco", label: "Monaco" },
+    { value: "mongolia", label: "Mongolia" },
+    { value: "montenegro", label: "Montenegro" },
+    { value: "morocco", label: "Morocco" },
+    { value: "mozambique", label: "Mozambique" },
+    { value: "myanmar", label: "Myanmar" },
+    { value: "namibia", label: "Namibia" },
+    { value: "nauru", label: "Nauru" },
+    { value: "nepal", label: "Nepal" },
+    { value: "netherlands", label: "Netherlands" },
+    { value: "new_zealand", label: "New Zealand" },
+    { value: "nicaragua", label: "Nicaragua" },
+    { value: "niger", label: "Niger" },
+    { value: "nigeria", label: "Nigeria" },
+    { value: "north_macedonia", label: "North Macedonia" },
+    { value: "norway", label: "Norway" },
+    { value: "oman", label: "Oman" },
+    { value: "pakistan", label: "Pakistan" },
+    { value: "palau", label: "Palau" },
+    { value: "palestine", label: "Palestine" },
+    { value: "panama", label: "Panama" },
+    { value: "papua_new_guinea", label: "Papua New Guinea" },
+    { value: "paraguay", label: "Paraguay" },
+    { value: "peru", label: "Peru" },
+    { value: "philippines", label: "Philippines" },
+    { value: "poland", label: "Poland" },
+    { value: "portugal", label: "Portugal" },
+    { value: "qatar", label: "Qatar" },
+    { value: "romania", label: "Romania" },
+    { value: "russia", label: "Russia" },
+    { value: "rwanda", label: "Rwanda" },
+    { value: "saint_kitts", label: "Saint Kitts and Nevis" },
+    { value: "saint_lucia", label: "Saint Lucia" },
+    { value: "saint_vincent", label: "Saint Vincent and the Grenadines" },
+    { value: "samoa", label: "Samoa" },
+    { value: "san_marino", label: "San Marino" },
+    { value: "sao_tome", label: "Sao Tome and Principe" },
+    { value: "saudi_arabia", label: "Saudi Arabia" },
+    { value: "senegal", label: "Senegal" },
+    { value: "serbia", label: "Serbia" },
+    { value: "seychelles", label: "Seychelles" },
+    { value: "sierra_leone", label: "Sierra Leone" },
+    { value: "singapore", label: "Singapore" },
+    { value: "slovakia", label: "Slovakia" },
+    { value: "slovenia", label: "Slovenia" },
+    { value: "solomon_islands", label: "Solomon Islands" },
+    { value: "somalia", label: "Somalia" },
+    { value: "south_africa", label: "South Africa" },
+    { value: "south_sudan", label: "South Sudan" },
+    { value: "spain", label: "Spain" },
+    { value: "sri_lanka", label: "Sri Lanka" },
+    { value: "sudan", label: "Sudan" },
+    { value: "suriname", label: "Suriname" },
+    { value: "sweden", label: "Sweden" },
+    { value: "switzerland", label: "Switzerland" },
+    { value: "syria", label: "Syria" },
+    { value: "taiwan", label: "Taiwan" },
+    { value: "tajikistan", label: "Tajikistan" },
+    { value: "tanzania", label: "Tanzania" },
+    { value: "thailand", label: "Thailand" },
+    { value: "timor_leste", label: "Timor-Leste" },
+    { value: "togo", label: "Togo" },
+    { value: "tonga", label: "Tonga" },
+    { value: "trinidad_tobago", label: "Trinidad and Tobago" },
+    { value: "tunisia", label: "Tunisia" },
+    { value: "turkey", label: "Turkey" },
+    { value: "turkmenistan", label: "Turkmenistan" },
+    { value: "tuvalu", label: "Tuvalu" },
+    { value: "uganda", label: "Uganda" },
+    { value: "ukraine", label: "Ukraine" },
+    { value: "united_arab_emirates", label: "United Arab Emirates" },
+    { value: "united_kingdom", label: "United Kingdom" },
+    { value: "united_states", label: "United States" },
+    { value: "uruguay", label: "Uruguay" },
+    { value: "uzbekistan", label: "Uzbekistan" },
+    { value: "vanuatu", label: "Vanuatu" },
+    { value: "vatican_city", label: "Vatican City" },
+    { value: "venezuela", label: "Venezuela" },
+    { value: "vietnam", label: "Vietnam" },
+    { value: "yemen", label: "Yemen" },
+    { value: "zambia", label: "Zambia" },
+    { value: "zimbabwe", label: "Zimbabwe" },
+  ];
 
   useEffect(() => {
     checkAuth();
@@ -626,207 +824,50 @@ const Assessment = () => {
       case 21:
         return (
           <div className="space-y-4">
-            <Label htmlFor="country" className="text-base">What country are you from?</Label>
-            <Select value={country} onValueChange={setCountry}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select country" />
-              </SelectTrigger>
-              <SelectContent className="max-h-[300px]">
-                <SelectItem value="afghanistan">Afghanistan</SelectItem>
-                <SelectItem value="albania">Albania</SelectItem>
-                <SelectItem value="algeria">Algeria</SelectItem>
-                <SelectItem value="andorra">Andorra</SelectItem>
-                <SelectItem value="angola">Angola</SelectItem>
-                <SelectItem value="argentina">Argentina</SelectItem>
-                <SelectItem value="armenia">Armenia</SelectItem>
-                <SelectItem value="australia">Australia</SelectItem>
-                <SelectItem value="austria">Austria</SelectItem>
-                <SelectItem value="azerbaijan">Azerbaijan</SelectItem>
-                <SelectItem value="bahamas">Bahamas</SelectItem>
-                <SelectItem value="bahrain">Bahrain</SelectItem>
-                <SelectItem value="bangladesh">Bangladesh</SelectItem>
-                <SelectItem value="barbados">Barbados</SelectItem>
-                <SelectItem value="belarus">Belarus</SelectItem>
-                <SelectItem value="belgium">Belgium</SelectItem>
-                <SelectItem value="belize">Belize</SelectItem>
-                <SelectItem value="benin">Benin</SelectItem>
-                <SelectItem value="bhutan">Bhutan</SelectItem>
-                <SelectItem value="bolivia">Bolivia</SelectItem>
-                <SelectItem value="bosnia">Bosnia and Herzegovina</SelectItem>
-                <SelectItem value="botswana">Botswana</SelectItem>
-                <SelectItem value="brazil">Brazil</SelectItem>
-                <SelectItem value="brunei">Brunei</SelectItem>
-                <SelectItem value="bulgaria">Bulgaria</SelectItem>
-                <SelectItem value="burkina_faso">Burkina Faso</SelectItem>
-                <SelectItem value="burundi">Burundi</SelectItem>
-                <SelectItem value="cambodia">Cambodia</SelectItem>
-                <SelectItem value="cameroon">Cameroon</SelectItem>
-                <SelectItem value="canada">Canada</SelectItem>
-                <SelectItem value="cape_verde">Cape Verde</SelectItem>
-                <SelectItem value="central_african_republic">Central African Republic</SelectItem>
-                <SelectItem value="chad">Chad</SelectItem>
-                <SelectItem value="chile">Chile</SelectItem>
-                <SelectItem value="china">China</SelectItem>
-                <SelectItem value="colombia">Colombia</SelectItem>
-                <SelectItem value="comoros">Comoros</SelectItem>
-                <SelectItem value="congo">Congo</SelectItem>
-                <SelectItem value="costa_rica">Costa Rica</SelectItem>
-                <SelectItem value="croatia">Croatia</SelectItem>
-                <SelectItem value="cuba">Cuba</SelectItem>
-                <SelectItem value="cyprus">Cyprus</SelectItem>
-                <SelectItem value="czech_republic">Czech Republic</SelectItem>
-                <SelectItem value="denmark">Denmark</SelectItem>
-                <SelectItem value="djibouti">Djibouti</SelectItem>
-                <SelectItem value="dominica">Dominica</SelectItem>
-                <SelectItem value="dominican_republic">Dominican Republic</SelectItem>
-                <SelectItem value="ecuador">Ecuador</SelectItem>
-                <SelectItem value="egypt">Egypt</SelectItem>
-                <SelectItem value="el_salvador">El Salvador</SelectItem>
-                <SelectItem value="equatorial_guinea">Equatorial Guinea</SelectItem>
-                <SelectItem value="eritrea">Eritrea</SelectItem>
-                <SelectItem value="estonia">Estonia</SelectItem>
-                <SelectItem value="ethiopia">Ethiopia</SelectItem>
-                <SelectItem value="fiji">Fiji</SelectItem>
-                <SelectItem value="finland">Finland</SelectItem>
-                <SelectItem value="france">France</SelectItem>
-                <SelectItem value="gabon">Gabon</SelectItem>
-                <SelectItem value="gambia">Gambia</SelectItem>
-                <SelectItem value="georgia">Georgia</SelectItem>
-                <SelectItem value="germany">Germany</SelectItem>
-                <SelectItem value="ghana">Ghana</SelectItem>
-                <SelectItem value="greece">Greece</SelectItem>
-                <SelectItem value="grenada">Grenada</SelectItem>
-                <SelectItem value="guatemala">Guatemala</SelectItem>
-                <SelectItem value="guinea">Guinea</SelectItem>
-                <SelectItem value="guinea_bissau">Guinea-Bissau</SelectItem>
-                <SelectItem value="guyana">Guyana</SelectItem>
-                <SelectItem value="haiti">Haiti</SelectItem>
-                <SelectItem value="honduras">Honduras</SelectItem>
-                <SelectItem value="hungary">Hungary</SelectItem>
-                <SelectItem value="iceland">Iceland</SelectItem>
-                <SelectItem value="india">India</SelectItem>
-                <SelectItem value="indonesia">Indonesia</SelectItem>
-                <SelectItem value="iran">Iran</SelectItem>
-                <SelectItem value="iraq">Iraq</SelectItem>
-                <SelectItem value="ireland">Ireland</SelectItem>
-                <SelectItem value="israel">Israel</SelectItem>
-                <SelectItem value="italy">Italy</SelectItem>
-                <SelectItem value="jamaica">Jamaica</SelectItem>
-                <SelectItem value="japan">Japan</SelectItem>
-                <SelectItem value="jordan">Jordan</SelectItem>
-                <SelectItem value="kazakhstan">Kazakhstan</SelectItem>
-                <SelectItem value="kenya">Kenya</SelectItem>
-                <SelectItem value="kiribati">Kiribati</SelectItem>
-                <SelectItem value="korea_north">Korea, North</SelectItem>
-                <SelectItem value="korea_south">Korea, South</SelectItem>
-                <SelectItem value="kosovo">Kosovo</SelectItem>
-                <SelectItem value="kuwait">Kuwait</SelectItem>
-                <SelectItem value="kyrgyzstan">Kyrgyzstan</SelectItem>
-                <SelectItem value="laos">Laos</SelectItem>
-                <SelectItem value="latvia">Latvia</SelectItem>
-                <SelectItem value="lebanon">Lebanon</SelectItem>
-                <SelectItem value="lesotho">Lesotho</SelectItem>
-                <SelectItem value="liberia">Liberia</SelectItem>
-                <SelectItem value="libya">Libya</SelectItem>
-                <SelectItem value="liechtenstein">Liechtenstein</SelectItem>
-                <SelectItem value="lithuania">Lithuania</SelectItem>
-                <SelectItem value="luxembourg">Luxembourg</SelectItem>
-                <SelectItem value="madagascar">Madagascar</SelectItem>
-                <SelectItem value="malawi">Malawi</SelectItem>
-                <SelectItem value="malaysia">Malaysia</SelectItem>
-                <SelectItem value="maldives">Maldives</SelectItem>
-                <SelectItem value="mali">Mali</SelectItem>
-                <SelectItem value="malta">Malta</SelectItem>
-                <SelectItem value="marshall_islands">Marshall Islands</SelectItem>
-                <SelectItem value="mauritania">Mauritania</SelectItem>
-                <SelectItem value="mauritius">Mauritius</SelectItem>
-                <SelectItem value="mexico">Mexico</SelectItem>
-                <SelectItem value="micronesia">Micronesia</SelectItem>
-                <SelectItem value="moldova">Moldova</SelectItem>
-                <SelectItem value="monaco">Monaco</SelectItem>
-                <SelectItem value="mongolia">Mongolia</SelectItem>
-                <SelectItem value="montenegro">Montenegro</SelectItem>
-                <SelectItem value="morocco">Morocco</SelectItem>
-                <SelectItem value="mozambique">Mozambique</SelectItem>
-                <SelectItem value="myanmar">Myanmar</SelectItem>
-                <SelectItem value="namibia">Namibia</SelectItem>
-                <SelectItem value="nauru">Nauru</SelectItem>
-                <SelectItem value="nepal">Nepal</SelectItem>
-                <SelectItem value="netherlands">Netherlands</SelectItem>
-                <SelectItem value="new_zealand">New Zealand</SelectItem>
-                <SelectItem value="nicaragua">Nicaragua</SelectItem>
-                <SelectItem value="niger">Niger</SelectItem>
-                <SelectItem value="nigeria">Nigeria</SelectItem>
-                <SelectItem value="north_macedonia">North Macedonia</SelectItem>
-                <SelectItem value="norway">Norway</SelectItem>
-                <SelectItem value="oman">Oman</SelectItem>
-                <SelectItem value="pakistan">Pakistan</SelectItem>
-                <SelectItem value="palau">Palau</SelectItem>
-                <SelectItem value="palestine">Palestine</SelectItem>
-                <SelectItem value="panama">Panama</SelectItem>
-                <SelectItem value="papua_new_guinea">Papua New Guinea</SelectItem>
-                <SelectItem value="paraguay">Paraguay</SelectItem>
-                <SelectItem value="peru">Peru</SelectItem>
-                <SelectItem value="philippines">Philippines</SelectItem>
-                <SelectItem value="poland">Poland</SelectItem>
-                <SelectItem value="portugal">Portugal</SelectItem>
-                <SelectItem value="qatar">Qatar</SelectItem>
-                <SelectItem value="romania">Romania</SelectItem>
-                <SelectItem value="russia">Russia</SelectItem>
-                <SelectItem value="rwanda">Rwanda</SelectItem>
-                <SelectItem value="saint_kitts">Saint Kitts and Nevis</SelectItem>
-                <SelectItem value="saint_lucia">Saint Lucia</SelectItem>
-                <SelectItem value="saint_vincent">Saint Vincent and the Grenadines</SelectItem>
-                <SelectItem value="samoa">Samoa</SelectItem>
-                <SelectItem value="san_marino">San Marino</SelectItem>
-                <SelectItem value="sao_tome">Sao Tome and Principe</SelectItem>
-                <SelectItem value="saudi_arabia">Saudi Arabia</SelectItem>
-                <SelectItem value="senegal">Senegal</SelectItem>
-                <SelectItem value="serbia">Serbia</SelectItem>
-                <SelectItem value="seychelles">Seychelles</SelectItem>
-                <SelectItem value="sierra_leone">Sierra Leone</SelectItem>
-                <SelectItem value="singapore">Singapore</SelectItem>
-                <SelectItem value="slovakia">Slovakia</SelectItem>
-                <SelectItem value="slovenia">Slovenia</SelectItem>
-                <SelectItem value="solomon_islands">Solomon Islands</SelectItem>
-                <SelectItem value="somalia">Somalia</SelectItem>
-                <SelectItem value="south_africa">South Africa</SelectItem>
-                <SelectItem value="south_sudan">South Sudan</SelectItem>
-                <SelectItem value="spain">Spain</SelectItem>
-                <SelectItem value="sri_lanka">Sri Lanka</SelectItem>
-                <SelectItem value="sudan">Sudan</SelectItem>
-                <SelectItem value="suriname">Suriname</SelectItem>
-                <SelectItem value="sweden">Sweden</SelectItem>
-                <SelectItem value="switzerland">Switzerland</SelectItem>
-                <SelectItem value="syria">Syria</SelectItem>
-                <SelectItem value="taiwan">Taiwan</SelectItem>
-                <SelectItem value="tajikistan">Tajikistan</SelectItem>
-                <SelectItem value="tanzania">Tanzania</SelectItem>
-                <SelectItem value="thailand">Thailand</SelectItem>
-                <SelectItem value="timor_leste">Timor-Leste</SelectItem>
-                <SelectItem value="togo">Togo</SelectItem>
-                <SelectItem value="tonga">Tonga</SelectItem>
-                <SelectItem value="trinidad_tobago">Trinidad and Tobago</SelectItem>
-                <SelectItem value="tunisia">Tunisia</SelectItem>
-                <SelectItem value="turkey">Turkey</SelectItem>
-                <SelectItem value="turkmenistan">Turkmenistan</SelectItem>
-                <SelectItem value="tuvalu">Tuvalu</SelectItem>
-                <SelectItem value="uganda">Uganda</SelectItem>
-                <SelectItem value="ukraine">Ukraine</SelectItem>
-                <SelectItem value="united_arab_emirates">United Arab Emirates</SelectItem>
-                <SelectItem value="united_kingdom">United Kingdom</SelectItem>
-                <SelectItem value="united_states">United States</SelectItem>
-                <SelectItem value="uruguay">Uruguay</SelectItem>
-                <SelectItem value="uzbekistan">Uzbekistan</SelectItem>
-                <SelectItem value="vanuatu">Vanuatu</SelectItem>
-                <SelectItem value="vatican_city">Vatican City</SelectItem>
-                <SelectItem value="venezuela">Venezuela</SelectItem>
-                <SelectItem value="vietnam">Vietnam</SelectItem>
-                <SelectItem value="yemen">Yemen</SelectItem>
-                <SelectItem value="zambia">Zambia</SelectItem>
-                <SelectItem value="zimbabwe">Zimbabwe</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label className="text-base">What country are you from?</Label>
+            <Popover open={countryOpen} onOpenChange={setCountryOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={countryOpen}
+                  className="w-full justify-between"
+                >
+                  {country
+                    ? countries.find((c) => c.value === country)?.label
+                    : "Select country..."}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Search country..." />
+                  <CommandList>
+                    <CommandEmpty>No country found.</CommandEmpty>
+                    <CommandGroup>
+                      {countries.map((c) => (
+                        <CommandItem
+                          key={c.value}
+                          value={c.value}
+                          onSelect={(currentValue) => {
+                            setCountry(currentValue === country ? "" : currentValue);
+                            setCountryOpen(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              country === c.value ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {c.label}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
         );
 
