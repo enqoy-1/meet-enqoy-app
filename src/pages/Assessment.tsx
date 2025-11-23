@@ -1024,7 +1024,16 @@ const Assessment = () => {
                 We'd love to have you join us when you turn 18! Feel free to come back then.
               </p>
             </div>
-            <div className="flex justify-center">
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Button 
+                variant="outline"
+                onClick={() => {
+                  setShowUnderageMessage(false);
+                  setStep(22);
+                }}
+              >
+                Back to birthday question
+              </Button>
               <Button onClick={() => navigate("/")}>
                 Go back to the main page
               </Button>
