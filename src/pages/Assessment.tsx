@@ -733,10 +733,6 @@ const Assessment = () => {
       case 15:
         return (
           <div className="space-y-4">
-            <div className="mb-4">
-              <h3 className="text-lg font-semibold mb-2">Section 2: Your Preferences</h3>
-              <p className="text-sm text-muted-foreground">Let's talk about what makes your dinner experience perfect—from food to vibes.</p>
-            </div>
             <Label className="text-base">Do you have any dietary preferences or restrictions?</Label>
             <RadioGroup value={dietaryPreferences} onValueChange={setDietaryPreferences}>
               <div className="flex items-center space-x-2">
