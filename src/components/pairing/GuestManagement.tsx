@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plus, Upload, Search, X, UserPlus } from "lucide-react";
+import { Plus, Upload, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import {
@@ -59,7 +59,6 @@ interface GuestManagementProps {
 export const GuestManagement = ({ eventId, guests, onRefresh }: GuestManagementProps) => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
-  const [isImportingBookings, setIsImportingBookings] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterTag, setFilterTag] = useState<string>("all");
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
@@ -131,78 +130,6 @@ export const GuestManagement = ({ eventId, guests, onRefresh }: GuestManagementP
     }
   };
 
-  const handleImportFromBookings = async () => {
-    setIsImportingBookings(true);
-    try {
-      // Fetch confirmed bookings for this event
-      const { data: bookings, error: bookingsError } = await supabase
-        .from("bookings")
-        .select(`
-          user_id,
-          profiles:user_id (
-            full_name,
-            email,
-            phone,
-            gender,
-            age
-          )
-        `)
-        .eq("event_id", eventId)
-        .eq("status", "confirmed");
-
-      if (bookingsError) throw bookingsError;
-
-      if (!bookings || bookings.length === 0) {
-        toast.info("No confirmed bookings found for this event");
-        return;
-      }
-
-      // Check which guests already exist
-      const existingEmails = new Set(guests.map(g => g.email?.toLowerCase()).filter(Boolean));
-      
-      // Prepare guests to import
-      const guestsToImport = bookings
-        .filter(booking => {
-          const profile = booking.profiles;
-          return profile && profile.email && !existingEmails.has(profile.email.toLowerCase());
-        })
-        .map(booking => {
-          const profile = booking.profiles;
-          const nameParts = profile.full_name.split(" ");
-          const firstName = nameParts[0] || "";
-          const lastName = nameParts.slice(1).join(" ") || nameParts[0] || "";
-
-          return {
-            event_id: eventId,
-            first_name: firstName,
-            last_name: lastName,
-            email: profile.email,
-            phone: profile.phone || null,
-            gender: profile.gender || null,
-            age_range: profile.age ? `${profile.age}` : null,
-            tags: ["booked"],
-          };
-        });
-
-      if (guestsToImport.length === 0) {
-        toast.info("All booked guests are already in the pairing list");
-        return;
-      }
-
-      const { error: insertError } = await supabase
-        .from("pairing_guests")
-        .insert(guestsToImport);
-
-      if (insertError) throw insertError;
-
-      toast.success(`Imported ${guestsToImport.length} guest${guestsToImport.length > 1 ? 's' : ''} from bookings`);
-      onRefresh();
-    } catch (error: any) {
-      toast.error("Failed to import guests from bookings");
-    } finally {
-      setIsImportingBookings(false);
-    }
-  };
 
   const handleImportCSV = async () => {
     if (!csvData.trim()) {
@@ -282,14 +209,6 @@ export const GuestManagement = ({ eventId, guests, onRefresh }: GuestManagementP
           </Select>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Button 
-            variant="outline" 
-            onClick={handleImportFromBookings}
-            disabled={isImportingBookings}
-          >
-            <UserPlus className="h-4 w-4 mr-2" />
-            {isImportingBookings ? "Importing..." : "Import Booked Guests"}
-          </Button>
           <Button variant="outline" onClick={() => setIsImportDialogOpen(true)}>
             <Upload className="h-4 w-4 mr-2" />
             Import CSV
