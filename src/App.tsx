@@ -9,6 +9,9 @@ import Assessment from "./pages/Assessment";
 import Dashboard from "./pages/Dashboard";
 import Events from "./pages/Events";
 import EventDetail from "./pages/EventDetail";
+import Terms from "./pages/Terms";
+import FAQ from "./pages/FAQ";
+import CommunityGuidelines from "./pages/CommunityGuidelines";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminEvents from "./pages/admin/AdminEvents";
@@ -39,6 +42,9 @@ const App = () => (
           <Route path="/dashboard" element={<ProtectedRoute requireAssessment><Dashboard /></ProtectedRoute>} />
           <Route path="/events" element={<ProtectedRoute requireAssessment><Events /></ProtectedRoute>} />
           <Route path="/events/:id" element={<ProtectedRoute requireAssessment><EventDetail /></ProtectedRoute>} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/faq" element={<FAQ />} />
+          <Route path="/community-guidelines" element={<CommunityGuidelines />} />
           <Route path="/admin" element={<ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute>} />
           <Route path="/admin/users" element={<ProtectedRoute requireAdmin><AdminUsers /></ProtectedRoute>} />
           <Route path="/admin/events" element={<ProtectedRoute requireAdmin><AdminEvents /></ProtectedRoute>} />

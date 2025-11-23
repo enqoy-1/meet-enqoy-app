@@ -371,6 +371,46 @@ const Dashboard = () => {
           </section>
         )}
       </main>
+
+      <footer className="bg-card border-t mt-12">
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+            <div className="text-center md:text-left">
+              <h3 className="font-bold text-lg bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                Enqoy
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                Building meaningful connections through shared experiences
+              </p>
+            </div>
+            
+            <div className="flex flex-wrap justify-center gap-6 text-sm">
+              <button 
+                onClick={() => navigate("/terms")}
+                className="text-muted-foreground hover:text-primary transition-colors"
+              >
+                Terms & Conditions
+              </button>
+              <button 
+                onClick={() => navigate("/faq")}
+                className="text-muted-foreground hover:text-primary transition-colors"
+              >
+                FAQs
+              </button>
+              <button 
+                onClick={() => navigate("/community-guidelines")}
+                className="text-muted-foreground hover:text-primary transition-colors"
+              >
+                Community Guidelines
+              </button>
+            </div>
+          </div>
+          
+          <div className="mt-6 pt-6 border-t text-center text-sm text-muted-foreground">
+            <p>© {new Date().getFullYear()} Enqoy. All rights reserved.</p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };
