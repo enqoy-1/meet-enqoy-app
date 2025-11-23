@@ -19,6 +19,7 @@ import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import AdminPairings from "./pages/admin/AdminPairings";
 import AdminPairingDetail from "./pages/admin/AdminPairingDetail";
 import AdminAssessmentResponses from "./pages/admin/AdminAssessmentResponses";
+import AdminOutsideCityInterests from "./pages/admin/AdminOutsideCityInterests";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 
@@ -47,6 +48,7 @@ const App = () => (
           <Route path="/admin/announcements" element={<ProtectedRoute requireAdmin><AdminAnnouncements /></ProtectedRoute>} />
           <Route path="/admin/analytics" element={<ProtectedRoute requireAdmin><AdminAnalytics /></ProtectedRoute>} />
           <Route path="/admin/assessment-responses" element={<ProtectedRoute requireAdmin><AdminAssessmentResponses /></ProtectedRoute>} />
+          <Route path="/admin/outside-city-interests" element={<ProtectedRoute requireAdmin><AdminOutsideCityInterests /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

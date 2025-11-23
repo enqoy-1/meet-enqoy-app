@@ -231,6 +231,30 @@ export type Database = {
         }
         Relationships: []
       }
+      outside_city_interests: {
+        Row: {
+          city: string
+          created_at: string
+          id: string
+          phone: string
+          specified_city: string
+        }
+        Insert: {
+          city: string
+          created_at?: string
+          id?: string
+          phone: string
+          specified_city: string
+        }
+        Update: {
+          city?: string
+          created_at?: string
+          id?: string
+          phone?: string
+          specified_city?: string
+        }
+        Relationships: []
+      }
       pairing_assignments: {
         Row: {
           created_at: string
