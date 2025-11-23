@@ -4,10 +4,30 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, MapPin, ArrowLeft, DollarSign, Users, ChevronRight, ChevronLeft } from "lucide-react";
+import { Calendar, MapPin, ArrowLeft, DollarSign, Users, ChevronRight, ChevronLeft, MoreVertical } from "lucide-react";
 import { toast } from "sonner";
 import { format, differenceInHours, isSameDay } from "date-fns";
 import { IceBreakerGame } from "@/components/IceBreakerGame";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Event {
   id: string;
@@ -35,6 +55,9 @@ const EventDetail = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [isGameOpen, setIsGameOpen] = useState(false);
+  const [isRescheduleDialogOpen, setIsRescheduleDialogOpen] = useState(false);
+  const [availableEvents, setAvailableEvents] = useState<Event[]>([]);
+  const [selectedNewEventId, setSelectedNewEventId] = useState<string>("");
 
   useEffect(() => {
     fetchEventDetails();
@@ -176,6 +199,75 @@ const EventDetail = () => {
     }
   };
 
+  const fetchAvailableEvents = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("events")
+        .select(`
+          *,
+          venues (
+            name,
+            address,
+            google_maps_link
+          )
+        `)
+        .eq("is_visible", true)
+        .neq("id", id)
+        .gte("date_time", new Date().toISOString())
+        .order("date_time", { ascending: true });
+
+      if (error) throw error;
+      setAvailableEvents(data || []);
+    } catch (error: any) {
+      toast.error("Failed to load available events");
+    }
+  };
+
+  const handleOpenReschedule = async () => {
+    const hoursUntilEvent = differenceInHours(new Date(event.date_time), new Date());
+    
+    if (hoursUntilEvent < 48) {
+      toast.error("Cannot reschedule within 48 hours of the event");
+      return;
+    }
+
+    await fetchAvailableEvents();
+    setIsRescheduleDialogOpen(true);
+  };
+
+  const handleRescheduleBooking = async () => {
+    if (!booking || !selectedNewEventId) return;
+
+    try {
+      // Get the new event details
+      const { data: newEventData, error: eventError } = await supabase
+        .from("events")
+        .select("*")
+        .eq("id", selectedNewEventId)
+        .single();
+
+      if (eventError) throw eventError;
+
+      // Update the booking
+      const { error } = await supabase
+        .from("bookings")
+        .update({ 
+          event_id: selectedNewEventId,
+          status: "rescheduled",
+          amount_paid: newEventData.price
+        })
+        .eq("id", booking.id);
+
+      if (error) throw error;
+
+      toast.success("Booking rescheduled successfully!");
+      setIsRescheduleDialogOpen(false);
+      navigate(`/events/${selectedNewEventId}`);
+    } catch (error: any) {
+      toast.error("Failed to reschedule booking");
+    }
+  };
+
   if (isLoading || !event) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -193,11 +285,28 @@ const EventDetail = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted">
       <header className="bg-card border-b sticky top-0 z-10 shadow-sm">
-        <div className="container mx-auto px-4 py-4">
+        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <Button variant="ghost" onClick={() => navigate("/events")}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Events
           </Button>
+          {booking && hoursUntilEvent >= 48 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <MoreVertical className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-popover z-50">
+                <DropdownMenuItem onClick={handleOpenReschedule}>
+                  Reschedule Booking
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleCancelBooking} className="text-destructive">
+                  Cancel Booking
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </header>
 
@@ -307,16 +416,9 @@ const EventDetail = () => {
 
             <div className="flex gap-3">
               {booking ? (
-                <>
-                  <Badge variant="secondary" className="text-base py-2 px-4">
-                    Booking Confirmed
-                  </Badge>
-                  {hoursUntilEvent >= 48 && (
-                    <Button variant="destructive" onClick={handleCancelBooking}>
-                      Cancel Booking
-                    </Button>
-                  )}
-                </>
+                <Badge variant="secondary" className="text-base py-2 px-4">
+                  Booking Confirmed
+                </Badge>
               ) : (
                 <Button onClick={handleBookEvent} size="lg" className="w-full sm:w-auto">
                   Book This Event - {event.price} ETB
@@ -348,6 +450,64 @@ const EventDetail = () => {
         onClose={() => setIsGameOpen(false)}
         eventId={event.id}
       />
+
+      {/* Reschedule Dialog */}
+      <Dialog open={isRescheduleDialogOpen} onOpenChange={setIsRescheduleDialogOpen}>
+        <DialogContent className="bg-card">
+          <DialogHeader>
+            <DialogTitle>Reschedule Your Booking</DialogTitle>
+            <DialogDescription>
+              Select a new event date to reschedule your booking
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Select New Event</label>
+              <Select value={selectedNewEventId} onValueChange={setSelectedNewEventId}>
+                <SelectTrigger className="bg-background">
+                  <SelectValue placeholder="Choose an event" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover z-50">
+                  {availableEvents.map((evt) => (
+                    <SelectItem key={evt.id} value={evt.id}>
+                      {evt.title} - {format(new Date(evt.date_time), "PPP")}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {selectedNewEventId && availableEvents.find(e => e.id === selectedNewEventId) && (
+              <div className="bg-muted p-4 rounded-lg space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  <strong>New Event:</strong> {availableEvents.find(e => e.id === selectedNewEventId)?.title}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  <strong>Date:</strong> {format(new Date(availableEvents.find(e => e.id === selectedNewEventId)!.date_time), "PPPP")}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  <strong>Price:</strong> {availableEvents.find(e => e.id === selectedNewEventId)?.price} ETB
+                </p>
+              </div>
+            )}
+            <div className="flex gap-2 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => setIsRescheduleDialogOpen(false)}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleRescheduleBooking}
+                disabled={!selectedNewEventId}
+                className="flex-1"
+              >
+                Confirm Reschedule
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
