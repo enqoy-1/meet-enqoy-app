@@ -34,11 +34,11 @@ const Assessment = () => {
   const [groupDynamic, setGroupDynamic] = useState("");
   const [humorType, setHumorType] = useState("");
   const [wardrobeStyle, setWardrobeStyle] = useState("");
-  const [introvertScale, setIntrovertScale] = useState(3);
-  const [aloneTimeScale, setAloneTimeScale] = useState(3);
-  const [familyScale, setFamilyScale] = useState(3);
-  const [spiritualityScale, setSpiritualityScale] = useState(3);
-  const [humorScale, setHumorScale] = useState(3);
+  const [introvertScale, setIntrovertScale] = useState<number | undefined>(undefined);
+  const [aloneTimeScale, setAloneTimeScale] = useState<number | undefined>(undefined);
+  const [familyScale, setFamilyScale] = useState<number | undefined>(undefined);
+  const [spiritualityScale, setSpiritualityScale] = useState<number | undefined>(undefined);
+  const [humorScale, setHumorScale] = useState<number | undefined>(undefined);
   const [meetingPriority, setMeetingPriority] = useState("");
   const [dietaryPreferences, setDietaryPreferences] = useState("");
   const [customDietary, setCustomDietary] = useState("");
@@ -92,11 +92,11 @@ const Assessment = () => {
       case 6: return !!groupDynamic;
       case 7: return !!humorType;
       case 8: return !!wardrobeStyle;
-      case 9: return introvertScale >= 1 && introvertScale <= 5;
-      case 10: return aloneTimeScale >= 1 && aloneTimeScale <= 5;
-      case 11: return familyScale >= 1 && familyScale <= 5;
-      case 12: return spiritualityScale >= 1 && spiritualityScale <= 5;
-      case 13: return humorScale >= 1 && humorScale <= 5;
+      case 9: return introvertScale !== undefined && introvertScale >= 1 && introvertScale <= 5;
+      case 10: return aloneTimeScale !== undefined && aloneTimeScale >= 1 && aloneTimeScale <= 5;
+      case 11: return familyScale !== undefined && familyScale >= 1 && familyScale <= 5;
+      case 12: return spiritualityScale !== undefined && spiritualityScale >= 1 && spiritualityScale <= 5;
+      case 13: return humorScale !== undefined && humorScale >= 1 && humorScale <= 5;
       case 14: return !!meetingPriority;
       case 15: return !!dietaryPreferences && (dietaryPreferences !== "other" || !!customDietary);
       case 16: return !!restaurantFrequency;
@@ -194,7 +194,7 @@ const Assessment = () => {
     }
   };
 
-  const ScaleSelector = ({ value, onChange, label }: { value: number; onChange: (val: number) => void; label: string }) => (
+  const ScaleSelector = ({ value, onChange, label }: { value: number | undefined; onChange: (val: number) => void; label: string }) => (
     <div className="space-y-4">
       <Label className="text-base">{label}</Label>
       <div className="flex items-center justify-between gap-2">
