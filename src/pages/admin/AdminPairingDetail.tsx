@@ -16,10 +16,9 @@ import { ExportsPanel } from "@/components/pairing/ExportsPanel";
 
 interface PairingEvent {
   id: string;
-  name: string;
-  date: string;
-  city: string | null;
-  status: "draft" | "locked";
+  title: string;
+  date_time: string;
+  type: string;
 }
 
 const AdminPairingDetail = () => {
@@ -42,7 +41,7 @@ const AdminPairingDetail = () => {
     try {
       // Fetch event
       const { data: eventData, error: eventError } = await supabase
-        .from("pairing_events")
+        .from("events")
         .select("*")
         .eq("id", eventId)
         .single();
@@ -101,20 +100,13 @@ const AdminPairingDetail = () => {
     const unassignedCount = guests.length - assignments.length;
     if (unassignedCount > 0) {
       const confirmed = window.confirm(
-        `There are ${unassignedCount} unassigned guests. Are you sure you want to lock this event?`
+        `There are ${unassignedCount} unassigned guests. Locking will create a snapshot. Continue?`
       );
       if (!confirmed) return;
     }
 
     try {
-      const { error } = await supabase
-        .from("pairing_events")
-        .update({ status: "locked" })
-        .eq("id", event.id);
-
-      if (error) throw error;
-
-      // Log to audit
+      // Create snapshot in audit log
       await supabase.from("pairing_audit_log").insert({
         event_id: event.id,
         action: "lock_event",
@@ -122,10 +114,16 @@ const AdminPairingDetail = () => {
           locked_at: new Date().toISOString(),
           total_guests: guests.length,
           assigned_guests: assignments.length,
+          snapshot: {
+            guests,
+            restaurants,
+            assignments,
+            constraints,
+          },
         },
       });
 
-      toast.success("Event locked successfully");
+      toast.success("Event snapshot created and locked");
       fetchAllData();
     } catch (error: any) {
       toast.error("Failed to lock event");
@@ -157,31 +155,21 @@ const AdminPairingDetail = () => {
               </Button>
               <div>
                 <div className="flex items-center gap-3">
-                  <h1 className="text-2xl font-bold">{event.name}</h1>
-                  <Badge variant={event.status === "locked" ? "default" : "secondary"}>
-                    {event.status}
-                  </Badge>
+                  <h1 className="text-2xl font-bold">{event.title}</h1>
+                  <Badge variant="outline">{event.type}</Badge>
                 </div>
                 <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
                   <div className="flex items-center gap-1">
                     <Calendar className="h-3 w-3" />
-                    {format(new Date(event.date), "PPP 'at' p")}
+                    {format(new Date(event.date_time), "PPP 'at' p")}
                   </div>
-                  {event.city && (
-                    <div className="flex items-center gap-1">
-                      <MapPin className="h-3 w-3" />
-                      {event.city}
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
-            {event.status === "draft" && (
-              <Button onClick={handleLockEvent} variant="outline">
-                <Lock className="h-4 w-4 mr-2" />
-                Lock Event
-              </Button>
-            )}
+            <Button onClick={handleLockEvent} variant="outline">
+              <Lock className="h-4 w-4 mr-2" />
+              Create Snapshot
+            </Button>
           </div>
         </div>
       </header>
@@ -301,7 +289,7 @@ const AdminPairingDetail = () => {
           <TabsContent value="exports" className="mt-6">
             <ExportsPanel
               eventId={eventId!}
-              eventName={event.name}
+              eventName={event.title}
               guests={guests}
               restaurants={restaurants}
               assignments={assignments}

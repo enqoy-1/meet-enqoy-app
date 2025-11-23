@@ -273,7 +273,7 @@ export type Database = {
             foreignKeyName: "pairing_assignments_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
-            referencedRelation: "pairing_events"
+            referencedRelation: "events"
             referencedColumns: ["id"]
           },
           {
@@ -333,7 +333,7 @@ export type Database = {
             foreignKeyName: "pairing_audit_log_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
-            referencedRelation: "pairing_events"
+            referencedRelation: "events"
             referencedColumns: ["id"]
           },
         ]
@@ -374,40 +374,10 @@ export type Database = {
             foreignKeyName: "pairing_constraints_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
-            referencedRelation: "pairing_events"
+            referencedRelation: "events"
             referencedColumns: ["id"]
           },
         ]
-      }
-      pairing_events: {
-        Row: {
-          city: string | null
-          created_at: string
-          date: string
-          id: string
-          name: string
-          status: Database["public"]["Enums"]["event_status"]
-          updated_at: string
-        }
-        Insert: {
-          city?: string | null
-          created_at?: string
-          date: string
-          id?: string
-          name: string
-          status?: Database["public"]["Enums"]["event_status"]
-          updated_at?: string
-        }
-        Update: {
-          city?: string | null
-          created_at?: string
-          date?: string
-          id?: string
-          name?: string
-          status?: Database["public"]["Enums"]["event_status"]
-          updated_at?: string
-        }
-        Relationships: []
       }
       pairing_guests: {
         Row: {
@@ -460,7 +430,7 @@ export type Database = {
             foreignKeyName: "pairing_guests_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
-            referencedRelation: "pairing_events"
+            referencedRelation: "events"
             referencedColumns: ["id"]
           },
         ]
@@ -495,7 +465,7 @@ export type Database = {
             foreignKeyName: "pairing_pairs_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
-            referencedRelation: "pairing_events"
+            referencedRelation: "events"
             referencedColumns: ["id"]
           },
         ]
@@ -537,15 +507,7 @@ export type Database = {
           notes?: string | null
           updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "pairing_restaurants_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "pairing_events"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       pairing_tables: {
         Row: {
