@@ -353,6 +353,17 @@ const Dashboard = () => {
                       <Calendar className="h-4 w-4" />
                       <span>{format(new Date(booking.events.date_time), "PPP")}</span>
                     </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="mt-4 w-full"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/events/${booking.events.id}/feedback`);
+                      }}
+                    >
+                      Give us feedback
+                    </Button>
                   </CardContent>
                 </Card>
               ))}
