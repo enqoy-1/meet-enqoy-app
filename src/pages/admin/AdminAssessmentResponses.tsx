@@ -233,15 +233,15 @@ const AdminAssessmentResponses = () => {
       </Card>
 
       <Dialog open={!!selectedResponse} onOpenChange={() => setSelectedResponse(null)}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               Assessment Response - {selectedResponse?.profiles?.full_name}
             </DialogTitle>
           </DialogHeader>
           {selectedResponse && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 pb-4 border-b">
                 <div>
                   <p className="text-sm font-semibold text-muted-foreground">Email</p>
                   <p>{selectedResponse.profiles?.email}</p>
@@ -252,134 +252,117 @@ const AdminAssessmentResponses = () => {
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <h3 className="font-semibold text-lg">Location & Time Preferences</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm font-semibold text-muted-foreground">City</p>
-                    <p>{formatAnswer("city", selectedResponse.answers.city)}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-muted-foreground">Preferred Time</p>
-                    <p>{formatAnswer("preferredTime", selectedResponse.answers.preferredTime)}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h3 className="font-semibold text-lg">Personality</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm font-semibold text-muted-foreground">Dinner Vibe</p>
-                    <p>{formatAnswer("dinnerVibe", selectedResponse.answers.dinnerVibe)}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-muted-foreground">Talk Topic</p>
-                    <p>{formatAnswer("talkTopic", selectedResponse.answers.talkTopic)}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-muted-foreground">Group Dynamic</p>
-                    <p>{formatAnswer("groupDynamic", selectedResponse.answers.groupDynamic)}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-muted-foreground">Humor Type</p>
-                    <p>{formatAnswer("humorType", selectedResponse.answers.humorType)}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-muted-foreground">Wardrobe Style</p>
-                    <p>{formatAnswer("wardrobeStyle", selectedResponse.answers.wardrobeStyle)}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-muted-foreground">Introvert Scale</p>
-                    <p>{selectedResponse.answers.introvertScale}/5</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-muted-foreground">Alone Time Scale</p>
-                    <p>{selectedResponse.answers.aloneTimeScale}/5</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-muted-foreground">Family Importance</p>
-                    <p>{selectedResponse.answers.familyScale}/5</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-muted-foreground">Spirituality</p>
-                    <p>{selectedResponse.answers.spiritualityScale}/5</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-muted-foreground">Humor Importance</p>
-                    <p>{selectedResponse.answers.humorScale}/5</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-muted-foreground">Meeting Priority</p>
-                    <p>{formatAnswer("meetingPriority", selectedResponse.answers.meetingPriority)}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h3 className="font-semibold text-lg">Preferences</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm font-semibold text-muted-foreground">Dietary</p>
-                    <p>{formatAnswer("dietaryPreferences", selectedResponse.answers.dietaryPreferences)}</p>
-                    {selectedResponse.answers.customDietary && (
-                      <p className="text-sm text-muted-foreground">
-                        ({selectedResponse.answers.customDietary})
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-muted-foreground">Restaurant Frequency</p>
-                    <p>{formatAnswer("restaurantFrequency", selectedResponse.answers.restaurantFrequency)}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-muted-foreground">Spending Range</p>
-                    <p>{formatAnswer("spending", selectedResponse.answers.spending)}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h3 className="font-semibold text-lg">Personal Details</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm font-semibold text-muted-foreground">Gender</p>
-                    <p>{formatAnswer("gender", selectedResponse.answers.gender)}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-muted-foreground">Relationship Status</p>
-                    <p>{formatAnswer("relationshipStatus", selectedResponse.answers.relationshipStatus)}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-muted-foreground">Children</p>
-                    <p>{formatAnswer("hasChildren", selectedResponse.answers.hasChildren)}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-muted-foreground">Country</p>
-                    <p>{formatAnswer("country", selectedResponse.answers.country)}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-muted-foreground">Birthday</p>
-                    <p>{formatAnswer("birthday", selectedResponse.answers.birthday)}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-muted-foreground">Nickname</p>
-                    <p>{formatAnswer("nickName", selectedResponse.answers.nickName)}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h3 className="font-semibold text-lg">Icebreakers</h3>
-                <div>
-                  <p className="text-sm font-semibold text-muted-foreground">Never Guess</p>
-                  <p>{formatAnswer("neverGuess", selectedResponse.answers.neverGuess)}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-muted-foreground">Fun Fact</p>
-                  <p>{formatAnswer("funFact", selectedResponse.answers.funFact)}</p>
-                </div>
-              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-1/3">Question</TableHead>
+                    <TableHead>Answer</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow>
+                    <TableCell className="font-medium">City</TableCell>
+                    <TableCell>{formatAnswer("city", selectedResponse.answers.city)}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">Preferred Time</TableCell>
+                    <TableCell>{formatAnswer("preferredTime", selectedResponse.answers.preferredTime)}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">Dinner Vibe</TableCell>
+                    <TableCell>{formatAnswer("dinnerVibe", selectedResponse.answers.dinnerVibe)}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">Talk Topic</TableCell>
+                    <TableCell>{formatAnswer("talkTopic", selectedResponse.answers.talkTopic)}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">Group Dynamic</TableCell>
+                    <TableCell>{formatAnswer("groupDynamic", selectedResponse.answers.groupDynamic)}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">Humor Type</TableCell>
+                    <TableCell>{formatAnswer("humorType", selectedResponse.answers.humorType)}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">Wardrobe Style</TableCell>
+                    <TableCell>{formatAnswer("wardrobeStyle", selectedResponse.answers.wardrobeStyle)}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">Introvert Scale (1-5)</TableCell>
+                    <TableCell>{selectedResponse.answers.introvertScale}/5</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">Alone Time Scale (1-5)</TableCell>
+                    <TableCell>{selectedResponse.answers.aloneTimeScale}/5</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">Family Importance (1-5)</TableCell>
+                    <TableCell>{selectedResponse.answers.familyScale}/5</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">Spirituality (1-5)</TableCell>
+                    <TableCell>{selectedResponse.answers.spiritualityScale}/5</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">Humor Importance (1-5)</TableCell>
+                    <TableCell>{selectedResponse.answers.humorScale}/5</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">Meeting Priority</TableCell>
+                    <TableCell>{formatAnswer("meetingPriority", selectedResponse.answers.meetingPriority)}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">Dietary Preferences</TableCell>
+                    <TableCell>
+                      {formatAnswer("dietaryPreferences", selectedResponse.answers.dietaryPreferences)}
+                      {selectedResponse.answers.customDietary && (
+                        <span className="text-muted-foreground"> ({selectedResponse.answers.customDietary})</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">Restaurant Frequency</TableCell>
+                    <TableCell>{formatAnswer("restaurantFrequency", selectedResponse.answers.restaurantFrequency)}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">Spending Range</TableCell>
+                    <TableCell>{formatAnswer("spending", selectedResponse.answers.spending)}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">Gender</TableCell>
+                    <TableCell>{formatAnswer("gender", selectedResponse.answers.gender)}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">Relationship Status</TableCell>
+                    <TableCell>{formatAnswer("relationshipStatus", selectedResponse.answers.relationshipStatus)}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">Has Children</TableCell>
+                    <TableCell>{formatAnswer("hasChildren", selectedResponse.answers.hasChildren)}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">Country</TableCell>
+                    <TableCell>{formatAnswer("country", selectedResponse.answers.country)}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">Birthday</TableCell>
+                    <TableCell>{formatAnswer("birthday", selectedResponse.answers.birthday)}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">Nickname</TableCell>
+                    <TableCell>{formatAnswer("nickName", selectedResponse.answers.nickName)}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">Never Guess About Me</TableCell>
+                    <TableCell className="whitespace-pre-wrap">{formatAnswer("neverGuess", selectedResponse.answers.neverGuess)}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">Fun Fact</TableCell>
+                    <TableCell className="whitespace-pre-wrap">{formatAnswer("funFact", selectedResponse.answers.funFact)}</TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
             </div>
           )}
         </DialogContent>
