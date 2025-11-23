@@ -31,6 +31,7 @@ const Assessment = () => {
   const [city, setCity] = useState("");
   const [specifiedCity, setSpecifiedCity] = useState("");
   const [showOutsideCityMessage, setShowOutsideCityMessage] = useState(false);
+  const [showUnderageMessage, setShowUnderageMessage] = useState(false);
   const [preferredTime, setPreferredTime] = useState("");
   const [dinnerVibe, setDinnerVibe] = useState("");
   const [talkTopic, setTalkTopic] = useState("");
@@ -319,7 +320,7 @@ const Assessment = () => {
         const actualAge = monthDiff < 0 || (monthDiff === 0 && dayDiff < 0) ? age - 1 : age;
         
         if (actualAge < 18) {
-          toast.error("You must be at least 18 years old to create an account");
+          setShowUnderageMessage(true);
           return false;
         }
         return true;
@@ -982,7 +983,36 @@ const Assessment = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background to-muted">
-      {showOutsideCityMessage ? (
+      {showUnderageMessage ? (
+        <Card className="w-full max-w-2xl">
+          <CardHeader>
+            <CardTitle>Age Requirement</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-4">
+              <p className="text-center">
+                Thank you for your interest in Enqoy! Unfortunately, you must be at least 18 years old to participate in our events.
+              </p>
+              <p className="text-center text-muted-foreground">
+                This age requirement is in place because:
+              </p>
+              <ul className="list-disc list-inside space-y-2 text-muted-foreground">
+                <li>Our events are held at venues that serve alcohol</li>
+                <li>The conversations and activities are designed for adults</li>
+                <li>We want to ensure a comfortable environment for all participants</li>
+              </ul>
+              <p className="text-center font-semibold mt-6">
+                We'd love to have you join us when you turn 18! Feel free to come back then.
+              </p>
+            </div>
+            <div className="flex justify-center">
+              <Button onClick={() => navigate("/")}>
+                Go back to the main page
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : showOutsideCityMessage ? (
         <Card className="w-full max-w-2xl">
           <CardHeader>
             <CardTitle>Thank you!</CardTitle>
