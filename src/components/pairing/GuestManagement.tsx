@@ -5,8 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plus, Upload, Search, X } from "lucide-react";
+import { Plus, Upload, Search, X, UserPlus } from "lucide-react";
 import { toast } from "sonner";
+import { z } from "zod";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +24,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+
+const guestSchema = z.object({
+  first_name: z.string().trim().min(1, "First name is required").max(100, "First name must be less than 100 characters"),
+  last_name: z.string().trim().min(1, "Last name is required").max(100, "Last name must be less than 100 characters"),
+  email: z.string().trim().email("Invalid email address").max(255, "Email must be less than 255 characters").optional().or(z.literal("")),
+  phone: z.string().trim().max(20, "Phone must be less than 20 characters").optional().or(z.literal("")),
+  tags: z.string().max(500, "Tags must be less than 500 characters").optional().or(z.literal("")),
+  dietary_notes: z.string().trim().max(500, "Dietary notes must be less than 500 characters").optional().or(z.literal("")),
+  gender: z.string().optional().or(z.literal("")),
+  age_range: z.string().trim().max(20, "Age range must be less than 20 characters").optional().or(z.literal("")),
+  friend_group: z.string().trim().max(100, "Friend group must be less than 100 characters").optional().or(z.literal("")),
+});
 
 interface Guest {
   id: string;
@@ -46,8 +59,10 @@ interface GuestManagementProps {
 export const GuestManagement = ({ eventId, guests, onRefresh }: GuestManagementProps) => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [isImportingBookings, setIsImportingBookings] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterTag, setFilterTag] = useState<string>("all");
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [newGuest, setNewGuest] = useState({
     first_name: "",
     last_name: "",
@@ -62,29 +77,43 @@ export const GuestManagement = ({ eventId, guests, onRefresh }: GuestManagementP
   const [csvData, setCsvData] = useState("");
 
   const handleAddGuest = async () => {
-    if (!newGuest.first_name || !newGuest.last_name) {
-      toast.error("First and last name are required");
-      return;
+    // Validate input
+    try {
+      guestSchema.parse(newGuest);
+      setValidationErrors({});
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const errors: Record<string, string> = {};
+        error.errors.forEach((err) => {
+          if (err.path[0]) {
+            errors[err.path[0] as string] = err.message;
+          }
+        });
+        setValidationErrors(errors);
+        toast.error("Please fix validation errors");
+        return;
+      }
     }
 
     try {
       const { error } = await supabase.from("pairing_guests").insert({
         event_id: eventId,
-        first_name: newGuest.first_name,
-        last_name: newGuest.last_name,
-        phone: newGuest.phone || null,
-        email: newGuest.email || null,
-        tags: newGuest.tags ? newGuest.tags.split(",").map(t => t.trim()) : [],
-        dietary_notes: newGuest.dietary_notes || null,
+        first_name: newGuest.first_name.trim(),
+        last_name: newGuest.last_name.trim(),
+        phone: newGuest.phone.trim() || null,
+        email: newGuest.email.trim() || null,
+        tags: newGuest.tags ? newGuest.tags.split(",").map(t => t.trim()).filter(Boolean) : [],
+        dietary_notes: newGuest.dietary_notes.trim() || null,
         gender: newGuest.gender || null,
-        age_range: newGuest.age_range || null,
-        friend_group: newGuest.friend_group || null,
+        age_range: newGuest.age_range.trim() || null,
+        friend_group: newGuest.friend_group.trim() || null,
       });
 
       if (error) throw error;
 
       toast.success("Guest added successfully");
       setIsAddDialogOpen(false);
+      setValidationErrors({});
       setNewGuest({
         first_name: "",
         last_name: "",
@@ -99,6 +128,79 @@ export const GuestManagement = ({ eventId, guests, onRefresh }: GuestManagementP
       onRefresh();
     } catch (error: any) {
       toast.error("Failed to add guest");
+    }
+  };
+
+  const handleImportFromBookings = async () => {
+    setIsImportingBookings(true);
+    try {
+      // Fetch confirmed bookings for this event
+      const { data: bookings, error: bookingsError } = await supabase
+        .from("bookings")
+        .select(`
+          user_id,
+          profiles:user_id (
+            full_name,
+            email,
+            phone,
+            gender,
+            age
+          )
+        `)
+        .eq("event_id", eventId)
+        .eq("status", "confirmed");
+
+      if (bookingsError) throw bookingsError;
+
+      if (!bookings || bookings.length === 0) {
+        toast.info("No confirmed bookings found for this event");
+        return;
+      }
+
+      // Check which guests already exist
+      const existingEmails = new Set(guests.map(g => g.email?.toLowerCase()).filter(Boolean));
+      
+      // Prepare guests to import
+      const guestsToImport = bookings
+        .filter(booking => {
+          const profile = booking.profiles;
+          return profile && profile.email && !existingEmails.has(profile.email.toLowerCase());
+        })
+        .map(booking => {
+          const profile = booking.profiles;
+          const nameParts = profile.full_name.split(" ");
+          const firstName = nameParts[0] || "";
+          const lastName = nameParts.slice(1).join(" ") || nameParts[0] || "";
+
+          return {
+            event_id: eventId,
+            first_name: firstName,
+            last_name: lastName,
+            email: profile.email,
+            phone: profile.phone || null,
+            gender: profile.gender || null,
+            age_range: profile.age ? `${profile.age}` : null,
+            tags: ["booked"],
+          };
+        });
+
+      if (guestsToImport.length === 0) {
+        toast.info("All booked guests are already in the pairing list");
+        return;
+      }
+
+      const { error: insertError } = await supabase
+        .from("pairing_guests")
+        .insert(guestsToImport);
+
+      if (insertError) throw insertError;
+
+      toast.success(`Imported ${guestsToImport.length} guest${guestsToImport.length > 1 ? 's' : ''} from bookings`);
+      onRefresh();
+    } catch (error: any) {
+      toast.error("Failed to import guests from bookings");
+    } finally {
+      setIsImportingBookings(false);
     }
   };
 
@@ -179,7 +281,15 @@ export const GuestManagement = ({ eventId, guests, onRefresh }: GuestManagementP
             </SelectContent>
           </Select>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <Button 
+            variant="outline" 
+            onClick={handleImportFromBookings}
+            disabled={isImportingBookings}
+          >
+            <UserPlus className="h-4 w-4 mr-2" />
+            {isImportingBookings ? "Importing..." : "Import Booked Guests"}
+          </Button>
           <Button variant="outline" onClick={() => setIsImportDialogOpen(true)}>
             <Upload className="h-4 w-4 mr-2" />
             Import CSV
@@ -244,16 +354,34 @@ export const GuestManagement = ({ eventId, guests, onRefresh }: GuestManagementP
               <Input
                 id="first_name"
                 value={newGuest.first_name}
-                onChange={(e) => setNewGuest({ ...newGuest, first_name: e.target.value })}
+                onChange={(e) => {
+                  setNewGuest({ ...newGuest, first_name: e.target.value });
+                  if (validationErrors.first_name) {
+                    setValidationErrors({ ...validationErrors, first_name: "" });
+                  }
+                }}
+                className={validationErrors.first_name ? "border-destructive" : ""}
               />
+              {validationErrors.first_name && (
+                <p className="text-xs text-destructive">{validationErrors.first_name}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="last_name">Last Name *</Label>
               <Input
                 id="last_name"
                 value={newGuest.last_name}
-                onChange={(e) => setNewGuest({ ...newGuest, last_name: e.target.value })}
+                onChange={(e) => {
+                  setNewGuest({ ...newGuest, last_name: e.target.value });
+                  if (validationErrors.last_name) {
+                    setValidationErrors({ ...validationErrors, last_name: "" });
+                  }
+                }}
+                className={validationErrors.last_name ? "border-destructive" : ""}
               />
+              {validationErrors.last_name && (
+                <p className="text-xs text-destructive">{validationErrors.last_name}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -261,16 +389,34 @@ export const GuestManagement = ({ eventId, guests, onRefresh }: GuestManagementP
                 id="email"
                 type="email"
                 value={newGuest.email}
-                onChange={(e) => setNewGuest({ ...newGuest, email: e.target.value })}
+                onChange={(e) => {
+                  setNewGuest({ ...newGuest, email: e.target.value });
+                  if (validationErrors.email) {
+                    setValidationErrors({ ...validationErrors, email: "" });
+                  }
+                }}
+                className={validationErrors.email ? "border-destructive" : ""}
               />
+              {validationErrors.email && (
+                <p className="text-xs text-destructive">{validationErrors.email}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="phone">Phone</Label>
               <Input
                 id="phone"
                 value={newGuest.phone}
-                onChange={(e) => setNewGuest({ ...newGuest, phone: e.target.value })}
+                onChange={(e) => {
+                  setNewGuest({ ...newGuest, phone: e.target.value });
+                  if (validationErrors.phone) {
+                    setValidationErrors({ ...validationErrors, phone: "" });
+                  }
+                }}
+                className={validationErrors.phone ? "border-destructive" : ""}
               />
+              {validationErrors.phone && (
+                <p className="text-xs text-destructive">{validationErrors.phone}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="gender">Gender</Label>
@@ -300,26 +446,53 @@ export const GuestManagement = ({ eventId, guests, onRefresh }: GuestManagementP
               <Input
                 id="tags"
                 value={newGuest.tags}
-                onChange={(e) => setNewGuest({ ...newGuest, tags: e.target.value })}
+                onChange={(e) => {
+                  setNewGuest({ ...newGuest, tags: e.target.value });
+                  if (validationErrors.tags) {
+                    setValidationErrors({ ...validationErrors, tags: "" });
+                  }
+                }}
                 placeholder="vip, first-timer"
+                className={validationErrors.tags ? "border-destructive" : ""}
               />
+              {validationErrors.tags && (
+                <p className="text-xs text-destructive">{validationErrors.tags}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="friend_group">Friend Group</Label>
               <Input
                 id="friend_group"
                 value={newGuest.friend_group}
-                onChange={(e) => setNewGuest({ ...newGuest, friend_group: e.target.value })}
+                onChange={(e) => {
+                  setNewGuest({ ...newGuest, friend_group: e.target.value });
+                  if (validationErrors.friend_group) {
+                    setValidationErrors({ ...validationErrors, friend_group: "" });
+                  }
+                }}
+                className={validationErrors.friend_group ? "border-destructive" : ""}
               />
+              {validationErrors.friend_group && (
+                <p className="text-xs text-destructive">{validationErrors.friend_group}</p>
+              )}
             </div>
             <div className="col-span-2 space-y-2">
               <Label htmlFor="dietary_notes">Dietary Notes</Label>
               <Textarea
                 id="dietary_notes"
                 value={newGuest.dietary_notes}
-                onChange={(e) => setNewGuest({ ...newGuest, dietary_notes: e.target.value })}
+                onChange={(e) => {
+                  setNewGuest({ ...newGuest, dietary_notes: e.target.value });
+                  if (validationErrors.dietary_notes) {
+                    setValidationErrors({ ...validationErrors, dietary_notes: "" });
+                  }
+                }}
                 placeholder="Allergies, preferences, etc."
+                className={validationErrors.dietary_notes ? "border-destructive" : ""}
               />
+              {validationErrors.dietary_notes && (
+                <p className="text-xs text-destructive">{validationErrors.dietary_notes}</p>
+              )}
             </div>
           </div>
           <DialogFooter>
