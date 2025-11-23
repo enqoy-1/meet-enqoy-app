@@ -62,6 +62,16 @@ const AdminAssessmentResponses = () => {
     );
   });
 
+  const escapeCSVCell = (cell: any): string => {
+    if (cell == null) return "";
+    const str = String(cell);
+    // Escape double quotes by doubling them and wrap in quotes if contains special chars
+    if (str.includes('"') || str.includes(',') || str.includes('\n') || str.includes('\r')) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
   const exportToCSV = () => {
     const headers = [
       "Name",
@@ -129,11 +139,11 @@ const AdminAssessmentResponses = () => {
     });
 
     const csvContent = [
-      headers.join(","),
-      ...csvData.map((row) => row.map((cell) => `"${cell}"`).join(",")),
+      headers.map(escapeCSVCell).join(","),
+      ...csvData.map((row) => row.map(escapeCSVCell).join(",")),
     ].join("\n");
 
-    const blob = new Blob([csvContent], { type: "text/csv" });
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
