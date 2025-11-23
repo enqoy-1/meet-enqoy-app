@@ -63,13 +63,10 @@ const AdminAssessmentResponses = () => {
   });
 
   const escapeCSVCell = (cell: any): string => {
-    if (cell == null) return "";
+    if (cell == null) return '""';
     const str = String(cell);
-    // Escape double quotes by doubling them and wrap in quotes if contains special chars
-    if (str.includes('"') || str.includes(',') || str.includes('\n') || str.includes('\r')) {
-      return `"${str.replace(/"/g, '""')}"`;
-    }
-    return str;
+    // Always wrap in quotes and escape any internal quotes by doubling them
+    return `"${str.replace(/"/g, '""')}"`;
   };
 
   const exportToCSV = () => {
