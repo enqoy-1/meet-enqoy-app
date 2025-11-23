@@ -6,7 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Calendar, MapPin, ArrowLeft, DollarSign, Users, ChevronRight, ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
-import { format, differenceInHours } from "date-fns";
+import { format, differenceInHours, isSameDay } from "date-fns";
+import { IceBreakerGame } from "@/components/IceBreakerGame";
 
 interface Event {
   id: string;
@@ -33,6 +34,7 @@ const EventDetail = () => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
+  const [isGameOpen, setIsGameOpen] = useState(false);
 
   useEffect(() => {
     fetchEventDetails();
@@ -186,6 +188,7 @@ const EventDetail = () => {
   const showVenue = booking && hoursUntilEvent <= 48;
   const showSnapshot = booking && snapshot && hoursUntilEvent <= 24;
   const showIcebreakers = booking && questions.length > 0 && hoursUntilEvent <= 0;
+  const isEventToday = booking && isSameDay(new Date(event.date_time), new Date());
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted">
@@ -323,6 +326,28 @@ const EventDetail = () => {
           </CardContent>
         </Card>
       </main>
+
+      {/* Ice Breaker Game CTA - Fixed Bottom */}
+      {isEventToday && (
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/95 backdrop-blur-sm border-t border-border z-40">
+          <div className="container mx-auto max-w-3xl">
+            <Button
+              onClick={() => setIsGameOpen(true)}
+              size="lg"
+              className="w-full text-lg py-6 shadow-elevated"
+            >
+              Ice Breakers
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Ice Breaker Game Modal */}
+      <IceBreakerGame
+        isOpen={isGameOpen}
+        onClose={() => setIsGameOpen(false)}
+        eventId={event.id}
+      />
     </div>
   );
 };
