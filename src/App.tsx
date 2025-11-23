@@ -18,6 +18,7 @@ import AdminAnnouncements from "./pages/admin/AdminAnnouncements";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import AdminPairings from "./pages/admin/AdminPairings";
 import AdminPairingDetail from "./pages/admin/AdminPairingDetail";
+import AdminAssessmentResponses from "./pages/admin/AdminAssessmentResponses";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 
@@ -45,6 +46,7 @@ const App = () => (
           <Route path="/admin/icebreakers" element={<ProtectedRoute requireAdmin><AdminIcebreakers /></ProtectedRoute>} />
           <Route path="/admin/announcements" element={<ProtectedRoute requireAdmin><AdminAnnouncements /></ProtectedRoute>} />
           <Route path="/admin/analytics" element={<ProtectedRoute requireAdmin><AdminAnalytics /></ProtectedRoute>} />
+          <Route path="/admin/assessment-responses" element={<ProtectedRoute requireAdmin><AdminAssessmentResponses /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

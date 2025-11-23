@@ -9,19 +9,34 @@ export const authSchemas = {
 
 // Assessment form validation schemas  
 export const assessmentSchemas = {
-  fullName: z.string().trim().min(1, "Name is required").max(100, "Name must be less than 100 characters"),
-  phone: z.string().regex(/^\+251[0-9]{9}$/, "Invalid Ethiopian phone number format (+251XXXXXXXXX)"),
-  age: z.string().refine((val) => {
-    const num = parseInt(val);
-    return !isNaN(num) && num >= 18 && num <= 100;
-  }, "Age must be between 18 and 100"),
-  gender: z.enum(["male", "female", "non_binary", "prefer_not_to_say"], {
-    required_error: "Please select a gender",
-  }),
-  socialStyle: z.string().min(1, "Please select your social style"),
-  preferredTime: z.string().min(1, "Please select your preferred time"),
-  interests: z.array(z.string()).min(1, "Please select at least one interest"),
-  dietaryPreferences: z.string().max(500, "Dietary preferences must be less than 500 characters").optional(),
+  city: z.string().min(1, "Please select a city"),
+  preferredTime: z.enum(["dinner", "lunch"], { required_error: "Please select your preferred time" }),
+  dinnerVibe: z.string().min(1, "Please select an option"),
+  talkTopic: z.string().min(1, "Please select a topic"),
+  groupDynamic: z.string().min(1, "Please select a group dynamic"),
+  humorType: z.string().min(1, "Please select your humor type"),
+  wardrobeStyle: z.string().min(1, "Please select a style"),
+  introvertScale: z.number().min(1).max(5),
+  aloneTimeScale: z.number().min(1).max(5),
+  familyScale: z.number().min(1).max(5),
+  spiritualityScale: z.number().min(1).max(5),
+  humorScale: z.number().min(1).max(5),
+  meetingPriority: z.string().min(1, "Please select what's important"),
+  dietaryPreferences: z.string().min(1, "Please select dietary preferences"),
+  customDietary: z.string().max(200).optional(),
+  restaurantFrequency: z.string().min(1, "Please select frequency"),
+  spending: z.string().min(1, "Please select spending range"),
+  gender: z.string().min(1, "Please select gender"),
+  relationshipStatus: z.string().min(1, "Please select relationship status"),
+  hasChildren: z.string().min(1, "Please select an option"),
+  country: z.string().min(1, "Please select your country"),
+  birthday: z.date().refine((date) => {
+    const age = new Date().getFullYear() - date.getFullYear();
+    return age >= 18;
+  }, "You must be at least 18 years old"),
+  nickName: z.string().trim().min(1, "Name is required").max(100),
+  neverGuess: z.string().trim().min(1, "Please share something").max(500),
+  funFact: z.string().trim().min(1, "Please share a fun fact").max(500),
 };
 
 // Admin forms validation schemas
