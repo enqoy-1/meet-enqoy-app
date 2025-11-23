@@ -18,7 +18,9 @@ const Assessment = () => {
 
   // Form data
   const [fullName, setFullName] = useState("");
+  const [countryCode, setCountryCode] = useState("+251");
   const [phone, setPhone] = useState("");
+  const [phoneVerify, setPhoneVerify] = useState("");
   const [age, setAge] = useState("");
   const [gender, setGender] = useState("");
   const [socialStyle, setSocialStyle] = useState("");
@@ -26,7 +28,7 @@ const Assessment = () => {
   const [interests, setInterests] = useState<string[]>([]);
   const [dietaryPreferences, setDietaryPreferences] = useState("");
 
-  const totalSteps = 3;
+  const totalSteps = 4;
   const progress = (step / totalSteps) * 100;
 
   useEffect(() => {
@@ -61,7 +63,17 @@ const Assessment = () => {
       toast.error("Please fill in all required fields");
       return;
     }
-    if (step === 2 && (!socialStyle || !preferredTime)) {
+    if (step === 2) {
+      if (phone !== phoneVerify) {
+        toast.error("Phone numbers do not match");
+        return;
+      }
+      if (!phoneVerify) {
+        toast.error("Please verify your phone number");
+        return;
+      }
+    }
+    if (step === 3 && (!socialStyle || !preferredTime)) {
       toast.error("Please answer all questions");
       return;
     }
@@ -95,11 +107,12 @@ const Assessment = () => {
     setIsLoading(true);
     try {
       // Update profile
+      const fullPhone = `${countryCode}${phone}`;
       const { error: profileError } = await supabase
         .from("profiles")
         .update({
           full_name: fullName,
-          phone,
+          phone: fullPhone,
           age: parseInt(age),
           gender: gender as any,
           assessment_completed: true,
@@ -155,17 +168,36 @@ const Assessment = () => {
                   id="fullName"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  placeholder="John Doe"
+                  placeholder="Enter your full name"
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone Number *</Label>
-                <Input
-                  id="phone"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+251 912 345 678"
-                />
+                <div className="flex gap-2">
+                  <Select value={countryCode} onValueChange={setCountryCode}>
+                    <SelectTrigger className="w-[120px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="+251">🇪🇹 +251</SelectItem>
+                      <SelectItem value="+1">🇺🇸 +1</SelectItem>
+                      <SelectItem value="+44">🇬🇧 +44</SelectItem>
+                      <SelectItem value="+254">🇰🇪 +254</SelectItem>
+                      <SelectItem value="+234">🇳🇬 +234</SelectItem>
+                      <SelectItem value="+27">🇿🇦 +27</SelectItem>
+                      <SelectItem value="+91">🇮🇳 +91</SelectItem>
+                      <SelectItem value="+86">🇨🇳 +86</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
+                    placeholder="912345678"
+                    className="flex-1"
+                  />
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="age">Age *</Label>
@@ -174,7 +206,7 @@ const Assessment = () => {
                   type="number"
                   value={age}
                   onChange={(e) => setAge(e.target.value)}
-                  placeholder="25"
+                  placeholder="Enter your age"
                   min="18"
                   max="100"
                 />
@@ -197,6 +229,37 @@ const Assessment = () => {
           )}
 
           {step === 2 && (
+            <div className="space-y-6">
+              <h3 className="text-lg font-semibold">Verify Phone Number</h3>
+              <p className="text-sm text-muted-foreground">
+                Please re-enter your phone number to confirm it's correct
+              </p>
+              <div className="space-y-2">
+                <Label htmlFor="phoneVerify">Re-enter Phone Number *</Label>
+                <div className="flex gap-2">
+                  <div className="w-[120px] flex items-center justify-center border rounded-md bg-muted px-3 py-2 text-sm">
+                    {countryCode}
+                  </div>
+                  <Input
+                    id="phoneVerify"
+                    type="tel"
+                    value={phoneVerify}
+                    onChange={(e) => setPhoneVerify(e.target.value.replace(/\D/g, ''))}
+                    placeholder="912345678"
+                    className="flex-1"
+                  />
+                </div>
+                {phone && phoneVerify && phone !== phoneVerify && (
+                  <p className="text-sm text-destructive">Phone numbers do not match</p>
+                )}
+                {phone && phoneVerify && phone === phoneVerify && (
+                  <p className="text-sm text-green-600">✓ Phone numbers match</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {step === 3 && (
             <div className="space-y-6">
               <h3 className="text-lg font-semibold">Your Social Style</h3>
               <div className="space-y-2">
@@ -249,7 +312,7 @@ const Assessment = () => {
             </div>
           )}
 
-          {step === 3 && (
+          {step === 4 && (
             <div className="space-y-6">
               <h3 className="text-lg font-semibold">Your Interests</h3>
               <div className="space-y-2">
