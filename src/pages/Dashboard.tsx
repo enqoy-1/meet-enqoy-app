@@ -137,7 +137,7 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted">
-      <header className="bg-card border-b sticky top-0 z-10 shadow-sm">
+      <header className="bg-card border-b sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
             Enqoy
