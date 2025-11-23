@@ -231,6 +231,357 @@ export type Database = {
         }
         Relationships: []
       }
+      pairing_assignments: {
+        Row: {
+          created_at: string
+          event_id: string
+          guest_id: string
+          id: string
+          pairing_id: string | null
+          restaurant_id: string | null
+          seat_number: number | null
+          status: Database["public"]["Enums"]["assignment_status"]
+          table_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          guest_id: string
+          id?: string
+          pairing_id?: string | null
+          restaurant_id?: string | null
+          seat_number?: number | null
+          status?: Database["public"]["Enums"]["assignment_status"]
+          table_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          guest_id?: string
+          id?: string
+          pairing_id?: string | null
+          restaurant_id?: string | null
+          seat_number?: number | null
+          status?: Database["public"]["Enums"]["assignment_status"]
+          table_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pairing_assignments_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "pairing_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pairing_assignments_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "pairing_guests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pairing_assignments_pairing_id_fkey"
+            columns: ["pairing_id"]
+            isOneToOne: false
+            referencedRelation: "pairing_pairs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pairing_assignments_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "pairing_restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pairing_assignments_table_id_fkey"
+            columns: ["table_id"]
+            isOneToOne: false
+            referencedRelation: "pairing_tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pairing_audit_log: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          event_id: string
+          id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          event_id: string
+          id?: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          event_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pairing_audit_log_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "pairing_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pairing_constraints: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          notes: string | null
+          subject_guest_ids: string[]
+          target_guest_ids: string[] | null
+          type: Database["public"]["Enums"]["constraint_type"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          notes?: string | null
+          subject_guest_ids: string[]
+          target_guest_ids?: string[] | null
+          type: Database["public"]["Enums"]["constraint_type"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          notes?: string | null
+          subject_guest_ids?: string[]
+          target_guest_ids?: string[] | null
+          type?: Database["public"]["Enums"]["constraint_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pairing_constraints_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "pairing_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pairing_events: {
+        Row: {
+          city: string | null
+          created_at: string
+          date: string
+          id: string
+          name: string
+          status: Database["public"]["Enums"]["event_status"]
+          updated_at: string
+        }
+        Insert: {
+          city?: string | null
+          created_at?: string
+          date: string
+          id?: string
+          name: string
+          status?: Database["public"]["Enums"]["event_status"]
+          updated_at?: string
+        }
+        Update: {
+          city?: string | null
+          created_at?: string
+          date?: string
+          id?: string
+          name?: string
+          status?: Database["public"]["Enums"]["event_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      pairing_guests: {
+        Row: {
+          age_range: string | null
+          created_at: string
+          dietary_notes: string | null
+          email: string | null
+          event_id: string
+          first_name: string
+          friend_group: string | null
+          gender: string | null
+          id: string
+          last_name: string
+          phone: string | null
+          tags: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          age_range?: string | null
+          created_at?: string
+          dietary_notes?: string | null
+          email?: string | null
+          event_id: string
+          first_name: string
+          friend_group?: string | null
+          gender?: string | null
+          id?: string
+          last_name: string
+          phone?: string | null
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          age_range?: string | null
+          created_at?: string
+          dietary_notes?: string | null
+          email?: string | null
+          event_id?: string
+          first_name?: string
+          friend_group?: string | null
+          gender?: string | null
+          id?: string
+          last_name?: string
+          phone?: string | null
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pairing_guests_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "pairing_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pairing_pairs: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          notes: string | null
+          pairing_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          notes?: string | null
+          pairing_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          notes?: string | null
+          pairing_name?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pairing_pairs_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "pairing_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pairing_restaurants: {
+        Row: {
+          address: string | null
+          capacity_total: number
+          contact_name: string | null
+          contact_phone: string | null
+          created_at: string
+          event_id: string
+          id: string
+          name: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          capacity_total?: number
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          event_id: string
+          id?: string
+          name: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          capacity_total?: number
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          event_id?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pairing_restaurants_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "pairing_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pairing_tables: {
+        Row: {
+          capacity: number
+          created_at: string
+          id: string
+          name: string
+          restaurant_id: string
+          updated_at: string
+        }
+        Insert: {
+          capacity: number
+          created_at?: string
+          id?: string
+          name: string
+          restaurant_id: string
+          updated_at?: string
+        }
+        Update: {
+          capacity?: number
+          created_at?: string
+          id?: string
+          name?: string
+          restaurant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pairing_tables_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "pairing_restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       personality_assessments: {
         Row: {
           answers: Json
@@ -361,11 +712,19 @@ export type Database = {
       }
     }
     Enums: {
+      assignment_status: "assigned" | "waitlist"
       booking_status:
         | "pending_payment"
         | "confirmed"
         | "cancelled"
         | "rescheduled"
+      constraint_type:
+        | "not_with"
+        | "must_with"
+        | "keep_group_together"
+        | "balance_gender"
+        | "max_group_size"
+      event_status: "draft" | "locked"
       event_type: "dinner" | "lunch" | "scavenger_hunt" | "mixer" | "other"
       gender_type: "male" | "female" | "non_binary" | "prefer_not_to_say"
       user_role: "user" | "admin"
@@ -496,12 +855,21 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      assignment_status: ["assigned", "waitlist"],
       booking_status: [
         "pending_payment",
         "confirmed",
         "cancelled",
         "rescheduled",
       ],
+      constraint_type: [
+        "not_with",
+        "must_with",
+        "keep_group_together",
+        "balance_gender",
+        "max_group_size",
+      ],
+      event_status: ["draft", "locked"],
       event_type: ["dinner", "lunch", "scavenger_hunt", "mixer", "other"],
       gender_type: ["male", "female", "non_binary", "prefer_not_to_say"],
       user_role: ["user", "admin"],
