@@ -17,12 +17,9 @@ const Assessment = () => {
   const [userId, setUserId] = useState<string | null>(null);
 
   // Form data
-  const [fullName, setFullName] = useState("");
   const [countryCode, setCountryCode] = useState("+251");
   const [phone, setPhone] = useState("");
   const [phoneVerify, setPhoneVerify] = useState("");
-  const [age, setAge] = useState("");
-  const [gender, setGender] = useState("");
   const [socialStyle, setSocialStyle] = useState("");
   const [preferredTime, setPreferredTime] = useState("");
   const [interests, setInterests] = useState<string[]>([]);
@@ -60,7 +57,7 @@ const Assessment = () => {
 
   const handleNext = () => {
     if (step === 1) {
-      if (!fullName || !phone || !phoneVerify || !age || !gender) {
+      if (!phone || !phoneVerify) {
         toast.error("Please fill in all required fields");
         return;
       }
@@ -102,15 +99,12 @@ const Assessment = () => {
 
     setIsLoading(true);
     try {
-      // Update profile
+      // Update profile with phone
       const fullPhone = `${countryCode}${phone}`;
       const { error: profileError } = await supabase
         .from("profiles")
         .update({
-          full_name: fullName,
           phone: fullPhone,
-          age: parseInt(age),
-          gender: gender as any,
           assessment_completed: true,
         })
         .eq("id", userId);
@@ -157,16 +151,7 @@ const Assessment = () => {
         <CardContent>
           {step === 1 && (
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Basic Information</h3>
-              <div className="space-y-2">
-                <Label htmlFor="fullName">Full Name *</Label>
-                <Input
-                  id="fullName"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder=""
-                />
-              </div>
+              <h3 className="text-lg font-semibold">Contact Information</h3>
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone Number *</Label>
                 <div className="flex gap-2">
@@ -216,32 +201,6 @@ const Assessment = () => {
                 {phone && phoneVerify && phone === phoneVerify && (
                   <p className="text-sm text-green-600">✓ Phone numbers match</p>
                 )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="age">Age *</Label>
-                <Input
-                  id="age"
-                  type="number"
-                  value={age}
-                  onChange={(e) => setAge(e.target.value)}
-                  placeholder=""
-                  min="18"
-                  max="100"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="gender">Gender *</Label>
-                <Select value={gender} onValueChange={setGender}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select gender" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="male">Male</SelectItem>
-                    <SelectItem value="female">Female</SelectItem>
-                    <SelectItem value="non_binary">Non-binary</SelectItem>
-                    <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
             </div>
           )}
