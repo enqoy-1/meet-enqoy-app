@@ -41,6 +41,60 @@ export type Database = {
         }
         Relationships: []
       }
+      assessment_questions: {
+        Row: {
+          created_at: string
+          description: string | null
+          display_order: number
+          id: string
+          is_active: boolean
+          is_required: boolean
+          options: Json | null
+          placeholder_text: string | null
+          question_text: string
+          question_type: string
+          section_description: string | null
+          section_title: string | null
+          step_number: number
+          updated_at: string
+          validation_rules: Json | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          display_order: number
+          id?: string
+          is_active?: boolean
+          is_required?: boolean
+          options?: Json | null
+          placeholder_text?: string | null
+          question_text: string
+          question_type: string
+          section_description?: string | null
+          section_title?: string | null
+          step_number: number
+          updated_at?: string
+          validation_rules?: Json | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          is_required?: boolean
+          options?: Json | null
+          placeholder_text?: string | null
+          question_text?: string
+          question_type?: string
+          section_description?: string | null
+          section_title?: string | null
+          step_number?: number
+          updated_at?: string
+          validation_rules?: Json | null
+        }
+        Relationships: []
+      }
       attendee_snapshots: {
         Row: {
           created_at: string
