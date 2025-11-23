@@ -324,7 +324,7 @@ const Assessment = () => {
           return false;
         }
         return true;
-      case 23: return !!nickName && !!neverGuess && !!funFact;
+      case 23: return true; // Optional questions
       default: return false;
     }
   };
@@ -1037,21 +1037,9 @@ const Assessment = () => {
       case 23:
         return (
           <div className="space-y-4">
-            <div className="mb-4">
-              <h3 className="text-lg font-semibold mb-2">Section 4: Icebreakers</h3>
-              <p className="text-sm text-muted-foreground">Finally, let's sprinkle in some fun. Here's where we get a little playful!</p>
-            </div>
+            <p className="text-sm text-muted-foreground italic">These questions are optional</p>
             <div className="space-y-2">
-              <Label htmlFor="nickName" className="text-base">What name would you like to go by?</Label>
-              <Input
-                id="nickName"
-                value={nickName}
-                onChange={(e) => setNickName(e.target.value)}
-                placeholder="Enter your preferred name"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="neverGuess" className="text-base">What's one thing people would never guess about you?</Label>
+              <Label htmlFor="neverGuess" className="text-base">What&apos;s one thing people would never guess about you?</Label>
               <Textarea
                 id="neverGuess"
                 value={neverGuess}
