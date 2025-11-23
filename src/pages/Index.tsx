@@ -441,31 +441,6 @@ const Index = () => {
               <ChevronRight className="h-5 w-5" />
             </Button>
           </div>
-          
-          {/* CTA after Testimonials */}
-          <div className="text-center mt-16">
-            <div className="mb-6">
-              <p className="text-xl text-foreground mb-4">Ready to make your own memories?</p>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button 
-                size="lg"
-                onClick={() => navigate("/events")}
-                className="text-lg px-10 py-6 h-auto rounded-full shadow-elevated group"
-              >
-                Browse Events
-                <Calendar className="ml-2 h-5 w-5" />
-              </Button>
-              <Button 
-                size="lg"
-                variant="outline"
-                onClick={() => navigate("/assessment")}
-                className="text-lg px-10 py-6 h-auto rounded-full border-2"
-              >
-                Take Assessment
-              </Button>
-            </div>
-          </div>
         </div>
       </section>
 
