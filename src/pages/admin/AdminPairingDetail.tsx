@@ -5,9 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Lock, Calendar, MapPin } from "lucide-react";
+import { ArrowLeft, Lock, Calendar, MapPin, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { GuestManagement } from "@/components/pairing/GuestManagement";
+import { RestaurantManager } from "@/components/pairing/RestaurantManager";
+import { PairingBoard } from "@/components/pairing/PairingBoard";
+import { ConstraintsManager } from "@/components/pairing/ConstraintsManager";
+import { ExportsPanel } from "@/components/pairing/ExportsPanel";
 
 interface PairingEvent {
   id: string;
@@ -21,26 +26,68 @@ const AdminPairingDetail = () => {
   const { eventId } = useParams();
   const navigate = useNavigate();
   const [event, setEvent] = useState<PairingEvent | null>(null);
+  const [guests, setGuests] = useState<any[]>([]);
+  const [restaurants, setRestaurants] = useState<any[]>([]);
+  const [assignments, setAssignments] = useState<any[]>([]);
+  const [constraints, setConstraints] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (eventId) {
-      fetchEvent();
+      fetchAllData();
     }
   }, [eventId]);
 
-  const fetchEvent = async () => {
+  const fetchAllData = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch event
+      const { data: eventData, error: eventError } = await supabase
         .from("pairing_events")
         .select("*")
         .eq("id", eventId)
         .single();
 
-      if (error) throw error;
-      setEvent(data);
+      if (eventError) throw eventError;
+      setEvent(eventData);
+
+      // Fetch guests
+      const { data: guestsData } = await supabase
+        .from("pairing_guests")
+        .select("*")
+        .eq("event_id", eventId)
+        .order("last_name", { ascending: true });
+
+      setGuests(guestsData || []);
+
+      // Fetch restaurants with tables
+      const { data: restaurantsData } = await supabase
+        .from("pairing_restaurants")
+        .select(`
+          *,
+          tables:pairing_tables(*)
+        `)
+        .eq("event_id", eventId)
+        .order("name", { ascending: true });
+
+      setRestaurants(restaurantsData || []);
+
+      // Fetch assignments
+      const { data: assignmentsData } = await supabase
+        .from("pairing_assignments")
+        .select("*")
+        .eq("event_id", eventId);
+
+      setAssignments(assignmentsData || []);
+
+      // Fetch constraints
+      const { data: constraintsData } = await supabase
+        .from("pairing_constraints")
+        .select("*")
+        .eq("event_id", eventId);
+
+      setConstraints(constraintsData || []);
     } catch (error: any) {
-      toast.error("Failed to load event");
+      toast.error("Failed to load event data");
       navigate("/admin/pairings");
     } finally {
       setIsLoading(false);
@@ -49,6 +96,15 @@ const AdminPairingDetail = () => {
 
   const handleLockEvent = async () => {
     if (!event) return;
+
+    // Validate before locking
+    const unassignedCount = guests.length - assignments.length;
+    if (unassignedCount > 0) {
+      const confirmed = window.confirm(
+        `There are ${unassignedCount} unassigned guests. Are you sure you want to lock this event?`
+      );
+      if (!confirmed) return;
+    }
 
     try {
       const { error } = await supabase
@@ -62,11 +118,15 @@ const AdminPairingDetail = () => {
       await supabase.from("pairing_audit_log").insert({
         event_id: event.id,
         action: "lock_event",
-        details: { locked_at: new Date().toISOString() },
+        details: { 
+          locked_at: new Date().toISOString(),
+          total_guests: guests.length,
+          assigned_guests: assignments.length,
+        },
       });
 
       toast.success("Event locked successfully");
-      fetchEvent();
+      fetchAllData();
     } catch (error: any) {
       toast.error("Failed to lock event");
     }
@@ -138,69 +198,114 @@ const AdminPairingDetail = () => {
           </TabsList>
 
           <TabsContent value="dashboard" className="mt-6">
-            <Card>
-              <CardContent className="py-12 text-center">
-                <h3 className="text-lg font-semibold mb-2">Event Dashboard</h3>
-                <p className="text-muted-foreground">
-                  Dashboard with progress bars and statistics coming soon.
-                </p>
-              </CardContent>
-            </Card>
+            <div className="grid gap-6 md:grid-cols-3 mb-6">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-3xl font-bold">{guests.length}</p>
+                    <p className="text-sm text-muted-foreground">Total Guests</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-3xl font-bold">{assignments.length}</p>
+                    <p className="text-sm text-muted-foreground">Assigned</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-3xl font-bold">{guests.length - assignments.length}</p>
+                    <p className="text-sm text-muted-foreground">Unassigned</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2 mb-6">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-3xl font-bold">{restaurants.length}</p>
+                    <p className="text-sm text-muted-foreground">Restaurants</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-3xl font-bold">
+                      {restaurants.reduce((sum, r) => sum + (r.tables?.length || 0), 0)}
+                    </p>
+                    <p className="text-sm text-muted-foreground">Total Tables</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {guests.length - assignments.length > 0 && (
+              <Card className="border-yellow-500/50 bg-yellow-500/5">
+                <CardContent className="pt-6">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 text-yellow-500 mt-0.5" />
+                    <div>
+                      <h4 className="font-semibold mb-1">Unresolved Items</h4>
+                      <p className="text-sm text-muted-foreground">
+                        {guests.length - assignments.length} guests still need to be assigned to tables
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="guests" className="mt-6">
-            <Card>
-              <CardContent className="py-12 text-center">
-                <h3 className="text-lg font-semibold mb-2">Guest Management</h3>
-                <p className="text-muted-foreground">
-                  Guest directory with CSV import and batch editing coming soon.
-                </p>
-              </CardContent>
-            </Card>
+            <GuestManagement
+              eventId={eventId!}
+              guests={guests}
+              onRefresh={fetchAllData}
+            />
           </TabsContent>
 
           <TabsContent value="restaurants" className="mt-6">
-            <Card>
-              <CardContent className="py-12 text-center">
-                <h3 className="text-lg font-semibold mb-2">Restaurants & Tables</h3>
-                <p className="text-muted-foreground">
-                  Restaurant and table management coming soon.
-                </p>
-              </CardContent>
-            </Card>
+            <RestaurantManager
+              eventId={eventId!}
+              restaurants={restaurants}
+              onRefresh={fetchAllData}
+            />
           </TabsContent>
 
           <TabsContent value="pairings" className="mt-6">
-            <Card>
-              <CardContent className="py-12 text-center">
-                <h3 className="text-lg font-semibold mb-2">Pairing Board</h3>
-                <p className="text-muted-foreground">
-                  Drag-and-drop pairing board coming soon.
-                </p>
-              </CardContent>
-            </Card>
+            <PairingBoard
+              eventId={eventId!}
+              guests={guests}
+              restaurants={restaurants}
+              assignments={assignments}
+              onRefresh={fetchAllData}
+            />
           </TabsContent>
 
           <TabsContent value="constraints" className="mt-6">
-            <Card>
-              <CardContent className="py-12 text-center">
-                <h3 className="text-lg font-semibold mb-2">Pairing Constraints</h3>
-                <p className="text-muted-foreground">
-                  Constraint management coming soon.
-                </p>
-              </CardContent>
-            </Card>
+            <ConstraintsManager
+              eventId={eventId!}
+              guests={guests}
+              constraints={constraints}
+              onRefresh={fetchAllData}
+            />
           </TabsContent>
 
           <TabsContent value="exports" className="mt-6">
-            <Card>
-              <CardContent className="py-12 text-center">
-                <h3 className="text-lg font-semibold mb-2">Exports</h3>
-                <p className="text-muted-foreground">
-                  Export seating lists and guest cards coming soon.
-                </p>
-              </CardContent>
-            </Card>
+            <ExportsPanel
+              eventId={eventId!}
+              eventName={event.name}
+              guests={guests}
+              restaurants={restaurants}
+              assignments={assignments}
+            />
           </TabsContent>
         </Tabs>
       </main>
