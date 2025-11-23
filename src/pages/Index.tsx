@@ -264,6 +264,18 @@ const Index = () => {
               <ChevronRight className="h-5 w-5" />
             </Button>
           </div>
+          
+          {/* CTA after How It Works */}
+          <div className="text-center mt-16">
+            <Button 
+              size="lg"
+              onClick={() => navigate("/assessment")}
+              className="text-lg px-10 py-6 h-auto rounded-full shadow-elevated group"
+            >
+              Get Started Now
+              <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+            </Button>
+          </div>
         </div>
       </section>
 
@@ -429,6 +441,31 @@ const Index = () => {
               <ChevronRight className="h-5 w-5" />
             </Button>
           </div>
+          
+          {/* CTA after Testimonials */}
+          <div className="text-center mt-16">
+            <div className="mb-6">
+              <p className="text-xl text-foreground mb-4">Ready to make your own memories?</p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button 
+                size="lg"
+                onClick={() => navigate("/events")}
+                className="text-lg px-10 py-6 h-auto rounded-full shadow-elevated group"
+              >
+                Browse Events
+                <Calendar className="ml-2 h-5 w-5" />
+              </Button>
+              <Button 
+                size="lg"
+                variant="outline"
+                onClick={() => navigate("/assessment")}
+                className="text-lg px-10 py-6 h-auto rounded-full border-2"
+              >
+                Take Assessment
+              </Button>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -447,6 +484,14 @@ const Index = () => {
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-6 leading-relaxed px-4 drop-shadow-lg">
             New friends, new stories, new memories. Enqoy makes meeting people easier and more meaningful.
           </h2>
+          <Button 
+            size="lg"
+            onClick={() => navigate("/assessment")}
+            className="mt-8 text-lg px-12 py-6 h-auto rounded-full shadow-elevated bg-secondary hover:bg-secondary/90 text-secondary-foreground group"
+          >
+            Start Your Journey
+            <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+          </Button>
         </div>
       </section>
 
@@ -512,6 +557,22 @@ const Index = () => {
               </AccordionContent>
             </AccordionItem>
           </Accordion>
+          
+          {/* Final CTA */}
+          <div className="text-center mt-16">
+            <div className="mb-6">
+              <h3 className="text-2xl md:text-3xl font-bold mb-3 text-primary">Ready to Connect?</h3>
+              <p className="text-lg text-muted-foreground">Take the first step toward meaningful connections today.</p>
+            </div>
+            <Button 
+              size="lg"
+              onClick={() => navigate("/assessment")}
+              className="text-lg px-12 py-6 h-auto rounded-full shadow-elevated group"
+            >
+              Take the Assessment
+              <Sparkles className="ml-2 h-5 w-5" />
+            </Button>
+          </div>
         </div>
       </section>
 
