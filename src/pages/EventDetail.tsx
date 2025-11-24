@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar, MapPin, ArrowLeft, DollarSign, Users, ChevronRight, ChevronLeft, MoreVertical } from "lucide-react";
 import { toast } from "sonner";
 import { format, differenceInHours, isSameDay } from "date-fns";
+import { getCurrentTime } from "@/utils/time";
 import { IceBreakerGame } from "@/components/IceBreakerGame";
 import {
   DropdownMenu,
@@ -101,7 +102,8 @@ const EventDetail = () => {
       setBooking(bookingData);
 
       if (bookingData) {
-        const hoursUntilEvent = differenceInHours(new Date(eventData.date_time), new Date());
+        const now = getCurrentTime(eventData.date_time);
+        const hoursUntilEvent = differenceInHours(new Date(eventData.date_time), now);
 
         // Fetch snapshot if within 24 hours
         if (hoursUntilEvent <= 24) {
@@ -177,10 +179,12 @@ const EventDetail = () => {
   const handleCancelBooking = async () => {
     if (!booking || !event) return;
 
-    const hoursUntilEvent = differenceInHours(new Date(event.date_time), new Date());
-    
+    const now = getCurrentTime(event.date_time);
+    const hoursUntilEvent = differenceInHours(new Date(event.date_time), now);
+
+    // Policy: Up to 48 hours before the event
     if (hoursUntilEvent < 48) {
-      toast.error("Cannot cancel within 48 hours of the event");
+      toast.error("Cancellations are only allowed up to 48 hours before the event");
       return;
     }
 
@@ -213,6 +217,7 @@ const EventDetail = () => {
         `)
         .eq("is_visible", true)
         .neq("id", id)
+        .eq("price", event?.price) // Enforce same price policy
         .gte("date_time", new Date().toISOString())
         .order("date_time", { ascending: true });
 
@@ -224,10 +229,12 @@ const EventDetail = () => {
   };
 
   const handleOpenReschedule = async () => {
-    const hoursUntilEvent = differenceInHours(new Date(event.date_time), new Date());
-    
+    const now = getCurrentTime(event.date_time);
+    const hoursUntilEvent = differenceInHours(new Date(event.date_time), now);
+
+    // Policy: Up to 48 hours before the event
     if (hoursUntilEvent < 48) {
-      toast.error("Cannot reschedule within 48 hours of the event");
+      toast.error("Rescheduling is only allowed up to 48 hours before the event");
       return;
     }
 
@@ -251,7 +258,7 @@ const EventDetail = () => {
       // Update the booking
       const { error } = await supabase
         .from("bookings")
-        .update({ 
+        .update({
           event_id: selectedNewEventId,
           status: "rescheduled",
           amount_paid: newEventData.price
@@ -276,11 +283,13 @@ const EventDetail = () => {
     );
   }
 
-  const hoursUntilEvent = differenceInHours(new Date(event.date_time), new Date());
-  const showVenue = booking && hoursUntilEvent <= 48;
+  const now = getCurrentTime(event.date_time);
+  const hoursUntilEvent = differenceInHours(new Date(event.date_time), now);
+  // Show venue if within 48 hours OR if venue has been assigned (admin pairing complete)
+  const showVenue = booking && (hoursUntilEvent <= 48 || !!event.venues);
   const showSnapshot = booking && snapshot && hoursUntilEvent <= 24;
   const showIcebreakers = booking && questions.length > 0 && hoursUntilEvent <= 0;
-  const isEventToday = booking && isSameDay(new Date(event.date_time), new Date());
+  const isEventToday = booking && isSameDay(new Date(event.date_time), now);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted">

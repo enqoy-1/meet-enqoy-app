@@ -8,6 +8,7 @@ import { Calendar, MapPin, Users, LogOut, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import heroDining from "@/assets/hero-dining.jpg";
+import { getCurrentTime } from "@/utils/time";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -74,7 +75,7 @@ const Dashboard = () => {
         .from("bookings")
         .select(`
           *,
-          events (
+          events!inner (
             *,
             venues (name)
           )
@@ -84,7 +85,8 @@ const Dashboard = () => {
         .order("created_at", { ascending: false });
 
       if (bookings) {
-        const now = new Date();
+        // Use getCurrentTime for time travel support (pass first event's date as reference)
+        const now = bookings.length > 0 ? getCurrentTime(bookings[0].events.date_time) : new Date();
         const upcoming = bookings.filter(b => new Date(b.events.date_time) > now);
         const past = bookings.filter(b => new Date(b.events.date_time) <= now);
         setUpcomingBookings(upcoming);
@@ -160,7 +162,7 @@ const Dashboard = () => {
       <main className="container mx-auto px-4 py-8 space-y-8">
         {announcements.length > 0 && (
           <section className="relative rounded-xl overflow-hidden shadow-elevated">
-            <div 
+            <div
               className="absolute inset-0 bg-cover bg-center"
               style={{ backgroundImage: `url(${heroDining})` }}
             />
@@ -184,7 +186,7 @@ const Dashboard = () => {
             <h2 className="text-2xl font-bold mb-2">Upcoming Events</h2>
             <p className="text-muted-foreground">Check out what's coming up next</p>
           </div>
-          
+
           {upcomingEvents.length === 0 ? (
             <Card className="shadow-card">
               <CardContent className="py-8 text-center">
@@ -353,9 +355,9 @@ const Dashboard = () => {
                       <Calendar className="h-4 w-4" />
                       <span>{format(new Date(booking.events.date_time), "PPP")}</span>
                     </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       className="mt-4 w-full"
                       onClick={(e) => {
                         e.stopPropagation();
@@ -370,6 +372,34 @@ const Dashboard = () => {
             </div>
           </section>
         )}
+
+        <section>
+          <h2 className="text-2xl font-bold mb-4">Profile</h2>
+          <Card className="shadow-card">
+            <CardHeader>
+              <CardTitle>Your Profile</CardTitle>
+              <CardDescription>Manage your personal information and assessment</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Name</p>
+                  <p className="text-lg">{profile?.full_name || "N/A"}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Email</p>
+                  <p className="text-lg">{profile?.email || "N/A"}</p>
+                </div>
+              </div>
+              <div className="flex gap-4 pt-4">
+                <Button variant="outline" onClick={() => navigate("/assessment?retake=true")}>
+                  Retake Assessment
+                </Button>
+                {/* Add Edit Profile button if needed */}
+              </div>
+            </CardContent>
+          </Card>
+        </section>
       </main>
 
       <footer className="bg-card border-t mt-12">
@@ -383,21 +413,21 @@ const Dashboard = () => {
                 Building meaningful connections through shared experiences
               </p>
             </div>
-            
+
             <div className="flex flex-wrap justify-center gap-6 text-sm">
-              <button 
+              <button
                 onClick={() => navigate("/terms")}
                 className="text-muted-foreground hover:text-primary transition-colors"
               >
                 Terms & Conditions
               </button>
-              <button 
+              <button
                 onClick={() => navigate("/faq")}
                 className="text-muted-foreground hover:text-primary transition-colors"
               >
                 FAQs
               </button>
-              <button 
+              <button
                 onClick={() => navigate("/community-guidelines")}
                 className="text-muted-foreground hover:text-primary transition-colors"
               >
@@ -405,13 +435,13 @@ const Dashboard = () => {
               </button>
             </div>
           </div>
-          
+
           <div className="mt-6 pt-6 border-t text-center text-sm text-muted-foreground">
             <p>© {new Date().getFullYear()} Enqoy. All rights reserved.</p>
           </div>
         </div>
       </footer>
-    </div>
+    </div >
   );
 };
 

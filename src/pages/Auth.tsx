@@ -91,7 +91,7 @@ const Auth = () => {
       if (error) throw error;
 
       toast.success("Welcome back!");
-      
+
       // Check if user completed assessment
       const { data: profile } = await supabase
         .from("profiles")
@@ -209,10 +209,10 @@ const Auth = () => {
                 </div>
               </div>
 
-              <Button 
-                type="button" 
-                variant="outline" 
-                className="w-full" 
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
                 onClick={handleGoogleSignIn}
                 disabled={isLoading}
               >
@@ -314,10 +314,10 @@ const Auth = () => {
                 </div>
               </div>
 
-              <Button 
-                type="button" 
-                variant="outline" 
-                className="w-full" 
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
                 onClick={handleGoogleSignIn}
                 disabled={isLoading}
               >

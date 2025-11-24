@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,9 +21,11 @@ const TOTAL_STEPS = 23;
 
 const Assessment = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isRetake = searchParams.get("retake") === "true";
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
-  
+
   // Form state
   const [countryCode, setCountryCode] = useState("+251");
   const [phone, setPhone] = useState("");
@@ -256,7 +258,7 @@ const Assessment = () => {
 
   useEffect(() => {
     checkAuth();
-    
+
     // Add beforeunload event listener to warn about leaving during assessment
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (!showUnderageMessage && !showOutsideCityMessage) {
@@ -274,7 +276,7 @@ const Assessment = () => {
 
   const checkAuth = async () => {
     const { data: { user } } = await supabase.auth.getUser();
-    
+
     if (!user) {
       navigate("/auth");
       return;
@@ -286,7 +288,7 @@ const Assessment = () => {
       .eq("id", user.id)
       .single();
 
-    if (profile?.assessment_completed) {
+    if (profile?.assessment_completed && !isRetake) {
       navigate("/dashboard");
     }
   };
@@ -300,7 +302,7 @@ const Assessment = () => {
           return false;
         }
         return true;
-      case 2: 
+      case 2:
         if (!city) return false;
         if (city === "outside" && !specifiedCity.trim()) {
           toast.error("Please specify your city");
@@ -326,13 +328,13 @@ const Assessment = () => {
       case 19: return !!relationshipStatus;
       case 20: return !!hasChildren;
       case 21: return !!country;
-      case 22: 
+      case 22:
         if (!birthday) return false;
         const age = new Date().getFullYear() - birthday.getFullYear();
         const monthDiff = new Date().getMonth() - birthday.getMonth();
         const dayDiff = new Date().getDate() - birthday.getDate();
         const actualAge = monthDiff < 0 || (monthDiff === 0 && dayDiff < 0) ? age - 1 : age;
-        
+
         if (actualAge < 18) {
           setShowUnderageMessage(true);
           return false;
@@ -348,13 +350,13 @@ const Assessment = () => {
       toast.error("Please answer the question before continuing");
       return;
     }
-    
+
     // Special handling for users outside Addis Ababa
     if (step === 2 && city === "outside") {
       saveOutsideCityInterest();
       return;
     }
-    
+
     if (step < TOTAL_STEPS) {
       setStep(step + 1);
     }
@@ -363,7 +365,7 @@ const Assessment = () => {
   const saveOutsideCityInterest = async () => {
     try {
       const fullPhone = `${countryCode}${phone}`;
-      
+
       const { error } = await supabase
         .from("outside_city_interests")
         .insert({
@@ -375,7 +377,7 @@ const Assessment = () => {
       if (error) {
         console.error("Error saving outside city interest:", error);
       }
-      
+
       setShowOutsideCityMessage(true);
     } catch (error) {
       console.error("Error saving outside city interest:", error);
@@ -447,7 +449,7 @@ const Assessment = () => {
         .eq("id", user.id);
 
       toast.success("Assessment completed successfully!");
-      
+
       // Force page reload to ensure ProtectedRoute sees updated assessment status
       window.location.href = "/dashboard";
     } catch (error) {
@@ -554,7 +556,7 @@ const Assessment = () => {
                 <Label htmlFor="outside">Outside Addis Ababa</Label>
               </div>
             </RadioGroup>
-            
+
             {city === "outside" && (
               <div className="space-y-2 mt-4">
                 <Label htmlFor="specifiedCity">If you select outside of Addis Ababa, can you please specify which city? *</Label>
@@ -958,37 +960,37 @@ const Assessment = () => {
           { value: 10, label: "November" },
           { value: 11, label: "December" },
         ];
-        
+
         const selectedYear = birthday?.getFullYear();
         const selectedMonth = birthday?.getMonth();
         const selectedDay = birthday?.getDate();
-        
+
         // Calculate days in month
-        const daysInMonth = selectedYear && selectedMonth !== undefined 
-          ? new Date(selectedYear, selectedMonth + 1, 0).getDate() 
+        const daysInMonth = selectedYear && selectedMonth !== undefined
+          ? new Date(selectedYear, selectedMonth + 1, 0).getDate()
           : 31;
         const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-        
+
         const handleDateChange = (type: 'year' | 'month' | 'day', value: string) => {
           const year = type === 'year' ? parseInt(value) : (selectedYear || currentYear);
           const month = type === 'month' ? parseInt(value) : (selectedMonth ?? 0);
           const day = type === 'day' ? parseInt(value) : (selectedDay || 1);
-          
+
           // Adjust day if it's invalid for the selected month
           const maxDays = new Date(year, month + 1, 0).getDate();
           const validDay = Math.min(day, maxDays);
-          
+
           setBirthday(new Date(year, month, validDay));
         };
-        
+
         return (
           <div className="space-y-4">
             <Label className="text-base">When is your birthday?</Label>
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="year" className="text-sm">Year</Label>
-                <Select 
-                  value={selectedYear?.toString()} 
+                <Select
+                  value={selectedYear?.toString()}
                   onValueChange={(value) => handleDateChange('year', value)}
                 >
                   <SelectTrigger id="year">
@@ -1003,11 +1005,11 @@ const Assessment = () => {
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="month" className="text-sm">Month</Label>
-                <Select 
-                  value={selectedMonth?.toString()} 
+                <Select
+                  value={selectedMonth?.toString()}
                   onValueChange={(value) => handleDateChange('month', value)}
                 >
                   <SelectTrigger id="month">
@@ -1022,11 +1024,11 @@ const Assessment = () => {
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="day" className="text-sm">Day</Label>
-                <Select 
-                  value={selectedDay?.toString()} 
+                <Select
+                  value={selectedDay?.toString()}
                   onValueChange={(value) => handleDateChange('day', value)}
                 >
                   <SelectTrigger id="day">
@@ -1107,7 +1109,7 @@ const Assessment = () => {
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Button 
+              <Button
                 variant="outline"
                 onClick={() => {
                   setShowUnderageMessage(false);
@@ -1129,7 +1131,7 @@ const Assessment = () => {
           </CardHeader>
           <CardContent className="space-y-6">
             <p className="text-center">
-              You submitted the form successfully. Unfortunately, we're not hosting dinners in your city just yet. 
+              You submitted the form successfully. Unfortunately, we're not hosting dinners in your city just yet.
               But don't worry—we'll reach out as soon as Enqoy arrives in your area!
             </p>
             <div className="flex justify-center">
@@ -1141,40 +1143,40 @@ const Assessment = () => {
         </Card>
       ) : (
         <Card className="w-full max-w-2xl">
-        <CardHeader>
-          <CardTitle>Assessment</CardTitle>
-          <CardDescription>
-            Question {step} of {TOTAL_STEPS}
-          </CardDescription>
-          <Progress value={(step / TOTAL_STEPS) * 100} className="mt-2" />
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <form onSubmit={(e) => e.preventDefault()}>
-            {renderStep()}
-            
-            <div className="flex justify-between pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleBack}
-                disabled={step === 1}
-              >
-                Back
-              </Button>
-              
-              {step < TOTAL_STEPS ? (
-                <Button type="button" onClick={handleNext}>
-                  Next
+          <CardHeader>
+            <CardTitle>Assessment</CardTitle>
+            <CardDescription>
+              Question {step} of {TOTAL_STEPS}
+            </CardDescription>
+            <Progress value={(step / TOTAL_STEPS) * 100} className="mt-2" />
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <form onSubmit={(e) => e.preventDefault()}>
+              {renderStep()}
+
+              <div className="flex justify-between pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleBack}
+                  disabled={step === 1}
+                >
+                  Back
                 </Button>
-              ) : (
-                <Button type="button" onClick={handleSubmit} disabled={loading}>
-                  {loading ? "Submitting..." : "Complete Assessment"}
-                </Button>
-              )}
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+
+                {step < TOTAL_STEPS ? (
+                  <Button type="button" onClick={handleNext}>
+                    Next
+                  </Button>
+                ) : (
+                  <Button type="button" onClick={handleSubmit} disabled={loading}>
+                    {loading ? "Submitting..." : "Complete Assessment"}
+                  </Button>
+                )}
+              </div>
+            </form>
+          </CardContent>
+        </Card>
       )}
     </div>
   );
