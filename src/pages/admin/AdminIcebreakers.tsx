@@ -4,11 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, Download, Eye } from "lucide-react";
+import { Plus, Pencil, Trash2, Download, Eye, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { IceBreakerGame } from "@/components/IceBreakerGame";
 
@@ -24,12 +25,14 @@ export default function AdminIcebreakers() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
   const [isGameOpen, setIsGameOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<IcebreakerQuestion | null>(null);
   const [formData, setFormData] = useState({
     question_text: "",
     is_active: true
   });
+  const [bulkQuestions, setBulkQuestions] = useState("");
 
   useEffect(() => {
     fetchQuestions();
@@ -142,6 +145,72 @@ export default function AdminIcebreakers() {
     setFormData({ question_text: "", is_active: true });
   };
 
+  const handleBulkUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const lines = bulkQuestions.split('\n').filter(line => line.trim());
+      if (lines.length === 0) {
+        toast.error("Please enter at least one question");
+        return;
+      }
+
+      const questionsToInsert = lines.map(line => ({
+        question_text: line.trim(),
+        is_active: true
+      }));
+
+      const { error } = await supabase
+        .from("icebreaker_questions")
+        .insert(questionsToInsert);
+
+      if (error) throw error;
+      toast.success(`${lines.length} questions uploaded successfully`);
+      setIsBulkUploadOpen(false);
+      setBulkQuestions("");
+      fetchQuestions();
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const text = event.target?.result as string;
+        const lines = text.split('\n')
+          .map(line => line.trim())
+          .filter(line => line && !line.startsWith('Question')); // Skip header row
+
+        if (lines.length === 0) {
+          toast.error("No valid questions found in file");
+          return;
+        }
+
+        const questionsToInsert = lines.map(line => ({
+          question_text: line.replace(/^"|"$/g, '').trim(),
+          is_active: true
+        }));
+
+        const { error } = await supabase
+          .from("icebreaker_questions")
+          .insert(questionsToInsert);
+
+        if (error) throw error;
+        toast.success(`${lines.length} questions uploaded successfully`);
+        setIsBulkUploadOpen(false);
+        fetchQuestions();
+      } catch (error: any) {
+        toast.error(error.message);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
   return (
     <AdminLayout>
       <div className="p-6 space-y-6">
@@ -159,6 +228,51 @@ export default function AdminIcebreakers() {
               <Download className="h-4 w-4 mr-2" />
               Export CSV
             </Button>
+            <Dialog open={isBulkUploadOpen} onOpenChange={setIsBulkUploadOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <Upload className="h-4 w-4 mr-2" />
+                  Bulk Upload
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Bulk Upload Questions</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleBulkUpload} className="space-y-4">
+                  <div>
+                    <Label htmlFor="bulk_questions">Paste Questions (one per line)</Label>
+                    <Textarea
+                      id="bulk_questions"
+                      value={bulkQuestions}
+                      onChange={(e) => setBulkQuestions(e.target.value)}
+                      placeholder="What's your favorite childhood memory?&#10;If you could have dinner with anyone, who would it be?&#10;What's the best advice you've ever received?"
+                      rows={10}
+                      className="font-mono text-sm"
+                    />
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <Button type="submit" className="flex-1">
+                      Upload Questions
+                    </Button>
+                    <div className="relative">
+                      <Input
+                        type="file"
+                        accept=".csv,.txt"
+                        onChange={handleFileUpload}
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                      />
+                      <Button type="button" variant="outline" className="pointer-events-none">
+                        Or Upload File
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Tip: You can paste text or upload a CSV/TXT file with one question per line
+                  </p>
+                </form>
+              </DialogContent>
+            </Dialog>
             <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) resetForm(); }}>
               <DialogTrigger asChild>
                 <Button>
