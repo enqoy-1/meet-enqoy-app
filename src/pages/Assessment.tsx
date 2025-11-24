@@ -448,10 +448,8 @@ const Assessment = () => {
 
       toast.success("Assessment completed successfully!");
       
-      // Add delay to ensure database update propagates before navigation
-      setTimeout(() => {
-        navigate("/dashboard");
-      }, 500);
+      // Force page reload to ensure ProtectedRoute sees updated assessment status
+      window.location.href = "/dashboard";
     } catch (error) {
       console.error("Error submitting assessment:", error);
       toast.error("Failed to submit assessment");
