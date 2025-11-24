@@ -41,9 +41,15 @@ All colors MUST be HSL.
     --gradient-warm: linear-gradient(135deg, hsl(180 100% 12.5%) 0%, hsl(180 80% 20%) 100%);
     --gradient-soft: linear-gradient(180deg, hsl(47 40% 98%) 0%, hsl(47 35% 95%) 100%);
     --gradient-hero: linear-gradient(135deg, hsl(47 40% 81% / 0.3) 0%, hsl(47 50% 88% / 0.5) 100%);
+    --gradient-card: linear-gradient(135deg, hsl(180 100% 12.5%) 0%, hsl(180 90% 15%) 50%, hsl(180 100% 12.5%) 100%);
     --shadow-card: 0 4px 20px -4px hsl(180 100% 12.5% / 0.08);
     --shadow-elevated: 0 8px 30px -8px hsl(180 100% 12.5% / 0.12);
+    --shadow-premium: 0 20px 60px -15px hsl(180 100% 12.5% / 0.3), 0 10px 30px -10px hsl(180 100% 12.5% / 0.2);
+    --shadow-premium-active: 0 25px 70px -15px hsl(180 100% 12.5% / 0.4), 0 15px 40px -10px hsl(180 100% 12.5% / 0.25);
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    
+    --icebreaker-card: 180 100% 12.5%;
+    --icebreaker-card-text: 47 40% 97%;
 
     --sidebar-background: 0 0% 98%;
 
@@ -94,8 +100,14 @@ All colors MUST be HSL.
     --gradient-warm: linear-gradient(135deg, hsl(180 100% 12.5%) 0%, hsl(180 80% 20%) 100%);
     --gradient-soft: linear-gradient(180deg, hsl(180 100% 8%) 0%, hsl(180 80% 10%) 100%);
     --gradient-hero: linear-gradient(135deg, hsl(47 40% 81% / 0.1) 0%, hsl(47 50% 88% / 0.15) 100%);
+    --gradient-card: linear-gradient(135deg, hsl(180 100% 12.5%) 0%, hsl(180 90% 15%) 50%, hsl(180 100% 12.5%) 100%);
     --shadow-card: 0 4px 20px -4px hsl(0 0% 0% / 0.3);
     --shadow-elevated: 0 8px 30px -8px hsl(0 0% 0% / 0.4);
+    --shadow-premium: 0 20px 60px -15px hsl(0 0% 0% / 0.5), 0 10px 30px -10px hsl(0 0% 0% / 0.3);
+    --shadow-premium-active: 0 25px 70px -15px hsl(0 0% 0% / 0.6), 0 15px 40px -10px hsl(0 0% 0% / 0.4);
+    
+    --icebreaker-card: 180 100% 12.5%;
+    --icebreaker-card-text: 47 40% 97%;
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
