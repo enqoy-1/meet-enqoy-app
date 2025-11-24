@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
-import { X, Shuffle, ChevronLeft, ChevronRight, Heart, SkipForward } from "lucide-react";
+import { X, Shuffle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, type CarouselApi } from "@/components/ui/carousel";
 import { supabase } from "@/integrations/supabase/client";
 
 interface IceBreakerGameProps {
@@ -16,24 +18,25 @@ interface Question {
 
 export const IceBreakerGame = ({ isOpen, onClose, eventId }: IceBreakerGameProps) => {
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null);
-  const [showSwipeHint, setShowSwipeHint] = useState(true);
-
-  const minSwipeDistance = 50;
+  const [api, setApi] = useState<CarouselApi>();
+  const [current, setCurrent] = useState(0);
 
   useEffect(() => {
     if (isOpen) {
       fetchQuestions();
-      setShowSwipeHint(true);
-      // Hide hint after 3 seconds
-      const timer = setTimeout(() => setShowSwipeHint(false), 3000);
-      return () => clearTimeout(timer);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!api) return;
+
+    setCurrent(api.selectedScrollSnap());
+
+    api.on("select", () => {
+      setCurrent(api.selectedScrollSnap());
+    });
+  }, [api]);
 
   const fetchQuestions = async () => {
     setIsLoading(true);
@@ -60,55 +63,7 @@ export const IceBreakerGame = ({ isOpen, onClose, eventId }: IceBreakerGameProps
   const handleShuffle = () => {
     const shuffled = [...questions].sort(() => Math.random() - 0.5);
     setQuestions(shuffled);
-    setCurrentIndex(0);
-  };
-
-  const handleNext = () => {
-    if (currentIndex < questions.length - 1) {
-      setSwipeDirection('left');
-      setTimeout(() => {
-        setCurrentIndex(currentIndex + 1);
-        setSwipeDirection(null);
-      }, 200);
-      setShowSwipeHint(false);
-    }
-  };
-
-  const handlePrevious = () => {
-    if (currentIndex > 0) {
-      setSwipeDirection('right');
-      setTimeout(() => {
-        setCurrentIndex(currentIndex - 1);
-        setSwipeDirection(null);
-      }, 200);
-      setShowSwipeHint(false);
-    }
-  };
-
-  const onTouchStart = (e: React.TouchEvent) => {
-    setTouchEnd(null);
-    setTouchStart(e.targetTouches[0].clientX);
-  };
-
-  const onTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX);
-  };
-
-  const onTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
-    
-    const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > minSwipeDistance;
-    const isRightSwipe = distance < -minSwipeDistance;
-
-    if (isLeftSwipe) {
-      handleNext();
-    } else if (isRightSwipe) {
-      handlePrevious();
-    }
-    
-    setTouchStart(null);
-    setTouchEnd(null);
+    api?.scrollTo(0);
   };
 
   if (!isOpen) return null;
@@ -143,7 +98,7 @@ export const IceBreakerGame = ({ isOpen, onClose, eventId }: IceBreakerGameProps
       </div>
 
       {/* Content */}
-      <div className="flex-1 flex items-center justify-center p-6 overflow-hidden relative">
+      <div className="flex-1 flex items-center justify-center px-4 py-8 overflow-hidden">
         {isLoading ? (
           <div className="text-center">
             <div className="animate-pulse text-muted-foreground">Loading questions...</div>
@@ -154,95 +109,36 @@ export const IceBreakerGame = ({ isOpen, onClose, eventId }: IceBreakerGameProps
             <p className="text-muted-foreground">Please check back soon.</p>
           </div>
         ) : (
-          <>
-            {/* Swipe Hint */}
-            {showSwipeHint && (
-              <div className="absolute top-8 left-1/2 -translate-x-1/2 z-10 animate-fade-in">
-                <div className="bg-primary/90 text-primary-foreground px-6 py-3 rounded-full shadow-lg flex items-center gap-2">
-                  <ChevronLeft className="h-4 w-4 animate-pulse" />
-                  <span className="text-sm font-medium">Swipe to navigate</span>
-                  <ChevronRight className="h-4 w-4 animate-pulse" />
-                </div>
-              </div>
-            )}
-
-            {/* Left Navigation Hint */}
-            {currentIndex > 0 && (
-              <button
-                onClick={handlePrevious}
-                className="absolute left-2 md:left-8 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-card/80 backdrop-blur-sm shadow-lg hover:bg-card transition-all hover:scale-110"
-              >
-                <ChevronLeft className="h-6 w-6 text-primary" />
-              </button>
-            )}
-
-            {/* Right Navigation Hint */}
-            {currentIndex < questions.length - 1 && (
-              <button
-                onClick={handleNext}
-                className="absolute right-2 md:right-8 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-card/80 backdrop-blur-sm shadow-lg hover:bg-card transition-all hover:scale-110"
-              >
-                <ChevronRight className="h-6 w-6 text-primary" />
-              </button>
-            )}
-
-            <div
-              className="w-full max-w-2xl relative"
-              onTouchStart={onTouchStart}
-              onTouchMove={onTouchMove}
-              onTouchEnd={onTouchEnd}
-            >
-              <div 
-                className={`bg-gradient-to-br from-card to-card/90 rounded-3xl p-8 shadow-elevated min-h-[400px] flex flex-col items-center justify-center border-2 border-border/50 transition-transform duration-200 ${
-                  swipeDirection === 'left' ? 'translate-x-[-20px] opacity-80' : 
-                  swipeDirection === 'right' ? 'translate-x-[20px] opacity-80' : ''
-                }`}
-              >
-                <p className="text-2xl md:text-3xl leading-relaxed text-center text-card-foreground font-medium">
-                  {questions[currentIndex]?.question_text}
-                </p>
-
-                {/* Action Buttons */}
-                <div className="flex items-center justify-center gap-6 mt-8">
-                  {currentIndex > 0 && (
-                    <button
-                      onClick={handlePrevious}
-                      className="group p-4 rounded-full bg-muted hover:bg-muted/80 transition-all hover:scale-110 shadow-md"
-                      aria-label="Previous question"
-                    >
-                      <ChevronLeft className="h-6 w-6 text-muted-foreground group-hover:text-foreground transition-colors" />
-                    </button>
-                  )}
-                  
-                  <button
-                    onClick={handleShuffle}
-                    className="group p-5 rounded-full bg-accent/10 hover:bg-accent/20 transition-all hover:scale-110 shadow-md"
-                    aria-label="Shuffle questions"
-                  >
-                    <Shuffle className="h-7 w-7 text-accent group-hover:rotate-180 transition-transform duration-500" />
-                  </button>
-
-                  {currentIndex < questions.length - 1 && (
-                    <button
-                      onClick={handleNext}
-                      className="group p-4 rounded-full bg-primary hover:bg-primary/90 transition-all hover:scale-110 shadow-md"
-                      aria-label="Next question"
-                    >
-                      <ChevronRight className="h-6 w-6 text-primary-foreground" />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Stack effect - cards behind */}
-              {currentIndex < questions.length - 1 && (
-                <div className="absolute inset-0 bg-card/40 rounded-3xl -z-10 translate-y-2 scale-[0.98] blur-[1px]" />
-              )}
-              {currentIndex < questions.length - 2 && (
-                <div className="absolute inset-0 bg-card/20 rounded-3xl -z-20 translate-y-4 scale-[0.96] blur-[2px]" />
-              )}
-            </div>
-          </>
+          <Carousel
+            setApi={setApi}
+            opts={{
+              align: "center",
+              loop: false,
+            }}
+            className="w-full max-w-5xl"
+          >
+            <CarouselContent className="-ml-2 md:-ml-4">
+              {questions.map((question, index) => (
+                <CarouselItem key={question.id} className="pl-2 md:pl-4 basis-[85%] md:basis-[70%]">
+                  <div className={`transition-all duration-300 ease-out ${
+                    index === current 
+                      ? 'scale-100 opacity-100' 
+                      : 'scale-90 opacity-50'
+                  }`}>
+                    <Card className="border-2 shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:shadow-[0_12px_40px_rgb(0,0,0,0.15)] transition-shadow duration-300">
+                      <CardContent className="flex items-center justify-center min-h-[400px] md:min-h-[450px] p-8 md:p-12">
+                        <p className="text-2xl md:text-3xl lg:text-4xl leading-relaxed text-center text-foreground font-medium">
+                          {question.question_text}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            <CarouselPrevious className="left-2 md:-left-12 h-12 w-12 border-2 shadow-lg hover:scale-110 transition-transform" />
+            <CarouselNext className="right-2 md:-right-12 h-12 w-12 border-2 shadow-lg hover:scale-110 transition-transform" />
+          </Carousel>
         )}
       </div>
 
@@ -253,9 +149,9 @@ export const IceBreakerGame = ({ isOpen, onClose, eventId }: IceBreakerGameProps
             {questions.map((_, index) => (
               <button
                 key={index}
-                onClick={() => setCurrentIndex(index)}
+                onClick={() => api?.scrollTo(index)}
                 className={`h-2 rounded-full transition-all ${
-                  index === currentIndex
+                  index === current
                     ? "w-8 bg-primary"
                     : "w-2 bg-muted-foreground/30"
                 }`}
@@ -263,7 +159,7 @@ export const IceBreakerGame = ({ isOpen, onClose, eventId }: IceBreakerGameProps
             ))}
           </div>
           <div className="text-center text-sm text-muted-foreground">
-            {currentIndex + 1} of {questions.length}
+            {current + 1} of {questions.length}
           </div>
         </div>
       )}
