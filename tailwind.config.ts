@@ -47,6 +47,10 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        icebreaker: {
+          card: "hsl(var(--icebreaker-card))",
+          text: "hsl(var(--icebreaker-card-text))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -62,6 +66,15 @@ export default {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        xl: "1.5rem",
+        "2xl": "2rem",
+      },
+      boxShadow: {
+        premium: "var(--shadow-premium)",
+        "premium-active": "var(--shadow-premium-active)",
+      },
+      backgroundImage: {
+        "gradient-card": "var(--gradient-card)",
       },
       keyframes: {
         "accordion-down": {

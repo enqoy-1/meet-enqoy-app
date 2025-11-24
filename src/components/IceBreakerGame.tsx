@@ -98,7 +98,7 @@ export const IceBreakerGame = ({ isOpen, onClose, eventId }: IceBreakerGameProps
       </div>
 
       {/* Content */}
-      <div className="flex-1 flex items-center justify-center px-4 py-8 overflow-hidden">
+      <div className="flex-1 flex items-center justify-center px-4 py-8 overflow-hidden bg-gradient-to-br from-background via-background to-muted/20">
         {isLoading ? (
           <div className="text-center">
             <div className="animate-pulse text-muted-foreground">Loading questions...</div>
@@ -120,24 +120,40 @@ export const IceBreakerGame = ({ isOpen, onClose, eventId }: IceBreakerGameProps
             <CarouselContent className="-ml-2 md:-ml-4">
               {questions.map((question, index) => (
                 <CarouselItem key={question.id} className="pl-2 md:pl-4 basis-[85%] md:basis-[70%]">
-                  <div className={`transition-all duration-300 ease-out ${
-                    index === current 
-                      ? 'scale-100 opacity-100' 
-                      : 'scale-90 opacity-50'
-                  }`}>
-                    <Card className="border-2 shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:shadow-[0_12px_40px_rgb(0,0,0,0.15)] transition-shadow duration-300">
-                      <CardContent className="flex items-center justify-center min-h-[400px] md:min-h-[450px] p-8 md:p-12">
-                        <p className="text-2xl md:text-3xl lg:text-4xl leading-relaxed text-center text-foreground font-medium">
+                  <div 
+                    className={`transition-all duration-500 ease-out ${
+                      index === current 
+                        ? 'scale-100 opacity-100' 
+                        : 'scale-[0.85] opacity-40 blur-[2px]'
+                    }`}
+                    style={{
+                      transform: index === current 
+                        ? 'translateZ(0) scale(1)' 
+                        : 'translateZ(-50px) scale(0.85)'
+                    }}
+                  >
+                    <Card 
+                      className={`relative overflow-hidden border-0 rounded-2xl transition-all duration-500 ${
+                        index === current 
+                          ? 'shadow-premium-active' 
+                          : 'shadow-premium'
+                      }`}
+                    >
+                      <div className="absolute inset-0 bg-gradient-card" />
+                      <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent" />
+                      <CardContent className="relative flex items-center justify-center min-h-[420px] md:min-h-[480px] p-10 md:p-16">
+                        <p className="text-2xl md:text-3xl lg:text-4xl leading-relaxed text-center font-medium text-icebreaker-text drop-shadow-sm">
                           {question.question_text}
                         </p>
                       </CardContent>
+                      <div className="absolute inset-0 rounded-2xl ring-1 ring-white/10" />
                     </Card>
                   </div>
                 </CarouselItem>
               ))}
             </CarouselContent>
-            <CarouselPrevious className="left-2 md:-left-12 h-12 w-12 border-2 shadow-lg hover:scale-110 transition-transform" />
-            <CarouselNext className="right-2 md:-right-12 h-12 w-12 border-2 shadow-lg hover:scale-110 transition-transform" />
+            <CarouselPrevious className="left-2 md:-left-14 h-14 w-14 border-0 bg-background/90 backdrop-blur-sm shadow-premium hover:scale-110 hover:shadow-premium-active transition-all duration-300" />
+            <CarouselNext className="right-2 md:-right-14 h-14 w-14 border-0 bg-background/90 backdrop-blur-sm shadow-premium hover:scale-110 hover:shadow-premium-active transition-all duration-300" />
           </Carousel>
         )}
       </div>
