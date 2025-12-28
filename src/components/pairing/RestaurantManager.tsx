@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { venuesApi, pairingApi } from "@/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,8 +19,9 @@ interface Venue {
   id: string;
   name: string;
   address: string;
-  google_maps_link: string | null;
-  notes: string | null;
+  city?: string;
+  googleMapsUrl: string | null;
+  capacity?: number;
 }
 
 interface Table {
@@ -64,12 +65,7 @@ export const RestaurantManager = ({ eventId, restaurants, onRefresh }: Restauran
 
   const fetchVenues = async () => {
     try {
-      const { data, error } = await supabase
-        .from("venues")
-        .select("*")
-        .order("name", { ascending: true });
-
-      if (error) throw error;
+      const data = await venuesApi.getAll();
       setVenues(data || []);
     } catch (error) {
       toast.error("Failed to load venues");
@@ -82,10 +78,10 @@ export const RestaurantManager = ({ eventId, restaurants, onRefresh }: Restauran
     if (venue) {
       setNewRestaurant({
         name: venue.name,
-        address: venue.address,
+        address: venue.address || "",
         contact_name: "",
         contact_phone: "",
-        notes: venue.notes || "",
+        notes: "",
       });
     }
   };
@@ -97,17 +93,13 @@ export const RestaurantManager = ({ eventId, restaurants, onRefresh }: Restauran
     }
 
     try {
-      const { error } = await supabase.from("pairing_restaurants").insert({
-        event_id: eventId,
+      await pairingApi.createRestaurant({
+        eventId: eventId,
         name: newRestaurant.name,
         address: newRestaurant.address || null,
-        contact_name: newRestaurant.contact_name || null,
-        contact_phone: newRestaurant.contact_phone || null,
-        notes: newRestaurant.notes || null,
-        capacity_total: 0,
+        contactInfo: newRestaurant.contact_phone || null,
+        capacity: 0,
       });
-
-      if (error) throw error;
 
       toast.success("Restaurant added successfully");
       setSelectedVenueId("");
@@ -132,22 +124,17 @@ export const RestaurantManager = ({ eventId, restaurants, onRefresh }: Restauran
     }
 
     try {
-      const { error } = await supabase.from("pairing_tables").insert({
-        restaurant_id: restaurantId,
-        name: tableData.name,
+      await pairingApi.createTable({
+        restaurantId: restaurantId,
+        tableNumber: parseInt(tableData.name.replace(/\D/g, '')) || 1,
         capacity: parseInt(tableData.capacity),
       });
-
-      if (error) throw error;
 
       // Update restaurant total capacity
       const restaurant = restaurants.find(r => r.id === restaurantId);
       if (restaurant) {
         const newTotal = (restaurant.tables?.reduce((sum, t) => sum + t.capacity, 0) || 0) + parseInt(tableData.capacity);
-        await supabase
-          .from("pairing_restaurants")
-          .update({ capacity_total: newTotal })
-          .eq("id", restaurantId);
+        await pairingApi.updateRestaurant(restaurantId, { capacity: newTotal });
       }
 
       toast.success("Table added successfully");
@@ -160,18 +147,13 @@ export const RestaurantManager = ({ eventId, restaurants, onRefresh }: Restauran
 
   const handleDeleteTable = async (tableId: string, restaurantId: string, capacity: number) => {
     try {
-      const { error } = await supabase.from("pairing_tables").delete().eq("id", tableId);
-
-      if (error) throw error;
+      await pairingApi.deleteTable(tableId);
 
       // Update restaurant total capacity
       const restaurant = restaurants.find(r => r.id === restaurantId);
       if (restaurant) {
         const newTotal = restaurant.capacity_total - capacity;
-        await supabase
-          .from("pairing_restaurants")
-          .update({ capacity_total: newTotal })
-          .eq("id", restaurantId);
+        await pairingApi.updateRestaurant(restaurantId, { capacity: newTotal });
       }
 
       toast.success("Table deleted successfully");

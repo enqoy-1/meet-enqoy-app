@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { icebreakersApi } from "@/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Pencil, Trash2, Download, Eye, Upload } from "lucide-react";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,9 +15,9 @@ import { IceBreakerGame } from "@/components/IceBreakerGame";
 
 interface IcebreakerQuestion {
   id: string;
-  question_text: string;
-  is_active: boolean;
-  created_at: string;
+  question: string;
+  isActive: boolean;
+  createdAt: string;
 }
 
 export default function AdminIcebreakers() {
@@ -29,8 +29,8 @@ export default function AdminIcebreakers() {
   const [isGameOpen, setIsGameOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<IcebreakerQuestion | null>(null);
   const [formData, setFormData] = useState({
-    question_text: "",
-    is_active: true
+    questionText: "",
+    isActive: true
   });
   const [bulkQuestions, setBulkQuestions] = useState("");
 
@@ -40,12 +40,7 @@ export default function AdminIcebreakers() {
 
   const fetchQuestions = async () => {
     try {
-      const { data, error } = await supabase
-        .from("icebreaker_questions")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
+      const data = await icebreakersApi.getAll();
       setQuestions(data || []);
     } catch (error: any) {
       toast.error(error.message);
@@ -55,7 +50,7 @@ export default function AdminIcebreakers() {
   };
 
   const filteredQuestions = questions.filter(q =>
-    q.question_text.toLowerCase().includes(searchTerm.toLowerCase())
+    q.question?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const exportToCSV = () => {
@@ -63,9 +58,9 @@ export default function AdminIcebreakers() {
     const csvContent = [
       headers.join(","),
       ...filteredQuestions.map(q => [
-        `"${q.question_text}"`,
-        q.is_active ? "Yes" : "No",
-        new Date(q.created_at).toLocaleDateString()
+        `"${q.question}"`,
+        q.isActive ? "Yes" : "No",
+        new Date(q.createdAt).toLocaleDateString()
       ].join(","))
     ].join("\n");
 
@@ -81,17 +76,10 @@ export default function AdminIcebreakers() {
     e.preventDefault();
     try {
       if (editingQuestion) {
-        const { error } = await supabase
-          .from("icebreaker_questions")
-          .update(formData)
-          .eq("id", editingQuestion.id);
-        if (error) throw error;
+        await icebreakersApi.update(editingQuestion.id, formData);
         toast.success("Question updated successfully");
       } else {
-        const { error } = await supabase
-          .from("icebreaker_questions")
-          .insert([formData]);
-        if (error) throw error;
+        await icebreakersApi.create(formData.questionText);
         toast.success("Question created successfully");
       }
       setIsDialogOpen(false);
@@ -105,11 +93,7 @@ export default function AdminIcebreakers() {
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this question?")) return;
     try {
-      const { error } = await supabase
-        .from("icebreaker_questions")
-        .delete()
-        .eq("id", id);
-      if (error) throw error;
+      await icebreakersApi.delete(id);
       toast.success("Question deleted successfully");
       fetchQuestions();
     } catch (error: any) {
@@ -119,12 +103,8 @@ export default function AdminIcebreakers() {
 
   const toggleActive = async (question: IcebreakerQuestion) => {
     try {
-      const { error } = await supabase
-        .from("icebreaker_questions")
-        .update({ is_active: !question.is_active })
-        .eq("id", question.id);
-      if (error) throw error;
-      toast.success(`Question ${!question.is_active ? "activated" : "deactivated"}`);
+      await icebreakersApi.update(question.id, { isActive: !question.isActive });
+      toast.success(`Question ${!question.isActive ? "activated" : "deactivated"}`);
       fetchQuestions();
     } catch (error: any) {
       toast.error(error.message);
@@ -134,15 +114,15 @@ export default function AdminIcebreakers() {
   const openEditDialog = (question: IcebreakerQuestion) => {
     setEditingQuestion(question);
     setFormData({
-      question_text: question.question_text,
-      is_active: question.is_active
+      questionText: question.question,
+      isActive: question.isActive
     });
     setIsDialogOpen(true);
   };
 
   const resetForm = () => {
     setEditingQuestion(null);
-    setFormData({ question_text: "", is_active: true });
+    setFormData({ questionText: "", isActive: true });
   };
 
   const handleBulkUpload = async (e: React.FormEvent) => {
@@ -154,16 +134,11 @@ export default function AdminIcebreakers() {
         return;
       }
 
-      const questionsToInsert = lines.map(line => ({
-        question_text: line.trim(),
-        is_active: true
-      }));
+      // Create questions one by one
+      for (const line of lines) {
+        await icebreakersApi.create(line.trim());
+      }
 
-      const { error } = await supabase
-        .from("icebreaker_questions")
-        .insert(questionsToInsert);
-
-      if (error) throw error;
       toast.success(`${lines.length} questions uploaded successfully`);
       setIsBulkUploadOpen(false);
       setBulkQuestions("");
@@ -190,16 +165,11 @@ export default function AdminIcebreakers() {
           return;
         }
 
-        const questionsToInsert = lines.map(line => ({
-          question_text: line.replace(/^"|"$/g, '').trim(),
-          is_active: true
-        }));
+        // Create questions one by one
+        for (const line of lines) {
+          await icebreakersApi.create(line.replace(/^"|"$/g, '').trim());
+        }
 
-        const { error } = await supabase
-          .from("icebreaker_questions")
-          .insert(questionsToInsert);
-
-        if (error) throw error;
         toast.success(`${lines.length} questions uploaded successfully`);
         setIsBulkUploadOpen(false);
         fetchQuestions();
@@ -238,6 +208,9 @@ export default function AdminIcebreakers() {
               <DialogContent className="max-w-2xl">
                 <DialogHeader>
                   <DialogTitle>Bulk Upload Questions</DialogTitle>
+                  <DialogDescription>
+                    Upload multiple icebreaker questions at once by pasting them or uploading a file.
+                  </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleBulkUpload} className="space-y-4">
                   <div>
@@ -283,23 +256,26 @@ export default function AdminIcebreakers() {
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>{editingQuestion ? "Edit Question" : "Add New Question"}</DialogTitle>
+                  <DialogDescription>
+                    {editingQuestion ? "Update the icebreaker question details." : "Create a new icebreaker question for events."}
+                  </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
-                    <Label htmlFor="question_text">Question *</Label>
+                    <Label htmlFor="questionText">Question *</Label>
                     <Input
-                      id="question_text"
-                      value={formData.question_text}
-                      onChange={(e) => setFormData({ ...formData, question_text: e.target.value })}
+                      id="questionText"
+                      value={formData.questionText}
+                      onChange={(e) => setFormData({ ...formData, questionText: e.target.value })}
                       required
                     />
                   </div>
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="is_active">Active</Label>
+                    <Label htmlFor="isActive">Active</Label>
                     <Switch
-                      id="is_active"
-                      checked={formData.is_active}
-                      onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
+                      id="isActive"
+                      checked={formData.isActive}
+                      onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
                     />
                   </div>
                   <Button type="submit" className="w-full">
@@ -335,17 +311,17 @@ export default function AdminIcebreakers() {
                 <TableBody>
                   {filteredQuestions.map((question) => (
                     <TableRow key={question.id}>
-                      <TableCell className="font-medium">{question.question_text}</TableCell>
+                      <TableCell className="font-medium">{question.question}</TableCell>
                       <TableCell>
                         <Button
-                          variant={question.is_active ? "default" : "secondary"}
+                          variant={question.isActive ? "default" : "secondary"}
                           size="sm"
                           onClick={() => toggleActive(question)}
                         >
-                          {question.is_active ? "Active" : "Inactive"}
+                          {question.isActive ? "Active" : "Inactive"}
                         </Button>
                       </TableCell>
-                      <TableCell>{new Date(question.created_at).toLocaleDateString()}</TableCell>
+                      <TableCell>{new Date(question.createdAt).toLocaleDateString()}</TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="icon" onClick={() => openEditDialog(question)}>
                           <Pencil className="h-4 w-4" />

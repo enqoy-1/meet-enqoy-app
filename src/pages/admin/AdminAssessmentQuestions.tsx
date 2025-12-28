@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { assessmentsApi } from "@/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Pencil, Trash2, Download } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, Download, MoveUp, MoveDown } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,23 +21,28 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+
+interface QuestionOption {
+  value: string;
+  label: string;
+  scores?: Record<string, number>;
+}
 
 interface AssessmentQuestion {
   id: string;
-  step_number: number;
-  question_type: string;
-  question_text: string;
-  description: string | null;
-  options: any;
-  is_required: boolean;
-  is_active: boolean;
-  section_title: string | null;
-  section_description: string | null;
-  placeholder_text: string | null;
-  validation_rules: any;
-  display_order: number;
-  created_at: string;
+  key: string;
+  label: string;
+  type: string;
+  section: string;
+  order: number;
+  options: QuestionOption[];
+  isActive: boolean;
+  placeholder?: string;
 }
+
+const PERSONALITY_TYPES = ["Trailblazers", "Storytellers", "Philosophers", "Planners", "Free Spirits"];
 
 const AdminAssessmentQuestions = () => {
   const navigate = useNavigate();
@@ -47,20 +52,21 @@ const AdminAssessmentQuestions = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [questionToDelete, setQuestionToDelete] = useState<string | null>(null);
-  
+
   // Form state
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [stepNumber, setStepNumber] = useState<number>(1);
-  const [questionType, setQuestionType] = useState("radio");
-  const [questionText, setQuestionText] = useState("");
-  const [description, setDescription] = useState("");
-  const [optionsText, setOptionsText] = useState("");
-  const [isRequired, setIsRequired] = useState(true);
+  const [key, setKey] = useState("");
+  const [label, setLabel] = useState("");
+  const [type, setType] = useState("radio");
+  const [section, setSection] = useState("social");
+  const [order, setOrder] = useState<number>(1);
   const [isActive, setIsActive] = useState(true);
-  const [sectionTitle, setSectionTitle] = useState("");
-  const [sectionDescription, setSectionDescription] = useState("");
-  const [placeholderText, setPlaceholderText] = useState("");
-  const [displayOrder, setDisplayOrder] = useState<number>(1);
+  const [placeholder, setPlaceholder] = useState("");
+  const [options, setOptions] = useState<QuestionOption[]>([]);
+
+  // Option editing state
+  const [currentOption, setCurrentOption] = useState<QuestionOption>({ value: "", label: "", scores: {} });
+  const [showOptionForm, setShowOptionForm] = useState(false);
 
   useEffect(() => {
     fetchQuestions();
@@ -68,13 +74,7 @@ const AdminAssessmentQuestions = () => {
 
   const fetchQuestions = async () => {
     try {
-      const { data, error } = await supabase
-        .from("assessment_questions")
-        .select("*")
-        .order("step_number", { ascending: true })
-        .order("display_order", { ascending: true });
-
-      if (error) throw error;
+      const data = await assessmentsApi.getQuestions();
       setQuestions(data || []);
     } catch (error) {
       console.error("Error fetching questions:", error);
@@ -86,82 +86,57 @@ const AdminAssessmentQuestions = () => {
 
   const filteredQuestions = questions.filter(
     (q) =>
-      q.question_text.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      q.question_type.toLowerCase().includes(searchTerm.toLowerCase())
+      q.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      q.key.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const exportToCSV = () => {
-    const headers = ["Step", "Type", "Question", "Active", "Required", "Display Order"];
-    const rows = questions.map((q) => [
-      q.step_number,
-      q.question_type,
-      q.question_text,
-      q.is_active ? "Yes" : "No",
-      q.is_required ? "Yes" : "No",
-      q.display_order,
-    ]);
-
-    const csv = [headers, ...rows].map((row) => row.join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "assessment_questions.csv";
-    a.click();
-    window.URL.revokeObjectURL(url);
+  const handleOptionAdd = () => {
+    if (!currentOption.value || !currentOption.label) {
+      toast.error("Value and Label are required");
+      return;
+    }
+    setOptions([...options, currentOption]);
+    setCurrentOption({ value: "", label: "", scores: {} });
+    setShowOptionForm(false);
   };
 
-  const parseOptions = (optionsText: string) => {
-    if (!optionsText.trim()) return null;
-    
-    try {
-      // Format: value1:label1,value2:label2
-      const options = optionsText.split(",").map((opt) => {
-        const [value, label] = opt.trim().split(":");
-        return { value: value.trim(), label: (label || value).trim() };
-      });
-      return options;
-    } catch (error) {
-      toast.error("Invalid options format. Use: value1:label1,value2:label2");
-      return null;
-    }
+  const handleOptionRemove = (index: number) => {
+    const newOptions = [...options];
+    newOptions.splice(index, 1);
+    setOptions(newOptions);
+  };
+
+  const handleScoreChange = (category: string, value: string) => {
+    const score = parseInt(value) || 0;
+    setCurrentOption(prev => ({
+      ...prev,
+      scores: {
+        ...prev.scores,
+        [category]: score
+      }
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     try {
-      const options = parseOptions(optionsText);
-      
       const questionData = {
-        step_number: stepNumber,
-        question_type: questionType,
-        question_text: questionText,
-        description: description || null,
-        options,
-        is_required: isRequired,
-        is_active: isActive,
-        section_title: sectionTitle || null,
-        section_description: sectionDescription || null,
-        placeholder_text: placeholderText || null,
-        display_order: displayOrder,
-        validation_rules: null,
+        key,
+        label,
+        type,
+        section,
+        order,
+        isActive,
+        placeholder: placeholder || undefined,
+        options
       };
 
       if (editingId) {
-        const { error } = await supabase
-          .from("assessment_questions")
-          .update(questionData)
-          .eq("id", editingId);
-
-        if (error) throw error;
+        await assessmentsApi.updateQuestion(editingId, questionData);
         toast.success("Question updated successfully");
       } else {
-        const { error } = await supabase
-          .from("assessment_questions")
-          .insert(questionData);
-
-        if (error) throw error;
+        await assessmentsApi.createQuestion(questionData);
         toast.success("Question added successfully");
       }
 
@@ -178,12 +153,7 @@ const AdminAssessmentQuestions = () => {
     if (!questionToDelete) return;
 
     try {
-      const { error } = await supabase
-        .from("assessment_questions")
-        .delete()
-        .eq("id", questionToDelete);
-
-      if (error) throw error;
+      await assessmentsApi.deleteQuestion(questionToDelete);
       toast.success("Question deleted successfully");
       fetchQuestions();
     } catch (error) {
@@ -195,69 +165,62 @@ const AdminAssessmentQuestions = () => {
     }
   };
 
-  const toggleActive = async (id: string, currentStatus: boolean) => {
-    try {
-      const { error } = await supabase
-        .from("assessment_questions")
-        .update({ is_active: !currentStatus })
-        .eq("id", id);
+  const handleMove = async (id: string, direction: 'up' | 'down') => {
+    const index = questions.findIndex(q => q.id === id);
+    if (index === -1) return;
+    if (direction === 'up' && index === 0) return;
+    if (direction === 'down' && index === questions.length - 1) return;
 
-      if (error) throw error;
-      toast.success("Question status updated");
-      fetchQuestions();
-    } catch (error) {
-      console.error("Error updating question:", error);
-      toast.error("Failed to update question");
+    const newQuestions = [...questions];
+    const temp = newQuestions[index];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    newQuestions[index] = newQuestions[targetIndex];
+    newQuestions[targetIndex] = temp;
+
+    // Optimistic update
+    setQuestions(newQuestions);
+
+    // Prepare reorder payload
+    const payload = newQuestions.map((q, idx) => ({
+      id: q.id,
+      order: idx + 1
+    }));
+
+    try {
+      await assessmentsApi.reorderQuestions(payload);
+      toast.success("Order updated");
+    } catch (e) {
+      console.error("Reorder failed", e);
+      toast.error("Failed to save order");
+      fetchQuestions(); // Revert
     }
   };
 
   const openEditDialog = (question: AssessmentQuestion) => {
     setEditingId(question.id);
-    setStepNumber(question.step_number);
-    setQuestionType(question.question_type);
-    setQuestionText(question.question_text);
-    setDescription(question.description || "");
-    setSectionTitle(question.section_title || "");
-    setSectionDescription(question.section_description || "");
-    setPlaceholderText(question.placeholder_text || "");
-    setIsRequired(question.is_required);
-    setIsActive(question.is_active);
-    setDisplayOrder(question.display_order);
-    
-    if (question.options && Array.isArray(question.options)) {
-      const optionsStr = question.options
-        .map((opt: any) => `${opt.value}:${opt.label}`)
-        .join(",");
-      setOptionsText(optionsStr);
-    } else {
-      setOptionsText("");
-    }
-    
+    setKey(question.key);
+    setLabel(question.label);
+    setType(question.type);
+    setSection(question.section);
+    setOrder(question.order);
+    setIsActive(question.isActive);
+    setPlaceholder(question.placeholder || "");
+    setOptions(question.options || []);
     setIsDialogOpen(true);
   };
 
   const resetForm = () => {
     setEditingId(null);
-    setStepNumber(1);
-    setQuestionType("radio");
-    setQuestionText("");
-    setDescription("");
-    setOptionsText("");
-    setSectionTitle("");
-    setSectionDescription("");
-    setPlaceholderText("");
-    setIsRequired(true);
+    setKey("");
+    setLabel("");
+    setType("radio");
+    setSection("social");
+    setOrder(questions.length + 1);
     setIsActive(true);
-    setDisplayOrder(1);
+    setPlaceholder("");
+    setOptions([]);
+    setCurrentOption({ value: "", label: "", scores: {} });
   };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg">Loading...</div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -269,14 +232,10 @@ const AdminAssessmentQuestions = () => {
             </Button>
             <div>
               <h1 className="text-3xl font-bold">Assessment Questions</h1>
-              <p className="text-muted-foreground">Manage your assessment questions</p>
+              <p className="text-muted-foreground">Manage dynamic assessment questions & scoring</p>
             </div>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={exportToCSV}>
-              <Download className="mr-2 h-4 w-4" />
-              Export
-            </Button>
             <Dialog open={isDialogOpen} onOpenChange={(open) => {
               setIsDialogOpen(open);
               if (!open) resetForm();
@@ -287,39 +246,42 @@ const AdminAssessmentQuestions = () => {
                   Add Question
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+              <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>{editingId ? "Edit Question" : "Add New Question"}</DialogTitle>
                 </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="stepNumber">Step Number *</Label>
+                      <Label htmlFor="key">Unique Key *</Label>
                       <Input
-                        id="stepNumber"
-                        type="number"
-                        min={1}
-                        value={stepNumber}
-                        onChange={(e) => setStepNumber(parseInt(e.target.value))}
+                        id="key"
+                        value={key}
+                        onChange={(e) => setKey(e.target.value)}
+                        placeholder="e.g. dinnerVibe"
                         required
+                        disabled={!!editingId}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="displayOrder">Display Order *</Label>
-                      <Input
-                        id="displayOrder"
-                        type="number"
-                        min={1}
-                        value={displayOrder}
-                        onChange={(e) => setDisplayOrder(parseInt(e.target.value))}
-                        required
-                      />
+                      <Label htmlFor="section">Section *</Label>
+                      <Select value={section} onValueChange={setSection}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="social">Social</SelectItem>
+                          <SelectItem value="personality">Personality</SelectItem>
+                          <SelectItem value="lifestyle">Lifestyle</SelectItem>
+                          <SelectItem value="personal">Personal</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
-                  
+
                   <div className="space-y-2">
-                    <Label htmlFor="questionType">Question Type *</Label>
-                    <Select value={questionType} onValueChange={setQuestionType}>
+                    <Label htmlFor="type">Question Type *</Label>
+                    <Select value={type} onValueChange={setType}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -327,115 +289,93 @@ const AdminAssessmentQuestions = () => {
                         <SelectItem value="radio">Radio (Multiple Choice)</SelectItem>
                         <SelectItem value="scale">Scale (1-5)</SelectItem>
                         <SelectItem value="text">Text Input</SelectItem>
-                        <SelectItem value="textarea">Text Area</SelectItem>
-                        <SelectItem value="phone">Phone Number</SelectItem>
-                        <SelectItem value="date">Date Picker</SelectItem>
-                        <SelectItem value="select">Dropdown Select</SelectItem>
+                        <SelectItem value="select">Dropdown</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="questionText">Question Text *</Label>
-                    <Textarea
-                      id="questionText"
-                      value={questionText}
-                      onChange={(e) => setQuestionText(e.target.value)}
-                      placeholder="Enter the question"
+                    <Label htmlFor="label">Question Label *</Label>
+                    <Input
+                      id="label"
+                      value={label}
+                      onChange={(e) => setLabel(e.target.value)}
+                      placeholder="e.g. What is your vibe at dinner?"
                       required
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="description">Description</Label>
-                    <Textarea
-                      id="description"
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      placeholder="Optional description or helper text"
-                    />
-                  </div>
+                  {(type === "radio" || type === "select" || type === "scale") && (
+                    <Card className="bg-muted/50">
+                      <CardContent className="pt-6">
+                        <div className="flex justify-between items-center mb-4">
+                          <Label>Options & Scoring</Label>
+                          <Button type="button" size="sm" variant="outline" onClick={() => setShowOptionForm(!showOptionForm)}>
+                            {showOptionForm ? "Cancel" : "Add Option"}
+                          </Button>
+                        </div>
 
-                  {(questionType === "radio" || questionType === "select") && (
-                    <div className="space-y-2">
-                      <Label htmlFor="options">Options (for Radio/Select) *</Label>
-                      <Textarea
-                        id="options"
-                        value={optionsText}
-                        onChange={(e) => setOptionsText(e.target.value)}
-                        placeholder="Format: value1:Label 1,value2:Label 2,value3:Label 3"
-                        rows={3}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Example: male:Male,female:Female,other:Other
-                      </p>
-                    </div>
+                        {showOptionForm && (
+                          <div className="bg-background p-4 rounded-md border mb-4 space-y-3">
+                            <div className="grid grid-cols-2 gap-3">
+                              <Input
+                                placeholder="Value (e.g. observing)"
+                                value={currentOption.value}
+                                onChange={(e) => setCurrentOption({ ...currentOption, value: e.target.value })}
+                              />
+                              <Input
+                                placeholder="Label (e.g. I prefer to observe)"
+                                value={currentOption.label}
+                                onChange={(e) => setCurrentOption({ ...currentOption, label: e.target.value })}
+                              />
+                            </div>
+                            <Label className="text-xs text-muted-foreground mt-2 block">Points per Personality</Label>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                              {PERSONALITY_TYPES.map(pt => (
+                                <div key={pt} className="flex items-center gap-2">
+                                  <span className="text-xs w-20 truncate" title={pt}>{pt}</span>
+                                  <Input
+                                    type="number"
+                                    className="h-8"
+                                    placeholder="0"
+                                    value={currentOption.scores?.[pt] || ""}
+                                    onChange={(e) => handleScoreChange(pt, e.target.value)}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                            <Button type="button" size="sm" onClick={handleOptionAdd} className="w-full">
+                              Save Option
+                            </Button>
+                          </div>
+                        )}
+
+                        <div className="space-y-2">
+                          {options.map((opt, idx) => (
+                            <div key={idx} className="flex justify-between items-start p-2 bg-background border rounded text-sm group">
+                              <div>
+                                <div className="font-medium">{opt.label}</div>
+                                <div className="text-xs text-muted-foreground">Val: {opt.value}</div>
+                                <div className="flex gap-1 flex-wrap mt-1">
+                                  {opt.scores && Object.entries(opt.scores).map(([k, v]) => (
+                                    v > 0 && <Badge key={k} variant="secondary" className="text-[10px] h-4 px-1">{k}: +{v}</Badge>
+                                  ))}
+                                </div>
+                              </div>
+                              <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleOptionRemove(idx)}>
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ))}
+                          {options.length === 0 && <div className="text-center text-sm text-muted-foreground">No options added yet</div>}
+                        </div>
+                      </CardContent>
+                    </Card>
                   )}
 
-                  <div className="space-y-2">
-                    <Label htmlFor="sectionTitle">Section Title</Label>
-                    <Input
-                      id="sectionTitle"
-                      value={sectionTitle}
-                      onChange={(e) => setSectionTitle(e.target.value)}
-                      placeholder="Optional section title"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="sectionDescription">Section Description</Label>
-                    <Textarea
-                      id="sectionDescription"
-                      value={sectionDescription}
-                      onChange={(e) => setSectionDescription(e.target.value)}
-                      placeholder="Optional section description"
-                    />
-                  </div>
-
-                  {(questionType === "text" || questionType === "textarea") && (
-                    <div className="space-y-2">
-                      <Label htmlFor="placeholderText">Placeholder Text</Label>
-                      <Input
-                        id="placeholderText"
-                        value={placeholderText}
-                        onChange={(e) => setPlaceholderText(e.target.value)}
-                        placeholder="Placeholder for text input"
-                      />
-                    </div>
-                  )}
-
-                  <div className="flex items-center space-x-4">
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        id="isRequired"
-                        checked={isRequired}
-                        onCheckedChange={setIsRequired}
-                      />
-                      <Label htmlFor="isRequired">Required</Label>
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        id="isActive"
-                        checked={isActive}
-                        onCheckedChange={setIsActive}
-                      />
-                      <Label htmlFor="isActive">Active</Label>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setIsDialogOpen(false);
-                        resetForm();
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                    <Button type="submit">{editingId ? "Update" : "Create"}</Button>
+                  <div className="flex justify-end gap-2 pt-4 border-t">
+                    <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+                    <Button type="submit">{editingId ? "Update Question" : "Create Question"}</Button>
                   </div>
                 </form>
               </DialogContent>
@@ -443,100 +383,78 @@ const AdminAssessmentQuestions = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <Input
-            placeholder="Search questions..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="max-w-md"
-          />
-          <div className="text-sm text-muted-foreground">
-            {filteredQuestions.length} question(s)
-          </div>
-        </div>
-
-        <div className="border rounded-lg">
+        <Card>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Step</TableHead>
-                <TableHead>Order</TableHead>
+                <TableHead className="w-[50px]">Order</TableHead>
+                <TableHead>Label</TableHead>
                 <TableHead>Type</TableHead>
-                <TableHead>Question</TableHead>
-                <TableHead>Required</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>Key</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredQuestions.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground">
-                    No questions found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredQuestions.map((question) => (
-                  <TableRow key={question.id}>
-                    <TableCell className="font-medium">{question.step_number}</TableCell>
-                    <TableCell>{question.display_order}</TableCell>
-                    <TableCell className="capitalize">{question.question_type}</TableCell>
-                    <TableCell className="max-w-md truncate">{question.question_text}</TableCell>
-                    <TableCell>
-                      <span className={question.is_required ? "text-orange-600" : "text-muted-foreground"}>
-                        {question.is_required ? "Yes" : "No"}
-                      </span>
-                    </TableCell>
-                    <TableCell>
+              {filteredQuestions.sort((a, b) => a.order - b.order).map((question, index) => (
+                <TableRow key={question.id}>
+                  <TableCell>
+                    <div className="flex flex-col items-center gap-1">
                       <Button
                         variant="ghost"
-                        size="sm"
-                        onClick={() => toggleActive(question.id, question.is_active)}
-                        className={question.is_active ? "text-green-600" : "text-muted-foreground"}
+                        size="icon"
+                        className="h-5 w-5"
+                        disabled={index === 0}
+                        onClick={() => handleMove(question.id, 'up')}
                       >
-                        {question.is_active ? "Active" : "Inactive"}
+                        <MoveUp className="h-3 w-3" />
                       </Button>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openEditDialog(question)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            setQuestionToDelete(question.id);
-                            setDeleteDialogOpen(true);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
+                      <span className="font-mono text-xs font-bold">{question.order}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5"
+                        disabled={index === filteredQuestions.length - 1}
+                        onClick={() => handleMove(question.id, 'down')}
+                      >
+                        <MoveDown className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-medium">{question.label}</div>
+                    <div className="text-xs text-muted-foreground">{question.options?.length || 0} options</div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{question.type}</Badge>
+                    <div className="text-xs text-muted-foreground mt-1 capitalize">{question.section}</div>
+                  </TableCell>
+                  <TableCell className="font-mono text-xs">{question.key}</TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button variant="ghost" size="icon" onClick={() => openEditDialog(question)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => { setQuestionToDelete(question.id); setDeleteDialogOpen(true); }}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
-        </div>
+        </Card>
       </div>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the question.
-            </AlertDialogDescription>
+            <AlertDialogTitle>Delete Question?</AlertDialogTitle>
+            <AlertDialogDescription>This will permanently remove this question and its history.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

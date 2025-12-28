@@ -3,11 +3,11 @@
  * Provides time simulation capabilities for testing
  */
 
-import { supabase } from "@/integrations/supabase/client";
+import { sandboxApi } from "@/api";
 
 export interface TimeState {
-  is_frozen: boolean;
-  frozen_time: string | null;
+  isFrozen: boolean;
+  frozenTime: string | null;
 }
 
 class SandboxClock {
@@ -20,59 +20,48 @@ class SandboxClock {
    */
   async now(): Promise<Date> {
     const timeState = await this.getTimeState();
-    
-    if (timeState.is_frozen && timeState.frozen_time) {
-      return new Date(timeState.frozen_time);
+
+    if (timeState.isFrozen && timeState.frozenTime) {
+      return new Date(timeState.frozenTime);
     }
-    
+
     return new Date();
   }
 
   /**
-   * Get the time state from the database with caching
+   * Get the time state from the API with caching
    */
   private async getTimeState(): Promise<TimeState> {
     const now = Date.now();
-    
+
     // Return cached value if still valid
     if (this.cachedTimeState && now < this.cacheExpiry) {
       return this.cachedTimeState;
     }
 
-    // Fetch fresh state
-    const { data, error } = await supabase
-      .from("sandbox_time_state")
-      .select("is_frozen, frozen_time")
-      .single();
+    try {
+      // Fetch fresh state from API
+      const data = await sandboxApi.getTimeState();
 
-    if (error || !data) {
+      // Cache the result
+      this.cachedTimeState = {
+        isFrozen: data.isFrozen,
+        frozenTime: data.frozenTime,
+      };
+      this.cacheExpiry = now + this.CACHE_DURATION;
+
+      return this.cachedTimeState;
+    } catch (error) {
       // Default to real time if query fails
-      return { is_frozen: false, frozen_time: null };
+      return { isFrozen: false, frozenTime: null };
     }
-
-    // Cache the result
-    this.cachedTimeState = data;
-    this.cacheExpiry = now + this.CACHE_DURATION;
-
-    return data;
   }
 
   /**
    * Freeze time at a specific datetime
    */
   async freezeTime(datetime: Date): Promise<void> {
-    const { error } = await supabase
-      .from("sandbox_time_state")
-      .update({
-        is_frozen: true,
-        frozen_time: datetime.toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .limit(1);
-
-    if (error) {
-      throw new Error(`Failed to freeze time: ${error.message}`);
-    }
+    await sandboxApi.freezeTime(datetime);
 
     // Invalidate cache
     this.cachedTimeState = null;
@@ -91,18 +80,7 @@ class SandboxClock {
    * Reset to real time
    */
   async resetTime(): Promise<void> {
-    const { error } = await supabase
-      .from("sandbox_time_state")
-      .update({
-        is_frozen: false,
-        frozen_time: null,
-        updated_at: new Date().toISOString()
-      })
-      .limit(1);
-
-    if (error) {
-      throw new Error(`Failed to reset time: ${error.message}`);
-    }
+    await sandboxApi.resetTime();
 
     // Invalidate cache
     this.cachedTimeState = null;
@@ -127,7 +105,7 @@ class SandboxClock {
     const now = await this.now();
     const reminderTime = new Date(eventDateTime.getTime() - hoursBeforeEvent * 60 * 60 * 1000);
     const windowEnd = new Date(reminderTime.getTime() + windowMinutes * 60 * 1000);
-    
+
     return now >= reminderTime && now <= windowEnd;
   }
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { eventsApi } from "@/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,9 +14,9 @@ import heroDining from "@/assets/hero-dining.jpg";
 interface Event {
   id: string;
   title: string;
-  type: string;
-  date_time: string;
-  price: number;
+  eventType: string;
+  startTime: string;
+  price: string;
 }
 
 const Index = () => {
@@ -29,18 +29,16 @@ const Index = () => {
 
   const fetchUpcomingEvents = async () => {
     try {
+      const data = await eventsApi.getUpcoming();
+      // Filter events 48 hours away and limit to 4
       const cutoffTime = new Date();
       cutoffTime.setHours(cutoffTime.getHours() + 48);
 
-      const { data } = await supabase
-        .from("events")
-        .select("id, title, type, date_time, price")
-        .eq("is_visible", true)
-        .gte("date_time", cutoffTime.toISOString())
-        .order("date_time", { ascending: true })
-        .limit(4);
+      const filtered = data
+        .filter((e: any) => new Date(e.startTime) >= cutoffTime)
+        .slice(0, 4);
 
-      if (data) setUpcomingEvents(data);
+      setUpcomingEvents(filtered);
     } catch (error) {
       console.error("Error fetching events:", error);
     }
@@ -296,8 +294,8 @@ const Index = () => {
                   onClick={() => navigate(`/events/${event.id}`)}
                 >
                   <CardHeader className="pb-4">
-                    <div className="text-4xl mb-3">{getEventEmoji(event.type)}</div>
-                    <Badge className="w-fit mb-2 rounded-full">{event.type}</Badge>
+                    <div className="text-4xl mb-3">{getEventEmoji(event.eventType)}</div>
+                    <Badge className="w-fit mb-2 rounded-full">{event.eventType}</Badge>
                     <CardTitle className="text-lg group-hover:text-primary transition-colors leading-tight">
                       {event.title}
                     </CardTitle>
@@ -305,10 +303,10 @@ const Index = () => {
                   <CardContent className="space-y-2">
                     <div className="flex items-center text-sm text-muted-foreground">
                       <Calendar className="h-4 w-4 mr-2" />
-                      {format(new Date(event.date_time), "MMM d, h:mm a")}
+                      {format(new Date(event.startTime), "MMM d, h:mm a")}
                     </div>
                     <div className="flex items-center text-sm font-semibold text-primary">
-                      {event.price} Birr
+                      ${event.price}
                     </div>
                     <Button
                       size="sm"

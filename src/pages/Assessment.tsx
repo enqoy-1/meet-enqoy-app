@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,11 +15,14 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { CalendarIcon, Check, ChevronsUpDown } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
+import { assessmentsApi, usersApi, outsideCityInterestsApi } from "@/api";
 
 const TOTAL_STEPS = 23;
 
 const Assessment = () => {
   const navigate = useNavigate();
+  const { user, refreshUser } = useAuth();
   const [searchParams] = useSearchParams();
   const isRetake = searchParams.get("retake") === "true";
   const [loading, setLoading] = useState(false);
@@ -275,20 +277,12 @@ const Assessment = () => {
   }, [showUnderageMessage, showOutsideCityMessage]);
 
   const checkAuth = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-
     if (!user) {
       navigate("/auth");
       return;
     }
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("assessment_completed")
-      .eq("id", user.id)
-      .single();
-
-    if (profile?.assessment_completed && !isRetake) {
+    if (user.profile?.assessmentCompleted && !isRetake) {
       navigate("/dashboard");
     }
   };
@@ -364,23 +358,12 @@ const Assessment = () => {
 
   const saveOutsideCityInterest = async () => {
     try {
-      const fullPhone = `${countryCode}${phone}`;
-
-      const { error } = await supabase
-        .from("outside_city_interests")
-        .insert({
-          phone: fullPhone,
-          city: city,
-          specified_city: specifiedCity,
-        });
-
-      if (error) {
-        console.error("Error saving outside city interest:", error);
-      }
-
+      // Save to outside city interests API
+      await outsideCityInterestsApi.create(specifiedCity);
       setShowOutsideCityMessage(true);
     } catch (error) {
       console.error("Error saving outside city interest:", error);
+      // Still show the message even if save fails
       setShowOutsideCityMessage(true);
     }
   };
@@ -399,7 +382,6 @@ const Assessment = () => {
 
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
       const answers = {
@@ -431,27 +413,28 @@ const Assessment = () => {
         funFact,
       };
 
-      await supabase.from("personality_assessments").insert({
-        user_id: user.id,
-        answers,
-      });
+      await assessmentsApi.submit(answers);
 
       const age = birthday ? new Date().getFullYear() - birthday.getFullYear() : null;
 
-      await supabase
-        .from("profiles")
-        .update({
-          assessment_completed: true,
-          phone: `${countryCode}${phone}`,
-          gender: gender as any,
-          age,
-        })
-        .eq("id", user.id);
+      // Determine the city to save - use specifiedCity for outside users
+      const cityToSave = city === "outside" ? specifiedCity : city === "addis" ? "Addis Ababa" : city;
+
+      await usersApi.updateProfile({
+        assessmentCompleted: true,
+        phone: `${countryCode}${phone}`,
+        gender: gender,
+        age,
+        city: cityToSave,
+        relationshipStatus,
+        hasChildren: hasChildren === "yes",
+      });
 
       toast.success("Assessment completed successfully!");
 
-      // Force page reload to ensure ProtectedRoute sees updated assessment status
-      window.location.href = "/dashboard";
+      // Refresh user data and navigate
+      await refreshUser();
+      navigate("/dashboard");
     } catch (error) {
       console.error("Error submitting assessment:", error);
       toast.error("Failed to submit assessment");
@@ -594,10 +577,6 @@ const Assessment = () => {
       case 4:
         return (
           <div className="space-y-4">
-            <div className="mb-4">
-              <h3 className="text-lg font-semibold mb-2">Section 1: Your Personality</h3>
-              <p className="text-sm text-muted-foreground">Let's get to know you. Who are you in a group, and what makes you, well...you?</p>
-            </div>
             <Label className="text-base">Which statement best describes your vibe at dinner?</Label>
             <RadioGroup value={dinnerVibe} onValueChange={setDinnerVibe}>
               <div className="flex items-center space-x-2">

@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Download, FileText, Users, Building } from "lucide-react";
@@ -250,7 +249,7 @@ export const ExportsPanel = ({ eventId, eventName, guests, restaurants, assignme
           <div className="space-y-2">
             {restaurants.map(restaurant => {
               const restaurantAssignments = assignments.filter(a => a.restaurant_id === restaurant.id);
-              
+
               return (
                 <div key={restaurant.id} className="flex items-center justify-between p-3 border rounded-lg">
                   <div>

@@ -3,7 +3,7 @@ import { X, Shuffle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, type CarouselApi } from "@/components/ui/carousel";
-import { supabase } from "@/integrations/supabase/client";
+import { icebreakersApi } from "@/api";
 
 interface IceBreakerGameProps {
   isOpen: boolean;
@@ -13,7 +13,7 @@ interface IceBreakerGameProps {
 
 interface Question {
   id: string;
-  question_text: string;
+  questionText: string;
 }
 
 export const IceBreakerGame = ({ isOpen, onClose, eventId }: IceBreakerGameProps) => {
@@ -41,10 +41,7 @@ export const IceBreakerGame = ({ isOpen, onClose, eventId }: IceBreakerGameProps
   const fetchQuestions = async () => {
     setIsLoading(true);
     try {
-      const { data } = await supabase
-        .from("icebreaker_questions")
-        .select("id, question_text")
-        .eq("is_active", true);
+      const data = await icebreakersApi.getActive();
 
       if (data && data.length > 0) {
         const shuffled = [...data].sort(() => Math.random() - 0.5);
@@ -143,7 +140,7 @@ export const IceBreakerGame = ({ isOpen, onClose, eventId }: IceBreakerGameProps
                       <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent" />
                       <CardContent className="relative flex items-center justify-center min-h-[420px] md:min-h-[480px] p-10 md:p-16">
                         <p className="text-2xl md:text-3xl lg:text-4xl leading-relaxed text-center font-medium text-icebreaker-text drop-shadow-sm">
-                          {question.question_text}
+                          {question.questionText}
                         </p>
                       </CardContent>
                       <div className="absolute inset-0 rounded-2xl ring-1 ring-white/10" />

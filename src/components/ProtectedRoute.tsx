@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -9,66 +8,12 @@ interface ProtectedRouteProps {
   requireAdmin?: boolean;
 }
 
-const ProtectedRoute = ({ 
-  children, 
+const ProtectedRoute = ({
+  children,
   requireAssessment = false,
-  requireAdmin = false 
+  requireAdmin = false
 }: ProtectedRouteProps) => {
-  const [isLoading, setIsLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [hasCompletedAssessment, setHasCompletedAssessment] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-
-  useEffect(() => {
-    checkAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      checkAuth();
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const checkAuth = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        setIsAuthenticated(false);
-        setIsLoading(false);
-        return;
-      }
-
-      setIsAuthenticated(true);
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("assessment_completed")
-        .eq("id", user.id)
-        .single();
-
-      if (profile) {
-        setHasCompletedAssessment(profile.assessment_completed);
-      }
-
-      // Check admin role from user_roles table
-      const { data: userRole } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("role", "admin")
-        .maybeSingle();
-
-      setIsAdmin(!!userRole);
-    } catch (error) {
-      // Security: Only log in development to prevent information leakage
-      if (import.meta.env.DEV) {
-        console.error("Auth check error:", error);
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const { user, isLoading, isAuthenticated } = useAuth();
 
   if (isLoading) {
     return (
@@ -79,15 +24,19 @@ const ProtectedRoute = ({
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/auth" replace />;
+    return <Navigate to={requireAdmin ? "/admin/login" : "/auth"} replace />;
   }
 
-  if (requireAssessment && !hasCompletedAssessment) {
-    return <Navigate to="/assessment" replace />;
-  }
+  // Assessment is now optional for page access - checked at booking time instead
+  // The requireAssessment prop is kept for backwards compatibility but no longer redirects
 
-  if (requireAdmin && !isAdmin) {
-    return <Navigate to="/dashboard" replace />;
+  if (requireAdmin) {
+    const isAdmin = user?.roles?.some((r: any) =>
+      r.role === 'admin' || r.role === 'super_admin'
+    );
+    if (!isAdmin) {
+      return <Navigate to="/dashboard" replace />;
+    }
   }
 
   return <>{children}</>;

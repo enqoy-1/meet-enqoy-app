@@ -1,0 +1,352 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model announcements {
+  id        String   @id
+  title     String
+  message   String
+  isActive  Boolean  @default(true)
+  priority  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+}
+
+model assessment_questions {
+  id           String   @id
+  step         Int      @unique
+  question     String
+  questionType String
+  options      Json?
+  isRequired   Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime
+}
+
+model attendee_snapshots {
+  id           String   @id
+  eventId      String
+  snapshotData Json
+  createdAt    DateTime @default(now())
+  events       events   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+}
+
+model bookings {
+  id                                String        @id
+  userId                            String
+  eventId                           String
+  status                            BookingStatus @default(pending)
+  paymentStatus                     String?
+  amountPaid                        Decimal?      @db.Decimal(10, 2)
+  createdAt                         DateTime      @default(now())
+  updatedAt                         DateTime
+  bookedForFriend                   Boolean       @default(false)
+  friendEmail                       String?
+  friendName                        String?
+  friendPhone                       String?
+  invitedById                       String?
+  assessmentOptional                Boolean       @default(false)
+  paidByInviter                     Boolean       @default(false)
+  usedCredit                        Boolean       @default(false)
+  events                            events        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  users_bookings_invitedByIdTousers users?        @relation("bookings_invitedByIdTousers", fields: [invitedById], references: [id])
+  users_bookings_userIdTousers      users         @relation("bookings_userIdTousers", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId])
+}
+
+model events {
+  id                  String                @id
+  title               String
+  description         String?
+  eventType           EventType             @default(dinner)
+  startTime           DateTime
+  endTime             DateTime?
+  price               Decimal               @db.Decimal(10, 2)
+  capacity            Int?
+  isVisible           Boolean               @default(true)
+  isSandbox           Boolean               @default(false)
+  venueId             String?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime
+  attendee_snapshots  attendee_snapshots[]
+  bookings            bookings[]
+  venues              venues?               @relation(fields: [venueId], references: [id])
+  friend_invitations  friend_invitations[]
+  pairing_guests      pairing_guests[]
+  pairing_restaurants pairing_restaurants[]
+}
+
+model feedback {
+  id        String   @id
+  userId    String
+  eventId   String?
+  rating    Int?
+  comments  String?
+  data      Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  users     users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model friend_invitations {
+  id          String   @id
+  eventId     String
+  inviterId   String
+  friendEmail String
+  friendName  String?
+  status      String   @default("pending")
+  token       String   @unique
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  events      events   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  users       users    @relation(fields: [inviterId], references: [id], onDelete: Cascade)
+}
+
+model icebreaker_questions {
+  id        String   @id
+  question  String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+}
+
+model outside_city_interests {
+  id        String   @id
+  userId    String
+  city      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  users     users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, city])
+}
+
+model pairing_assignments {
+  id             String           @id
+  guestId        String
+  tableId        String
+  seatNumber     Int?
+  status         AssignmentStatus @default(pending)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime
+  pairing_guests pairing_guests   @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  pairing_tables pairing_tables   @relation(fields: [tableId], references: [id], onDelete: Cascade)
+
+  @@unique([guestId, tableId])
+}
+
+model pairing_audit_log {
+  id          String   @id
+  action      String
+  entityType  String
+  entityId    String
+  changes     Json?
+  performedBy String?
+  createdAt   DateTime @default(now())
+}
+
+model pairing_constraints {
+  id                                                          String         @id
+  guest1Id                                                    String
+  guest2Id                                                    String
+  type                                                        ConstraintType
+  reason                                                      String?
+  createdAt                                                   DateTime       @default(now())
+  updatedAt                                                   DateTime
+  pairing_guests_pairing_constraints_guest1IdTopairing_guests pairing_guests @relation("pairing_constraints_guest1IdTopairing_guests", fields: [guest1Id], references: [id], onDelete: Cascade)
+  pairing_guests_pairing_constraints_guest2IdTopairing_guests pairing_guests @relation("pairing_constraints_guest2IdTopairing_guests", fields: [guest2Id], references: [id], onDelete: Cascade)
+
+  @@unique([guest1Id, guest2Id, type])
+}
+
+model pairing_guests {
+  id                                                               String                @id
+  eventId                                                          String
+  name                                                             String
+  email                                                            String?
+  gender                                                           GenderType?
+  age                                                              Int?
+  tags                                                             String[]
+  dietaryNotes                                                     String?
+  accessibilityNotes                                               String?
+  createdAt                                                        DateTime              @default(now())
+  updatedAt                                                        DateTime
+  personality                                                      Json?
+  userId                                                           String?
+  pairing_assignments                                              pairing_assignments[]
+  pairing_constraints_pairing_constraints_guest1IdTopairing_guests pairing_constraints[] @relation("pairing_constraints_guest1IdTopairing_guests")
+  pairing_constraints_pairing_constraints_guest2IdTopairing_guests pairing_constraints[] @relation("pairing_constraints_guest2IdTopairing_guests")
+  events                                                           events                @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  users                                                            users?                @relation(fields: [userId], references: [id])
+  pairing_pairs_pairing_pairs_guest1IdTopairing_guests             pairing_pairs[]       @relation("pairing_pairs_guest1IdTopairing_guests")
+  pairing_pairs_pairing_pairs_guest2IdTopairing_guests             pairing_pairs[]       @relation("pairing_pairs_guest2IdTopairing_guests")
+
+  @@unique([userId, eventId])
+}
+
+model pairing_pairs {
+  id                                                    String         @id
+  guest1Id                                              String
+  guest2Id                                              String
+  score                                                 Decimal?       @db.Decimal(5, 2)
+  createdAt                                             DateTime       @default(now())
+  updatedAt                                             DateTime
+  pairing_guests_pairing_pairs_guest1IdTopairing_guests pairing_guests @relation("pairing_pairs_guest1IdTopairing_guests", fields: [guest1Id], references: [id], onDelete: Cascade)
+  pairing_guests_pairing_pairs_guest2IdTopairing_guests pairing_guests @relation("pairing_pairs_guest2IdTopairing_guests", fields: [guest2Id], references: [id], onDelete: Cascade)
+
+  @@unique([guest1Id, guest2Id])
+}
+
+model pairing_restaurants {
+  id             String           @id
+  eventId        String
+  name           String
+  address        String?
+  capacity       Int?
+  contactInfo    String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime
+  events         events           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  pairing_tables pairing_tables[]
+}
+
+model pairing_tables {
+  id                  String                @id
+  restaurantId        String
+  tableNumber         Int
+  capacity            Int?                  @default(2)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime
+  pairing_assignments pairing_assignments[]
+  pairing_restaurants pairing_restaurants   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, tableNumber])
+}
+
+model personality_assessments {
+  id          String   @id
+  userId      String   @unique
+  answers     Json
+  completedAt DateTime @default(now())
+  updatedAt   DateTime
+  users       users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model profiles {
+  id                  String      @id
+  userId              String      @unique
+  firstName           String?
+  lastName            String?
+  phone               String?
+  age                 Int?
+  gender              GenderType?
+  relationshipStatus  String?
+  hasChildren         Boolean?
+  city                String?
+  assessmentCompleted Boolean     @default(false)
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime
+  eventCredits        Int         @default(0)
+  users               users       @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model sandbox_notifications {
+  id        String   @id
+  type      String
+  message   String
+  data      Json?
+  createdAt DateTime @default(now())
+}
+
+model sandbox_time_state {
+  id            String   @id
+  simulatedTime DateTime
+  isActive      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime
+}
+
+model user_roles {
+  id        String   @id
+  userId    String
+  role      UserRole @default(user)
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  users     users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, role])
+}
+
+model users {
+  id                                   String                   @id
+  email                                String                   @unique
+  password                             String
+  createdAt                            DateTime                 @default(now())
+  updatedAt                            DateTime
+  bookings_bookings_invitedByIdTousers bookings[]               @relation("bookings_invitedByIdTousers")
+  bookings_bookings_userIdTousers      bookings[]               @relation("bookings_userIdTousers")
+  feedback                             feedback[]
+  friend_invitations                   friend_invitations[]
+  outside_city_interests               outside_city_interests[]
+  pairing_guests                       pairing_guests[]
+  personality_assessments              personality_assessments?
+  profiles                             profiles?
+  user_roles                           user_roles[]
+}
+
+model venues {
+  id            String   @id
+  name          String
+  address       String?
+  city          String?
+  googleMapsUrl String?
+  capacity      Int?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime
+  events        events[]
+}
+
+enum AssignmentStatus {
+  confirmed
+  pending
+  cancelled
+}
+
+enum BookingStatus {
+  confirmed
+  pending
+  cancelled
+  refunded
+}
+
+enum ConstraintType {
+  must_pair
+  avoid_pair
+}
+
+enum EventType {
+  dinner
+  lunch
+  scavenger_hunt
+  mixer
+  other
+}
+
+enum GenderType {
+  male
+  female
+  non_binary
+  prefer_not_to_say
+}
+
+enum UserRole {
+  user
+  admin
+  super_admin
+}

@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { announcementsApi } from "@/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, Download } from "lucide-react";
+import { Plus, Pencil, Trash2, Download, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -15,9 +15,11 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 interface Announcement {
   id: string;
   title: string;
-  body: string;
-  is_active: boolean;
-  created_at: string;
+  message: string;
+  imageUrl?: string;
+  isActive: boolean;
+  priority: number;
+  createdAt: string;
 }
 
 export default function AdminAnnouncements() {
@@ -28,8 +30,10 @@ export default function AdminAnnouncements() {
   const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
   const [formData, setFormData] = useState({
     title: "",
-    body: "",
-    is_active: true
+    message: "",
+    imageUrl: "",
+    isActive: true,
+    priority: 0
   });
 
   useEffect(() => {
@@ -38,15 +42,10 @@ export default function AdminAnnouncements() {
 
   const fetchAnnouncements = async () => {
     try {
-      const { data, error } = await supabase
-        .from("announcements")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
+      const data = await announcementsApi.getAll();
       setAnnouncements(data || []);
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(error.response?.data?.message || error.message);
     } finally {
       setLoading(false);
     }
@@ -54,80 +53,86 @@ export default function AdminAnnouncements() {
 
   const filteredAnnouncements = announcements.filter(a =>
     a.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    a.body.toLowerCase().includes(searchTerm.toLowerCase())
+    a.message.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const exportToCSV = () => {
-    const headers = ["Title", "Body", "Active", "Created At"];
+    const headers = ["Title", "Message", "Image URL", "Active", "Priority", "Created At"];
     const csvContent = [
       headers.join(","),
       ...filteredAnnouncements.map(a => [
         `"${a.title}"`,
-        `"${a.body}"`,
-        a.is_active ? "Yes" : "No",
-        new Date(a.created_at).toLocaleDateString()
+        `"${a.message}"`,
+        `"${a.imageUrl || ''}"`,
+        a.isActive ? "Yes" : "No",
+        a.priority,
+        new Date(a.createdAt).toLocaleDateString()
       ].join(","))
     ].join("\n");
 
     const blob = new Blob([csvContent], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `announcements-${new Date().toISOString()}.csv`;
-    a.click();
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `announcements-${new Date().toISOString()}.csv`;
+    anchor.click();
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setFormData({ ...formData, imageUrl: reader.result as string });
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const payload = {
+        title: formData.title,
+        message: formData.message,
+        imageUrl: formData.imageUrl || undefined,
+        isActive: formData.isActive,
+        priority: formData.priority
+      };
+
       if (editingAnnouncement) {
-        const { error } = await supabase
-          .from("announcements")
-          .update(formData)
-          .eq("id", editingAnnouncement.id);
-        if (error) throw error;
+        await announcementsApi.update(editingAnnouncement.id, payload);
         toast.success("Announcement updated successfully");
       } else {
-        const { error } = await supabase
-          .from("announcements")
-          .insert([formData]);
-        if (error) throw error;
+        await announcementsApi.create(payload);
         toast.success("Announcement created successfully");
       }
       setIsDialogOpen(false);
       resetForm();
       fetchAnnouncements();
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(error.response?.data?.message || error.message);
     }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this announcement?")) return;
     try {
-      const { error } = await supabase
-        .from("announcements")
-        .delete()
-        .eq("id", id);
-      if (error) throw error;
+      await announcementsApi.delete(id);
       toast.success("Announcement deleted successfully");
       fetchAnnouncements();
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(error.response?.data?.message || error.message);
     }
   };
 
   const toggleActive = async (announcement: Announcement) => {
     try {
-      const { error } = await supabase
-        .from("announcements")
-        .update({ is_active: !announcement.is_active })
-        .eq("id", announcement.id);
-      if (error) throw error;
-      toast.success(`Announcement ${!announcement.is_active ? "activated" : "deactivated"}`);
+      await announcementsApi.update(announcement.id, { isActive: !announcement.isActive });
+      toast.success(`Announcement ${!announcement.isActive ? "activated" : "deactivated"}`);
       fetchAnnouncements();
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(error.response?.data?.message || error.message);
     }
   };
 
@@ -135,15 +140,17 @@ export default function AdminAnnouncements() {
     setEditingAnnouncement(announcement);
     setFormData({
       title: announcement.title,
-      body: announcement.body,
-      is_active: announcement.is_active
+      message: announcement.message,
+      imageUrl: announcement.imageUrl || "",
+      isActive: announcement.isActive,
+      priority: announcement.priority || 0
     });
     setIsDialogOpen(true);
   };
 
   const resetForm = () => {
     setEditingAnnouncement(null);
-    setFormData({ title: "", body: "", is_active: true });
+    setFormData({ title: "", message: "", imageUrl: "", isActive: true, priority: 0 });
   };
 
   return (
@@ -152,7 +159,7 @@ export default function AdminAnnouncements() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">Manage Announcements</h1>
-            <p className="text-muted-foreground">Create and manage announcements</p>
+            <p className="text-muted-foreground">Create and manage announcements for users</p>
           </div>
           <div className="flex gap-2">
             <Button onClick={exportToCSV} variant="outline">
@@ -166,7 +173,7 @@ export default function AdminAnnouncements() {
                   Add Announcement
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-w-lg">
                 <DialogHeader>
                   <DialogTitle>{editingAnnouncement ? "Edit Announcement" : "Add New Announcement"}</DialogTitle>
                 </DialogHeader>
@@ -178,24 +185,69 @@ export default function AdminAnnouncements() {
                       value={formData.title}
                       onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                       required
+                      placeholder="Announcement title"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="body">Message *</Label>
+                    <Label htmlFor="message">Message *</Label>
                     <Textarea
-                      id="body"
-                      value={formData.body}
-                      onChange={(e) => setFormData({ ...formData, body: e.target.value })}
+                      id="message"
+                      value={formData.message}
+                      onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                       required
                       rows={4}
+                      placeholder="Announcement message..."
                     />
                   </div>
+                  <div>
+                    <Label htmlFor="priority">Priority (higher = shown first)</Label>
+                    <Input
+                      id="priority"
+                      type="number"
+                      value={formData.priority}
+                      onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value) || 0 })}
+                      min={0}
+                    />
+                  </div>
+                  <div>
+                    <Label>Banner Image (optional)</Label>
+                    <div className="mt-2">
+                      {formData.imageUrl ? (
+                        <div className="space-y-2">
+                          <img
+                            src={formData.imageUrl}
+                            alt="Preview"
+                            className="w-full h-32 object-cover rounded-lg"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setFormData({ ...formData, imageUrl: "" })}
+                          >
+                            Remove Image
+                          </Button>
+                        </div>
+                      ) : (
+                        <label className="border-2 border-dashed rounded-lg p-4 flex flex-col items-center gap-2 cursor-pointer hover:bg-muted/50">
+                          <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                          <span className="text-sm text-muted-foreground">Click to upload image</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handleImageUpload}
+                          />
+                        </label>
+                      )}
+                    </div>
+                  </div>
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="is_active">Active</Label>
+                    <Label htmlFor="isActive">Active</Label>
                     <Switch
-                      id="is_active"
-                      checked={formData.is_active}
-                      onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
+                      id="isActive"
+                      checked={formData.isActive}
+                      onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
                     />
                   </div>
                   <Button type="submit" className="w-full">
@@ -218,12 +270,18 @@ export default function AdminAnnouncements() {
           <CardContent>
             {loading ? (
               <p className="text-center text-muted-foreground">Loading...</p>
+            ) : filteredAnnouncements.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">
+                No announcements found. Create your first one!
+              </p>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Title</TableHead>
                     <TableHead>Message</TableHead>
+                    <TableHead>Image</TableHead>
+                    <TableHead>Priority</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Created</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -233,17 +291,29 @@ export default function AdminAnnouncements() {
                   {filteredAnnouncements.map((announcement) => (
                     <TableRow key={announcement.id}>
                       <TableCell className="font-medium">{announcement.title}</TableCell>
-                      <TableCell className="max-w-md truncate">{announcement.body}</TableCell>
+                      <TableCell className="max-w-xs truncate">{announcement.message}</TableCell>
+                      <TableCell>
+                        {announcement.imageUrl ? (
+                          <img
+                            src={announcement.imageUrl}
+                            alt=""
+                            className="h-10 w-16 object-cover rounded"
+                          />
+                        ) : (
+                          <span className="text-muted-foreground text-sm">None</span>
+                        )}
+                      </TableCell>
+                      <TableCell>{announcement.priority}</TableCell>
                       <TableCell>
                         <Button
-                          variant={announcement.is_active ? "default" : "secondary"}
+                          variant={announcement.isActive ? "default" : "secondary"}
                           size="sm"
                           onClick={() => toggleActive(announcement)}
                         >
-                          {announcement.is_active ? "Active" : "Inactive"}
+                          {announcement.isActive ? "Active" : "Inactive"}
                         </Button>
                       </TableCell>
-                      <TableCell>{new Date(announcement.created_at).toLocaleDateString()}</TableCell>
+                      <TableCell>{new Date(announcement.createdAt).toLocaleDateString()}</TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="icon" onClick={() => openEditDialog(announcement)}>
                           <Pencil className="h-4 w-4" />

@@ -6,14 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Users, 
-  Calendar, 
-  Clock, 
-  Mail, 
-  MessageSquare, 
-  Phone, 
-  Trash2, 
+import {
+  Users,
+  Calendar,
+  Clock,
+  Mail,
+  MessageSquare,
+  Phone,
+  Trash2,
   UserCircle,
   AlertTriangle,
   PlayCircle,
@@ -23,13 +23,13 @@ import {
   Loader2
 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { sandboxApi } from "@/api";
 import { sandboxClock, freezeTime, resetTime, getSandboxTime } from "@/lib/sandbox/clock";
-import { 
-  createSandboxUsers, 
-  createSandboxEvents, 
+import {
+  createSandboxUsers,
+  createSandboxEvents,
   createSandboxBookings,
-  resetSandboxData 
+  resetSandboxData
 } from "@/lib/sandbox/factories";
 import { format, addHours, addDays } from "date-fns";
 import {
@@ -46,29 +46,30 @@ import {
 
 interface SandboxUser {
   id: string;
-  full_name: string;
   email: string;
-  age: number | null;
-  assessment_completed: boolean;
+  profile?: {
+    firstName: string | null;
+    lastName: string | null;
+    age: number | null;
+    assessmentCompleted: boolean;
+  };
 }
 
 interface SandboxEvent {
   id: string;
   title: string;
-  type: string;
-  date_time: string;
+  eventType: string;
+  startTime: string;
   price: number;
-  bookings?: { count: number }[];
+  bookings?: { id: string }[];
 }
 
 interface SandboxNotification {
   id: string;
-  channel: string;
-  notification_type: string;
-  recipient: string;
-  subject: string | null;
-  message_body: string;
-  created_at: string;
+  type: string;
+  message: string;
+  data: any;
+  createdAt: string;
 }
 
 export default function AdminSandbox() {
@@ -95,12 +96,8 @@ export default function AdminSandbox() {
       const time = await getSandboxTime();
       setCurrentTime(time);
 
-      const { data } = await supabase
-        .from("sandbox_time_state")
-        .select("is_frozen")
-        .single();
-
-      setIsFrozen(data?.is_frozen || false);
+      const timeState = await sandboxApi.getTimeState();
+      setIsFrozen(timeState?.isFrozen || false);
     } catch (error) {
       console.error("Failed to fetch current time:", error);
     }
@@ -109,37 +106,15 @@ export default function AdminSandbox() {
   const fetchSandboxData = async () => {
     try {
       // Fetch sandbox users
-      const { data: usersData } = await supabase
-        .from("profiles")
-        .select("id, full_name, email, age, assessment_completed")
-        .eq("is_sandbox", true)
-        .order("created_at", { ascending: false });
-
+      const usersData = await sandboxApi.getSandboxUsers();
       setUsers(usersData || []);
 
       // Fetch sandbox events with booking counts
-      const { data: eventsData } = await supabase
-        .from("events")
-        .select(`
-          id,
-          title,
-          type,
-          date_time,
-          price,
-          bookings:bookings(count)
-        `)
-        .eq("is_sandbox", true)
-        .order("date_time", { ascending: true });
-
+      const eventsData = await sandboxApi.getSandboxEvents();
       setEvents(eventsData || []);
 
       // Fetch sandbox notifications
-      const { data: notificationsData } = await supabase
-        .from("sandbox_notifications")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(50);
-
+      const notificationsData = await sandboxApi.getSandboxNotifications(50);
       setNotifications(notificationsData || []);
     } catch (error: any) {
       toast.error(`Failed to fetch sandbox data: ${error.message}`);
@@ -151,19 +126,14 @@ export default function AdminSandbox() {
     try {
       toast.info("Creating sandbox data...");
 
-      // Create users
-      const createdUsers = await createSandboxUsers(userCount);
-      toast.success(`Created ${createdUsers.length} users`);
+      // Use the API's combined seed endpoint
+      const result = await sandboxApi.seedData({
+        userCount,
+        eventCount,
+        eventDays,
+      });
 
-      // Create events
-      const createdEvents = await createSandboxEvents(eventCount, eventDays);
-      toast.success(`Created ${createdEvents.length} events`);
-
-      // Create bookings
-      const userIds = createdUsers.map(u => u.id);
-      const eventIds = createdEvents.map(e => e.id);
-      const createdBookings = await createSandboxBookings(userIds, eventIds);
-      toast.success(`Created ${createdBookings.length} bookings`);
+      toast.success(`Created ${result.users} users, ${result.events} events, ${result.bookings} bookings`);
 
       await fetchSandboxData();
       toast.success("Sandbox data created successfully!");
@@ -225,9 +195,16 @@ export default function AdminSandbox() {
     }
 
     const nextEvent = events[0];
-    const eventTime = new Date(nextEvent.date_time);
+    const eventTime = new Date(nextEvent.startTime);
     const targetTime = addHours(eventTime, -hoursBeforeEvent);
     handleJumpToTime(targetTime);
+  };
+
+  const getUserDisplayName = (user: SandboxUser) => {
+    if (user.profile?.firstName && user.profile?.lastName) {
+      return `${user.profile.firstName} ${user.profile.lastName}`;
+    }
+    return user.email;
   };
 
   return (
@@ -392,11 +369,11 @@ export default function AdminSandbox() {
                     <TableBody>
                       {users.slice(0, 10).map((user) => (
                         <TableRow key={user.id}>
-                          <TableCell className="font-medium">{user.full_name}</TableCell>
+                          <TableCell className="font-medium">{getUserDisplayName(user)}</TableCell>
                           <TableCell className="text-sm">{user.email}</TableCell>
                           <TableCell>
-                            <Badge variant={user.assessment_completed ? "default" : "secondary"}>
-                              {user.assessment_completed ? "Ready" : "Pending"}
+                            <Badge variant={user.profile?.assessmentCompleted ? "default" : "secondary"}>
+                              {user.profile?.assessmentCompleted ? "Ready" : "Pending"}
                             </Badge>
                           </TableCell>
                         </TableRow>
@@ -436,10 +413,10 @@ export default function AdminSandbox() {
                         <TableRow key={event.id}>
                           <TableCell className="font-medium">{event.title}</TableCell>
                           <TableCell className="text-sm">
-                            {format(new Date(event.date_time), "MMM dd, HH:mm")}
+                            {format(new Date(event.startTime), "MMM dd, HH:mm")}
                           </TableCell>
                           <TableCell>
-                            <Badge>{event.bookings?.[0]?.count || 0}</Badge>
+                            <Badge>{event.bookings?.length || 0}</Badge>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -476,22 +453,16 @@ export default function AdminSandbox() {
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        {notification.channel === "email" && <Mail className="h-4 w-4" />}
-                        {notification.channel === "sms" && <MessageSquare className="h-4 w-4" />}
-                        {notification.channel === "whatsapp" && <Phone className="h-4 w-4" />}
-                        <Badge variant="outline">{notification.notification_type}</Badge>
+                        <Mail className="h-4 w-4" />
+                        <Badge variant="outline">{notification.type}</Badge>
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        {format(new Date(notification.created_at), "HH:mm:ss")}
+                        {format(new Date(notification.createdAt), "HH:mm:ss")}
                       </span>
                     </div>
                     <div className="text-sm">
-                      <p className="font-medium">To: {notification.recipient}</p>
-                      {notification.subject && (
-                        <p className="text-muted-foreground">Subject: {notification.subject}</p>
-                      )}
                       <p className="text-muted-foreground line-clamp-2 mt-1">
-                        {notification.message_body}
+                        {notification.message}
                       </p>
                     </div>
                   </div>

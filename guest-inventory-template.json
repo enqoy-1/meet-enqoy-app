@@ -1,0 +1,83 @@
+[
+  {
+    "name": "John Doe",
+    "first_name": "John",
+    "last_name": "Doe",
+    "email": "john.doe@example.com",
+    "gender": "male",
+    "age": 28,
+    "tags": ["vip", "first-timer"],
+    "dietaryNotes": "Vegetarian",
+
+    "personality": {
+      "talkTopic": "current_events",
+      "groupDynamic": "diverse",
+      "dinnerVibe": "steering",
+      "humorType": "witty",
+      "wardrobeStyle": "casual",
+      "introvertScale": 5,
+      "aloneTimeScale": 6,
+      "familyScale": 8,
+      "spiritualityScale": 4,
+      "humorScale": 7,
+      "meetingPriority": "romantic",
+      "spending": 1200,
+      "relationshipStatus": "single",
+      "hasChildren": false
+    }
+  },
+  {
+    "name": "Jane Smith",
+    "first_name": "Jane",
+    "last_name": "Smith",
+    "email": "jane.smith@example.com",
+    "gender": "female",
+    "age": 26,
+    "tags": ["regular", "food-enthusiast"],
+    "dietaryNotes": "No allergies",
+
+    "personality": {
+      "talkTopic": "arts_entertainment",
+      "groupDynamic": "similar",
+      "dinnerVibe": "sharing",
+      "humorType": "playful",
+      "wardrobeStyle": "trendy",
+      "introvertScale": 7,
+      "aloneTimeScale": 5,
+      "familyScale": 6,
+      "spiritualityScale": 5,
+      "humorScale": 8,
+      "meetingPriority": "friendship",
+      "spending": 800,
+      "relationshipStatus": "single",
+      "hasChildren": false
+    }
+  },
+  {
+    "name": "Mike Johnson",
+    "first_name": "Mike",
+    "last_name": "Johnson",
+    "email": "mike.j@example.com",
+    "gender": "male",
+    "age": 32,
+    "tags": ["vip"],
+    "dietaryNotes": "Gluten-free",
+
+    "personality": {
+      "talkTopic": "personal_growth",
+      "groupDynamic": "similar",
+      "dinnerVibe": "observing",
+      "humorType": "dry",
+      "wardrobeStyle": "formal",
+      "introvertScale": 3,
+      "aloneTimeScale": 7,
+      "familyScale": 9,
+      "spiritualityScale": 7,
+      "humorScale": 6,
+      "meetingPriority": "networking",
+      "spending": 1500,
+      "relationshipStatus": "married",
+      "hasChildren": true
+    }
+  }
+]

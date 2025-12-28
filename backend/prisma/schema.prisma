@@ -1,0 +1,437 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Announcement {
+  id        String   @id @default(cuid())
+  title     String
+  message   String
+  imageUrl  String?
+  isActive  Boolean  @default(true)
+  priority  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("announcements")
+}
+
+model AssessmentQuestion {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  label       String
+  type        String
+  section     String
+  order       Int      @default(0)
+  options     Json
+  isActive    Boolean  @default(true)
+  placeholder String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("assessment_questions")
+}
+
+model AttendeeSnapshot {
+  id           String   @id @default(cuid())
+  eventId      String
+  snapshotData Json
+  createdAt    DateTime @default(now())
+  event        Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@map("attendee_snapshots")
+}
+
+model Booking {
+  id                 String        @id @default(cuid())
+  userId             String
+  eventId            String
+  status             BookingStatus @default(pending)
+  paymentStatus      String?
+  amountPaid         Decimal?      @db.Decimal(10, 2)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  bookedForFriend    Boolean       @default(false)
+  friendEmail        String?
+  friendName         String?
+  friendPhone        String?
+  invitedById        String?
+  assessmentOptional Boolean       @default(false)
+  paidByInviter      Boolean       @default(false)
+  usedCredit         Boolean       @default(false)
+  event              Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  invitedBy          User?         @relation("bookings_invitedByIdTousers", fields: [invitedById], references: [id])
+  user               User          @relation("bookings_userIdTousers", fields: [userId], references: [id], onDelete: Cascade)
+  payment            Payment?
+
+  @@unique([userId, eventId])
+  @@map("bookings")
+}
+
+model Event {
+  id                     String               @id @default(cuid())
+  title                  String
+  description            String?
+  eventType              EventType            @default(dinner)
+  startTime              DateTime
+  endTime                DateTime?
+  price                  String
+  capacity               Int?
+  bookingCutoffHours     Int?                 @default(48)
+  isVisible              Boolean              @default(true)
+  isSandbox              Boolean              @default(false)
+  venueId                String?
+  twoEventsDiscountType  String?
+  twoEventsDiscountValue String?
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+  attendeeSnapshots      AttendeeSnapshot[]
+  bookings               Booking[]
+  venue                  Venue?               @relation(fields: [venueId], references: [id])
+  friendInvitations      FriendInvitation[]
+  pairingGuests          PairingGuest[]
+  pairingRestaurants     PairingRestaurant[]
+
+  @@map("events")
+}
+
+model Feedback {
+  id        String   @id @default(cuid())
+  userId    String
+  eventId   String?
+  rating    Int?
+  comments  String?
+  data      Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("feedback")
+}
+
+model FriendInvitation {
+  id          String   @id @default(cuid())
+  eventId     String
+  inviterId   String
+  friendEmail String
+  friendName  String?
+  status      String   @default("pending")
+  token       String   @unique
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  inviter     User     @relation(fields: [inviterId], references: [id], onDelete: Cascade)
+
+  @@map("friend_invitations")
+}
+
+model IcebreakerQuestion {
+  id        String   @id @default(cuid())
+  question  String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("icebreaker_questions")
+}
+
+model OutsideCityInterest {
+  id        String   @id @default(cuid())
+  userId    String
+  city      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, city])
+  @@map("outside_city_interests")
+}
+
+model PairingAssignment {
+  id           String           @id @default(cuid())
+  guestId      String
+  restaurantId String?
+  tableId      String?
+  seatNumber   Int?
+  groupName    String?
+  status       AssignmentStatus @default(pending)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  guest        PairingGuest     @relation(fields: [guestId], references: [id], onDelete: Cascade)
+  restaurant   PairingRestaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  table        PairingTable?    @relation(fields: [tableId], references: [id], onDelete: Cascade)
+
+  @@unique([guestId])
+  @@map("pairing_assignments")
+}
+
+model PairingAuditLog {
+  id          String   @id @default(cuid())
+  action      String
+  entityType  String
+  entityId    String
+  changes     Json?
+  performedBy String?
+  createdAt   DateTime @default(now())
+
+  @@map("pairing_audit_log")
+}
+
+model PairingConstraint {
+  id        String         @id @default(cuid())
+  guest1Id  String
+  guest2Id  String
+  type      ConstraintType
+  reason    String?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  guest1    PairingGuest   @relation("pairing_constraints_guest1IdTopairing_guests", fields: [guest1Id], references: [id], onDelete: Cascade)
+  guest2    PairingGuest   @relation("pairing_constraints_guest2IdTopairing_guests", fields: [guest2Id], references: [id], onDelete: Cascade)
+
+  @@unique([guest1Id, guest2Id, type])
+  @@map("pairing_constraints")
+}
+
+model PairingGuest {
+  id                     String              @id @default(cuid())
+  eventId                String
+  name                   String
+  email                  String?
+  gender                 GenderType?
+  age                    Int?
+  tags                   String[]
+  dietaryNotes           String?
+  accessibilityNotes     String?
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
+  personality            Json?
+  userId                 String?
+  assignments            PairingAssignment[]
+  constraintsAsGuest1    PairingConstraint[] @relation("pairing_constraints_guest1IdTopairing_guests")
+  constraintsAsGuest2    PairingConstraint[] @relation("pairing_constraints_guest2IdTopairing_guests")
+  event                  Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user                   User?               @relation(fields: [userId], references: [id])
+  pairsAsGuest1          PairingPair[]       @relation("pairing_pairs_guest1IdTopairing_guests")
+  pairsAsGuest2          PairingPair[]       @relation("pairing_pairs_guest2IdTopairing_guests")
+
+  @@unique([userId, eventId])
+  @@map("pairing_guests")
+}
+
+model PairingPair {
+  id        String       @id @default(cuid())
+  guest1Id  String
+  guest2Id  String
+  score     Decimal?     @db.Decimal(5, 2)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  guest1    PairingGuest @relation("pairing_pairs_guest1IdTopairing_guests", fields: [guest1Id], references: [id], onDelete: Cascade)
+  guest2    PairingGuest @relation("pairing_pairs_guest2IdTopairing_guests", fields: [guest2Id], references: [id], onDelete: Cascade)
+
+  @@unique([guest1Id, guest2Id])
+  @@map("pairing_pairs")
+}
+
+model PairingRestaurant {
+  id          String              @id @default(cuid())
+  eventId     String
+  name        String
+  address     String?
+  capacity    Int?
+  contactInfo String?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  event       Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  tables      PairingTable[]
+  assignments PairingAssignment[]
+
+  @@map("pairing_restaurants")
+}
+
+model PairingTable {
+  id          String              @id @default(cuid())
+  restaurantId String
+  tableNumber Int
+  capacity    Int?                @default(2)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  assignments PairingAssignment[]
+  restaurant  PairingRestaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, tableNumber])
+  @@map("pairing_tables")
+}
+
+model PersonalityAssessment {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  answers     Json
+  completedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("personality_assessments")
+}
+
+model Profile {
+  id                  String      @id @default(cuid())
+  userId              String      @unique
+  firstName           String?
+  lastName            String?
+  phone               String?
+  age                 Int?
+  gender              GenderType?
+  relationshipStatus  String?
+  hasChildren         Boolean?
+  city                String?
+  assessmentCompleted Boolean     @default(false)
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  eventCredits        Int         @default(0)
+  user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+model SandboxNotification {
+  id        String   @id @default(cuid())
+  type      String
+  message   String
+  data      Json?
+  createdAt DateTime @default(now())
+
+  @@map("sandbox_notifications")
+}
+
+model SandboxTimeState {
+  id            String   @id @default(cuid())
+  simulatedTime DateTime
+  isActive      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("sandbox_time_state")
+}
+
+model RoleAssignment {
+  id        String   @id @default(cuid())
+  userId    String
+  role      UserRole @default(user)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, role])
+  @@map("user_roles")
+}
+
+model User {
+  id                     String                 @id @default(cuid())
+  email                  String                 @unique
+  password               String
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+  bookingsAsInvited      Booking[]              @relation("bookings_invitedByIdTousers")
+  bookings               Booking[]              @relation("bookings_userIdTousers")
+  feedback               Feedback[]
+  friendInvitations      FriendInvitation[]
+  outsideCityInterests   OutsideCityInterest[]
+  pairingGuests          PairingGuest[]
+  personalityAssessment  PersonalityAssessment?
+  profile                Profile?
+  roles                  RoleAssignment[]
+  resetToken             String?                @unique
+  resetTokenExpiry       DateTime?
+
+  @@map("users")
+}
+
+model Venue {
+  id            String   @id @default(cuid())
+  name          String
+  address       String?
+  city          String?
+  googleMapsUrl String?
+  capacity      Int?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  events        Event[]
+
+  @@map("venues")
+}
+
+model Payment {
+  id              String    @id @default(cuid())
+  amount          String
+  currency        String    @default("ETB")
+  paymentMethod   String
+  transactionId   String?
+  screenshotUrl   String?
+  status          String
+  verifiedAt      DateTime?
+  verifiedBy      String?
+  rejectionReason String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  bookingId       String?   @unique
+  booking         Booking?  @relation(fields: [bookingId], references: [id])
+
+  @@map("payments")
+}
+
+model AppSettings {
+  id              String   @id @default(cuid())
+  key             String   @unique
+  title           String?
+  subtitle        String?
+  backgroundImage String?
+  buttonText      String?
+  buttonLink      String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("app_settings")
+}
+
+enum AssignmentStatus {
+  confirmed
+  pending
+  cancelled
+}
+
+enum BookingStatus {
+  confirmed
+  pending
+  cancelled
+  refunded
+}
+
+enum ConstraintType {
+  must_pair
+  avoid_pair
+}
+
+enum EventType {
+  dinner
+  lunch
+  scavenger_hunt
+  mixer
+  other
+}
+
+enum GenderType {
+  male
+  female
+  non_binary
+  prefer_not_to_say
+}
+
+enum UserRole {
+  user
+  admin
+  super_admin
+}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { assessmentsApi } from "@/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -31,18 +31,7 @@ const AdminAssessmentResponses = () => {
 
   const fetchResponses = async () => {
     try {
-      const { data, error } = await supabase
-        .from("personality_assessments")
-        .select(`
-          *,
-          profiles (
-            full_name,
-            email
-          )
-        `)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
+      const data = await assessmentsApi.getAllResponses();
       setResponses(data || []);
     } catch (error) {
       console.error("Error fetching responses:", error);

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { pairingApi } from "@/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -68,15 +68,20 @@ export const ConstraintsManager = ({ eventId, guests, constraints, onRefresh }: 
     }
 
     try {
-      const { error } = await supabase.from("pairing_constraints").insert({
-        event_id: eventId,
-        type: newConstraint.type,
-        subject_guest_ids: newConstraint.subject_guest_ids,
-        target_guest_ids: newConstraint.target_guest_ids.length > 0 ? newConstraint.target_guest_ids : null,
-        notes: newConstraint.notes || null,
-      });
+      // Map the type to API format
+      const apiType = newConstraint.type === "must_with" ? "must_pair" : "avoid_pair";
 
-      if (error) throw error;
+      // For each combination of subject and target, create a constraint
+      for (const subjectId of newConstraint.subject_guest_ids) {
+        for (const targetId of newConstraint.target_guest_ids) {
+          await pairingApi.createConstraint({
+            guest1Id: subjectId,
+            guest2Id: targetId,
+            type: apiType,
+            reason: newConstraint.notes || undefined,
+          });
+        }
+      }
 
       toast.success("Constraint added successfully");
       setIsDialogOpen(false);
@@ -94,9 +99,7 @@ export const ConstraintsManager = ({ eventId, guests, constraints, onRefresh }: 
 
   const handleDeleteConstraint = async (id: string) => {
     try {
-      const { error } = await supabase.from("pairing_constraints").delete().eq("id", id);
-
-      if (error) throw error;
+      await pairingApi.deleteConstraint(id);
 
       toast.success("Constraint deleted");
       onRefresh();

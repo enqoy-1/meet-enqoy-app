@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { eventsApi } from "@/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,9 +17,9 @@ import { cn } from "@/lib/utils";
 interface Event {
   id: string;
   title: string;
-  date_time: string;
-  type: string;
-  venues: {
+  startTime: string;
+  eventType: string;
+  venue?: {
     name: string;
   } | null;
 }
@@ -39,16 +39,7 @@ const AdminPairings = () => {
 
   const fetchEvents = async () => {
     try {
-      const { data, error } = await supabase
-        .from("events")
-        .select(`
-          *,
-          venues (name)
-        `)
-        .eq("is_visible", true)
-        .order("date_time", { ascending: false });
-
-      if (error) throw error;
+      const data = await eventsApi.getAll();
       setEvents(data || []);
     } catch (error: any) {
       toast.error("Failed to load events");
@@ -59,14 +50,14 @@ const AdminPairings = () => {
 
   const filteredEvents = useMemo(() => {
     return events.filter((event) => {
-      const matchesSearch = 
+      const matchesSearch =
         event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        event.venues?.name.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesType = typeFilter === "all" || event.type === typeFilter;
-      
+        event.venue?.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesType = typeFilter === "all" || event.eventType === typeFilter;
+
       let matchesDate = true;
       if (startDate || endDate) {
-        const eventDate = new Date(event.date_time);
+        const eventDate = new Date(event.startTime);
         if (startDate && endDate) {
           matchesDate = isWithinInterval(eventDate, {
             start: startOfDay(startDate),
@@ -78,7 +69,7 @@ const AdminPairings = () => {
           matchesDate = eventDate <= endOfDay(endDate);
         }
       }
-      
+
       return matchesSearch && matchesType && matchesDate;
     });
   }, [events, searchQuery, typeFilter, startDate, endDate]);
@@ -240,13 +231,13 @@ const AdminPairings = () => {
                       >
                         <TableCell className="font-medium">{event.title}</TableCell>
                         <TableCell>
-                          <Badge variant="outline">{event.type}</Badge>
+                          <Badge variant="outline">{event.eventType}</Badge>
                         </TableCell>
                         <TableCell>
-                          {event.venues ? (
+                          {event.venue ? (
                             <div className="flex items-center gap-1.5">
                               <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
-                              <span>{event.venues.name}</span>
+                              <span>{event.venue.name}</span>
                             </div>
                           ) : (
                             <span className="text-muted-foreground">No venue</span>
@@ -255,7 +246,7 @@ const AdminPairings = () => {
                         <TableCell>
                           <div className="flex items-center gap-1.5">
                             <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span>{format(new Date(event.date_time), "PPP 'at' p")}</span>
+                            <span>{format(new Date(event.startTime), "PPP 'at' p")}</span>
                           </div>
                         </TableCell>
                         <TableCell className="text-right">

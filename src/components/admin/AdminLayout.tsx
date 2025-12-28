@@ -1,18 +1,19 @@
 import { ReactNode } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { 
-  Users, 
-  Calendar, 
-  MessageSquare, 
-  MapPin, 
-  HelpCircle, 
-  BarChart, 
-  FileText, 
-  MapPinOff, 
+import {
+  Users,
+  Calendar,
+  MessageSquare,
+  MapPin,
+  HelpCircle,
+  BarChart,
+  FileText,
+  MapPinOff,
   ClipboardList,
   Home,
   Menu,
-  TestTube
+  TestTube,
+  Settings
 } from "lucide-react";
 import {
   Sidebar,
@@ -42,6 +43,11 @@ const adminSections = [
     title: "Users",
     path: "/admin/users",
     icon: Users,
+  },
+  {
+    title: "Bookings",
+    path: "/admin/bookings",
+    icon: ClipboardList,
   },
   {
     title: "Events",
@@ -88,6 +94,11 @@ const adminSections = [
     path: "/admin/sandbox",
     icon: TestTube,
   },
+  {
+    title: "Settings",
+    path: "/admin/settings",
+    icon: Settings,
+  },
 ];
 
 export function AdminLayout({ children }: AdminLayoutProps) {
@@ -102,7 +113,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             <div className="p-4 border-b">
               <h2 className="text-lg font-bold">Enqoy Admin</h2>
             </div>
-            
+
             <SidebarGroup>
               <SidebarGroupContent>
                 <SidebarMenu>
@@ -126,7 +137,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                   {adminSections.map((section) => {
                     const Icon = section.icon;
                     const isActive = location.pathname === section.path;
-                    
+
                     return (
                       <SidebarMenuItem key={section.path}>
                         <SidebarMenuButton
@@ -152,7 +163,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           <header className="h-14 border-b flex items-center px-4 bg-card">
             <SidebarTrigger />
           </header>
-          
+
           <main className="flex-1 overflow-auto">
             {children}
           </main>

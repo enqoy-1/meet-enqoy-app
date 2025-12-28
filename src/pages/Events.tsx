@@ -1,21 +1,21 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, MapPin, ArrowLeft, DollarSign } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { eventsApi } from "@/api";
 
 interface Event {
   id: string;
   title: string;
   type: string;
   description: string;
-  date_time: string;
+  dateTime: string;
   price: number;
-  venues: { name: string; id: string } | null;
+  venue: { name: string; id: string } | null;
 }
 
 const Events = () => {
@@ -29,25 +29,7 @@ const Events = () => {
 
   const fetchEvents = async () => {
     try {
-      // Only show events that are more than 48 hours in the future
-      const cutoffTime = new Date();
-      cutoffTime.setHours(cutoffTime.getHours() + 48);
-
-      const { data, error } = await supabase
-        .from("events")
-        .select(`
-          *,
-          venues (
-            id,
-            name
-          )
-        `)
-        .eq("is_visible", true)
-        .gte("date_time", cutoffTime.toISOString())
-        .order("date_time", { ascending: true });
-
-      if (error) throw error;
-
+      const data = await eventsApi.getUpcoming();
       setEvents(data || []);
     } catch (error: any) {
       toast.error("Failed to load events");
@@ -107,7 +89,7 @@ const Events = () => {
                     <CardTitle className="group-hover:text-primary transition-colors">
                       {event.title}
                     </CardTitle>
-                    <Badge>{event.type}</Badge>
+                    <Badge>{event.eventType || event.type}</Badge>
                   </div>
                   {event.description && (
                     <CardDescription className="line-clamp-2">
@@ -118,13 +100,13 @@ const Events = () => {
                 <CardContent className="space-y-3">
                   <div className="flex items-center gap-2 text-sm">
                     <Calendar className="h-4 w-4 text-primary" />
-                    <span>{format(new Date(event.date_time), "PPP 'at' p")}</span>
+                    <span>{event.startTime ? format(new Date(event.startTime), "PPP 'at' p") : 'Date TBA'}</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <DollarSign className="h-4 w-4 text-primary" />
-                    <span className="font-semibold">{event.price} ETB</span>
+                    <span className="font-semibold">${event.price}</span>
                   </div>
-                  {event.venues && (
+                  {event.venue && (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <MapPin className="h-4 w-4" />
                       <span>Location revealed 48h before</span>

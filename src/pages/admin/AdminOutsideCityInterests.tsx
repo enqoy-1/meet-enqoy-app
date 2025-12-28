@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { outsideCityInterestsApi } from "@/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,10 +10,17 @@ import { toast } from "sonner";
 
 interface OutsideCityInterest {
   id: string;
-  phone: string;
+  userId: string;
   city: string;
-  specified_city: string;
-  created_at: string;
+  createdAt: string;
+  user?: {
+    email: string;
+    profile?: {
+      firstName: string;
+      lastName: string;
+      phone: string;
+    };
+  };
 }
 
 const AdminOutsideCityInterests = () => {
@@ -28,12 +35,7 @@ const AdminOutsideCityInterests = () => {
 
   const fetchInterests = async () => {
     try {
-      const { data, error } = await supabase
-        .from("outside_city_interests")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
+      const data = await outsideCityInterestsApi.getAll();
       setInterests(data || []);
     } catch (error) {
       console.error("Error fetching outside city interests:", error);
@@ -46,19 +48,24 @@ const AdminOutsideCityInterests = () => {
   const filteredInterests = interests.filter((interest) => {
     const searchLower = searchTerm.toLowerCase();
     return (
-      interest.phone?.toLowerCase().includes(searchLower) ||
-      interest.specified_city?.toLowerCase().includes(searchLower)
+      interest.user?.profile?.phone?.toLowerCase().includes(searchLower) ||
+      interest.user?.email?.toLowerCase().includes(searchLower) ||
+      interest.city?.toLowerCase().includes(searchLower) ||
+      `${interest.user?.profile?.firstName} ${interest.user?.profile?.lastName}`
+        .toLowerCase()
+        .includes(searchLower)
     );
   });
 
   const exportToCSV = () => {
-    const headers = ["Phone", "City Selection", "Specified City", "Date Submitted"];
+    const headers = ["Name", "Email", "Phone", "City", "Date Submitted"];
 
     const csvData = filteredInterests.map((interest) => [
-      interest.phone || "",
-      interest.city === "outside" ? "Outside Addis Ababa" : interest.city,
-      interest.specified_city || "",
-      new Date(interest.created_at).toLocaleDateString(),
+      `${interest.user?.profile?.firstName || ""} ${interest.user?.profile?.lastName || ""}`.trim() || "N/A",
+      interest.user?.email || "N/A",
+      interest.user?.profile?.phone || "N/A",
+      interest.city || "N/A",
+      new Date(interest.createdAt).toLocaleDateString(),
     ]);
 
     const csvContent = [
@@ -98,7 +105,7 @@ const AdminOutsideCityInterests = () => {
             <div className="relative flex-1">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by phone or city..."
+                placeholder="Search by name, email, phone, or city..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-8"
@@ -118,18 +125,24 @@ const AdminOutsideCityInterests = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
                     <TableHead>Phone</TableHead>
-                    <TableHead>Specified City</TableHead>
+                    <TableHead>City</TableHead>
                     <TableHead>Date Submitted</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredInterests.map((interest) => (
                     <TableRow key={interest.id}>
-                      <TableCell className="font-medium">{interest.phone}</TableCell>
-                      <TableCell>{interest.specified_city}</TableCell>
+                      <TableCell className="font-medium">
+                        {`${interest.user?.profile?.firstName || ""} ${interest.user?.profile?.lastName || ""}`.trim() || "N/A"}
+                      </TableCell>
+                      <TableCell>{interest.user?.email || "N/A"}</TableCell>
+                      <TableCell>{interest.user?.profile?.phone || "N/A"}</TableCell>
+                      <TableCell className="font-semibold text-primary">{interest.city}</TableCell>
                       <TableCell>
-                        {new Date(interest.created_at).toLocaleDateString()}
+                        {new Date(interest.createdAt).toLocaleDateString()}
                       </TableCell>
                     </TableRow>
                   ))}

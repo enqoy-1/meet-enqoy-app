@@ -1,345 +1,145 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { analyticsApi } from "@/api";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { 
-  Download, 
-  Users, 
-  Calendar, 
-  DollarSign, 
-  CheckCircle, 
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Download,
+  Users,
+  Calendar as CalendarIcon,
   TrendingUp,
+  TrendingDown,
   CalendarClock,
   UserPlus,
-  ShoppingCart
+  ShoppingCart,
+  Target,
+  MapPin,
+  Percent,
+  Building2,
+  XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-import { 
-  Area, 
-  AreaChart, 
-  Bar, 
-  BarChart, 
-  CartesianGrid, 
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
   Cell,
   Legend,
-  Line, 
   Pie,
   PieChart,
-  ReferenceLine,
-  ResponsiveContainer, 
-  Tooltip, 
-  XAxis, 
-  YAxis 
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from "recharts";
-import { format, startOfWeek, subWeeks, isWithinInterval } from "date-fns";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { format, subDays, subMonths, startOfDay, endOfDay } from "date-fns";
+import { DateRange } from "react-day-picker";
 
-interface KPIData {
-  eventsThisWeek: number;
-  totalEvents: number;
-  totalSignUps: number;
-  totalBookings: number;
-  repeatCustomers: number;
-  repeatRate: number;
+interface EnhancedAnalytics {
+  period: { start: string; end: string; granularity: string };
+  kpis: {
+    totalSignUps: number;
+    signUpsInPeriod: number;
+    signUpsChange: number;
+    totalBookings: number;
+    bookingsInPeriod: number;
+    bookingsChange: number;
+    totalEvents: number;
+    eventsInPeriod: number;
+    eventsChange: number;
+  };
+  conversions: {
+    signupToAssessment: { rate: number; completed: number; total: number };
+    assessmentToBooking: { rate: number; completed: number; total: number };
+    repeatBooking: { rate: number; completed: number; total: number };
+  };
+  eventPerformance: {
+    capacityUtilization: number;
+    totalCapacity: number;
+    bookedSpots: number;
+    cancellationRate: number;
+    cancelledCount: number;
+    popularVenues: { name: string; count: number }[];
+  };
+  demographics: {
+    genderDistribution: { name: string; value: number }[];
+    ageDistribution: { name: string; value: number }[];
+    cityBreakdown: { name: string; value: number }[];
+    personalityDistribution: { name: string; value: number }[];
+  };
+  trends: {
+    signUps: { date: string; count: number }[];
+    bookings: { date: string; count: number }[];
+  };
 }
 
-interface WeeklyData {
-  weekStart: string;
-  count: number;
-}
+type TimeFilter = "today" | "week" | "month" | "custom";
 
-interface ActivityItem {
-  type: "event" | "signup" | "booking";
-  timestamp: string;
-  title: string;
-  link: string;
-}
+const COLORS = ["#6366f1", "#22c55e", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4"];
 
 export default function AdminAnalytics() {
-  const [kpis, setKpis] = useState<KPIData>({
-    eventsThisWeek: 0,
-    totalEvents: 0,
-    totalSignUps: 0,
-    totalBookings: 0,
-    repeatCustomers: 0,
-    repeatRate: 0
-  });
-  const [weeklySignUps, setWeeklySignUps] = useState<WeeklyData[]>([]);
-  const [weeklyBookings, setWeeklyBookings] = useState<WeeklyData[]>([]);
-  const [signUpRange, setSignUpRange] = useState<"8weeks" | "12weeks" | "custom">("8weeks");
-  const [topCity, setTopCity] = useState<string>("");
-  const [topEventType, setTopEventType] = useState<string>("");
-  const [newVsReturning, setNewVsReturning] = useState<{ name: string; value: number }[]>([]);
-  const [activities, setActivities] = useState<ActivityItem[]>([]);
+  const [data, setData] = useState<EnhancedAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>("month");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   useEffect(() => {
     fetchAnalytics();
-  }, [signUpRange]);
+  }, [timeFilter, dateRange]);
+
+  const getDateRange = () => {
+    const now = new Date();
+    switch (timeFilter) {
+      case "today":
+        return { start: startOfDay(now), end: endOfDay(now) };
+      case "week":
+        return { start: subDays(now, 7), end: now };
+      case "month":
+        return { start: subMonths(now, 1), end: now };
+      case "custom":
+        if (dateRange?.from && dateRange?.to) {
+          return { start: dateRange.from, end: dateRange.to };
+        }
+        return { start: subMonths(now, 1), end: now };
+      default:
+        return { start: subMonths(now, 1), end: now };
+    }
+  };
 
   const fetchAnalytics = async () => {
     try {
-      const now = new Date();
-      const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-      
-      // KPIs
-      const [
-        { count: totalEvents },
-        { data: eventsData },
-        { count: totalSignUps },
-        { data: profilesData },
-        { count: totalBookings },
-        { data: bookingsData }
-      ] = await Promise.all([
-        supabase.from("events").select("*", { count: "exact", head: true }),
-        supabase.from("events").select("*").gte("date_time", weekStart.toISOString()),
-        supabase.from("profiles").select("*", { count: "exact", head: true }),
-        supabase.from("profiles").select("id, created_at"),
-        supabase.from("bookings").select("*", { count: "exact", head: true }).eq("status", "confirmed"),
-        supabase.from("bookings").select("user_id, created_at, events(title, type, id)").eq("status", "confirmed")
-      ]);
-
-      const eventsThisWeek = eventsData?.length || 0;
-
-      // Calculate repeat customers
-      const userBookingCounts = bookingsData?.reduce((acc, booking) => {
-        acc[booking.user_id] = (acc[booking.user_id] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>) || {};
-
-      const repeatCustomers = Object.values(userBookingCounts).filter(count => count > 1).length;
-      const uniqueCustomers = Object.keys(userBookingCounts).length;
-      const repeatRate = uniqueCustomers > 0 ? (repeatCustomers / uniqueCustomers) * 100 : 0;
-
-      setKpis({
-        eventsThisWeek,
-        totalEvents: totalEvents || 0,
-        totalSignUps: totalSignUps || 0,
-        totalBookings: totalBookings || 0,
-        repeatCustomers,
-        repeatRate
-      });
-
-      // Weekly Sign Ups
-      const weeksBack = signUpRange === "8weeks" ? 8 : 12;
-      const startDate = subWeeks(now, weeksBack);
-      
-      const weeklySignUpData: WeeklyData[] = [];
-      for (let i = 0; i < weeksBack; i++) {
-        const weekStartDate = subWeeks(now, weeksBack - i);
-        const weekEndDate = subWeeks(now, weeksBack - i - 1);
-        const count = profilesData?.filter(p => 
-          isWithinInterval(new Date(p.created_at), { start: weekStartDate, end: weekEndDate })
-        ).length || 0;
-        
-        weeklySignUpData.push({
-          weekStart: format(weekStartDate, "MMM dd"),
-          count
-        });
-      }
-      setWeeklySignUps(weeklySignUpData);
-
-      // Weekly Bookings
-      const weeklyBookingsData: WeeklyData[] = [];
-      for (let i = 0; i < 8; i++) {
-        const weekStartDate = subWeeks(now, 8 - i);
-        const weekEndDate = subWeeks(now, 8 - i - 1);
-        const count = bookingsData?.filter(b => 
-          isWithinInterval(new Date(b.created_at), { start: weekStartDate, end: weekEndDate })
-        ).length || 0;
-        
-        weeklyBookingsData.push({
-          weekStart: format(weekStartDate, "MMM dd"),
-          count
-        });
-      }
-      setWeeklyBookings(weeklyBookingsData);
-
-      // Insights - Top city this week
-      const thisWeekBookings = bookingsData?.filter(b => 
-        new Date(b.created_at) >= weekStart
-      ) || [];
-
-      // Get user cities for this week's bookings
-      if (thisWeekBookings.length > 0) {
-        const userIds = thisWeekBookings.map(b => b.user_id);
-        const { data: assessments } = await supabase
-          .from("personality_assessments")
-          .select("answers, user_id")
-          .in("user_id", userIds);
-
-        const cityCounts: Record<string, number> = {};
-        assessments?.forEach(a => {
-          const city = (a.answers as any)?.city;
-          if (city) {
-            cityCounts[city] = (cityCounts[city] || 0) + 1;
-          }
-        });
-
-        const topCityKey = Object.entries(cityCounts).sort(([,a], [,b]) => b - a)[0]?.[0];
-        setTopCity(topCityKey === "addis" ? "Addis Ababa" : "Outside Addis Ababa");
-      }
-
-      // Top event type this week
-      const eventTypeCounts: Record<string, number> = {};
-      thisWeekBookings.forEach(b => {
-        const eventType = (b.events as any)?.type;
-        if (eventType) {
-          eventTypeCounts[eventType] = (eventTypeCounts[eventType] || 0) + 1;
-        }
-      });
-      const topType = Object.entries(eventTypeCounts).sort(([,a], [,b]) => b - a)[0]?.[0];
-      setTopEventType(topType || "N/A");
-
-      // New vs Returning this week
-      const newUsersThisWeek = thisWeekBookings.filter(b => {
-        const userAllBookings = bookingsData?.filter(booking => booking.user_id === b.user_id) || [];
-        return userAllBookings.length === 1;
-      }).length;
-      const returningUsersThisWeek = thisWeekBookings.length - newUsersThisWeek;
-
-      setNewVsReturning([
-        { name: "New", value: newUsersThisWeek },
-        { name: "Returning", value: returningUsersThisWeek }
-      ]);
-
-      // Activity Feed
-      const recentActivities: ActivityItem[] = [];
-
-      // Recent events
-      const { data: recentEvents } = await supabase
-        .from("events")
-        .select("id, title, created_at")
-        .order("created_at", { ascending: false })
-        .limit(5);
-
-      recentEvents?.forEach(e => {
-        recentActivities.push({
-          type: "event",
-          timestamp: e.created_at,
-          title: `Event created: ${e.title}`,
-          link: `/admin/events`
-        });
-      });
-
-      // Recent sign ups
-      const { data: recentProfiles } = await supabase
-        .from("profiles")
-        .select("id, full_name, created_at")
-        .order("created_at", { ascending: false })
-        .limit(5);
-
-      recentProfiles?.forEach(p => {
-        recentActivities.push({
-          type: "signup",
-          timestamp: p.created_at,
-          title: `New signup: ${p.full_name}`,
-          link: `/admin/users`
-        });
-      });
-
-      // Recent bookings
-      const { data: recentBookings } = await supabase
-        .from("bookings")
-        .select("id, created_at, profiles(full_name), events(title, id)")
-        .order("created_at", { ascending: false })
-        .limit(5);
-
-      recentBookings?.forEach(b => {
-        const profile = b.profiles as any;
-        const event = b.events as any;
-        recentActivities.push({
-          type: "booking",
-          timestamp: b.created_at,
-          title: `${profile?.full_name} booked ${event?.title}`,
-          link: `/admin/events`
-        });
-      });
-
-      // Sort all activities by timestamp and take top 10
-      recentActivities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-      setActivities(recentActivities.slice(0, 10));
-
+      setLoading(true);
+      const { start, end } = getDateRange();
+      const result = await analyticsApi.getEnhanced(
+        start.toISOString(),
+        end.toISOString()
+      );
+      setData(result);
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(error.message || "Failed to fetch analytics");
     } finally {
       setLoading(false);
     }
   };
 
-  const exportSignUpsCSV = () => {
-    const csvContent = [
-      "Week Start,Sign Ups",
-      ...weeklySignUps.map(d => `${d.weekStart},${d.count}`)
-    ].join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `weekly-signups-${new Date().toISOString()}.csv`;
-    a.click();
-    toast.success("CSV exported");
+  const renderChange = (change: number) => {
+    if (change === 0) return null;
+    const isPositive = change > 0;
+    return (
+      <span className={`inline-flex items-center text-xs ${isPositive ? "text-green-600" : "text-red-600"}`}>
+        {isPositive ? <TrendingUp className="h-3 w-3 mr-0.5" /> : <TrendingDown className="h-3 w-3 mr-0.5" />}
+        {Math.abs(change).toFixed(1)}%
+      </span>
+    );
   };
 
-  const exportBookingsCSV = () => {
-    const csvContent = [
-      "Week Start,Bookings",
-      ...weeklyBookings.map(d => `${d.weekStart},${d.count}`)
-    ].join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `weekly-bookings-${new Date().toISOString()}.csv`;
-    a.click();
-    toast.success("CSV exported");
-  };
-
-  const kpiCards = [
-    { 
-      title: "Events This Week", 
-      value: kpis.eventsThisWeek, 
-      icon: CalendarClock, 
-      color: "text-blue-500" 
-    },
-    { 
-      title: "Total Events", 
-      value: kpis.totalEvents, 
-      icon: Calendar, 
-      color: "text-purple-500" 
-    },
-    { 
-      title: "Total Sign Ups", 
-      value: kpis.totalSignUps, 
-      icon: UserPlus, 
-      color: "text-green-500" 
-    },
-    { 
-      title: "Total Bookings", 
-      value: kpis.totalBookings, 
-      icon: ShoppingCart, 
-      color: "text-orange-500" 
-    },
-    { 
-      title: "Repeat Customers", 
-      value: kpis.repeatCustomers, 
-      icon: Users, 
-      color: "text-pink-500" 
-    },
-    { 
-      title: "Repeat Rate", 
-      value: `${kpis.repeatRate.toFixed(1)}%`, 
-      subtitle: `${kpis.repeatCustomers} / ${kpis.totalBookings > 0 ? Object.keys(weeklyBookings).length : 0} customers`,
-      icon: TrendingUp, 
-      color: "text-indigo-500" 
-    },
-  ];
-
-  const COLORS = ["hsl(var(--primary))", "hsl(var(--muted))"];
-
-  if (loading) {
+  if (loading || !data) {
     return (
       <div className="p-6">
         <p className="text-muted-foreground">Loading analytics...</p>
@@ -349,209 +149,353 @@ export default function AdminAnalytics() {
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
-        <p className="text-muted-foreground">Overview of platform performance</p>
+      {/* Header with Filters */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
+          <p className="text-muted-foreground">
+            {format(new Date(data.period.start), "MMM d, yyyy")} - {format(new Date(data.period.end), "MMM d, yyyy")}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Tabs value={timeFilter} onValueChange={(v) => setTimeFilter(v as TimeFilter)}>
+            <TabsList>
+              <TabsTrigger value="today">Today</TabsTrigger>
+              <TabsTrigger value="week">Week</TabsTrigger>
+              <TabsTrigger value="month">Month</TabsTrigger>
+              <TabsTrigger value="custom">Custom</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          {timeFilter === "custom" && (
+            <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <CalendarIcon className="h-4 w-4 mr-2" />
+                  {dateRange?.from ? (
+                    dateRange.to ? (
+                      `${format(dateRange.from, "MMM d")} - ${format(dateRange.to, "MMM d")}`
+                    ) : (
+                      format(dateRange.from, "MMM d, yyyy")
+                    )
+                  ) : (
+                    "Pick dates"
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <Calendar
+                  mode="range"
+                  selected={dateRange}
+                  onSelect={(range) => {
+                    setDateRange(range);
+                    if (range?.from && range?.to) {
+                      setIsCalendarOpen(false);
+                    }
+                  }}
+                  numberOfMonths={2}
+                />
+              </PopoverContent>
+            </Popover>
+          )}
+        </div>
       </div>
 
       {/* KPI Cards */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-6">
-        {kpiCards.map((kpi) => {
-          const Icon = kpi.icon;
-          return (
-            <Card key={kpi.title}>
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">
-                    {kpi.title}
-                  </CardTitle>
-                  <Icon className={`h-4 w-4 ${kpi.color}`} />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{kpi.value}</div>
-                {kpi.subtitle && (
-                  <p className="text-xs text-muted-foreground mt-1">{kpi.subtitle}</p>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
-      {/* Charts Row */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Weekly Sign Ups */}
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <CardTitle>Weekly Sign Ups</CardTitle>
-              <div className="flex gap-2">
-                <Select value={signUpRange} onValueChange={(v: any) => setSignUpRange(v)}>
-                  <SelectTrigger className="w-[140px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="8weeks">Last 8 Weeks</SelectItem>
-                    <SelectItem value="12weeks">Last 12 Weeks</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button size="sm" variant="outline" onClick={exportSignUpsCSV}>
-                  <Download className="h-4 w-4" />
-                </Button>
-              </div>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Sign Ups</CardTitle>
+              <UserPlus className="h-4 w-4 text-green-500" />
             </div>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={weeklySignUps}>
+            <div className="text-2xl font-bold">{data.kpis.signUpsInPeriod}</div>
+            <div className="flex items-center gap-2 mt-1">
+              {renderChange(data.kpis.signUpsChange)}
+              <span className="text-xs text-muted-foreground">vs previous period</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Bookings</CardTitle>
+              <ShoppingCart className="h-4 w-4 text-orange-500" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{data.kpis.bookingsInPeriod}</div>
+            <div className="flex items-center gap-2 mt-1">
+              {renderChange(data.kpis.bookingsChange)}
+              <span className="text-xs text-muted-foreground">vs previous period</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Events</CardTitle>
+              <CalendarClock className="h-4 w-4 text-blue-500" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{data.kpis.eventsInPeriod}</div>
+            <div className="flex items-center gap-2 mt-1">
+              {renderChange(data.kpis.eventsChange)}
+              <span className="text-xs text-muted-foreground">vs previous period</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Capacity Used</CardTitle>
+              <Target className="h-4 w-4 text-purple-500" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{data.eventPerformance.capacityUtilization.toFixed(1)}%</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {data.eventPerformance.bookedSpots} / {data.eventPerformance.totalCapacity} spots
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Conversion Funnel */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Conversion Funnel</CardTitle>
+          <CardDescription>User journey from signup to repeat bookings</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-3 gap-4">
+            {[
+              { label: "Signup → Assessment", data: data.conversions.signupToAssessment, color: "bg-blue-500" },
+              { label: "Assessment → Booking", data: data.conversions.assessmentToBooking, color: "bg-green-500" },
+              { label: "Repeat Booking Rate", data: data.conversions.repeatBooking, color: "bg-purple-500" },
+            ].map((item) => (
+              <div key={item.label} className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">{item.label}</span>
+                  <Badge variant="secondary">{item.data.rate.toFixed(1)}%</Badge>
+                </div>
+                <div className="h-3 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className={`h-full ${item.color} rounded-full transition-all`}
+                    style={{ width: `${Math.min(100, item.data.rate)}%` }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {item.data.completed} of {item.data.total}
+                </p>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Trends */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Sign Up Trend</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={250}>
+              <AreaChart data={data.trends.signUps}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis 
-                  dataKey="weekStart" 
-                  stroke="hsl(var(--muted-foreground))"
-                  fontSize={12}
-                />
+                <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} />
                 <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: "hsl(var(--card))", 
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--card))",
                     border: "1px solid hsl(var(--border))",
-                    borderRadius: "8px"
+                    borderRadius: "8px",
                   }}
                 />
-                <Area 
-                  type="monotone" 
-                  dataKey="count" 
-                  stroke="hsl(var(--primary))" 
-                  fill="hsl(var(--primary) / 0.2)"
-                  strokeWidth={2}
-                />
+                <Area type="monotone" dataKey="count" stroke="#6366f1" fill="#6366f1" fillOpacity={0.2} strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        {/* Weekly Bookings */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Weekly Bookings</CardTitle>
-              <Button size="sm" variant="outline" onClick={exportBookingsCSV}>
-                <Download className="h-4 w-4" />
-              </Button>
-            </div>
+            <CardTitle>Booking Trend</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={weeklyBookings}>
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={data.trends.bookings}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis 
-                  dataKey="weekStart" 
-                  stroke="hsl(var(--muted-foreground))"
-                  fontSize={12}
-                />
+                <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} />
                 <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: "hsl(var(--card))", 
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--card))",
                     border: "1px solid hsl(var(--border))",
-                    borderRadius: "8px"
+                    borderRadius: "8px",
                   }}
                 />
-                <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="count" fill="#22c55e" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
 
-      {/* Insights Row */}
-      <div className="grid gap-4 md:grid-cols-3">
+      {/* Event Performance & Demographics */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Event Performance */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Top City This Week</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="h-4 w-4" />
+              Top Venues
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{topCity || "N/A"}</p>
+            <div className="space-y-3">
+              {data.eventPerformance.popularVenues.length > 0 ? (
+                data.eventPerformance.popularVenues.map((venue, idx) => (
+                  <div key={venue.name} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground text-sm">{idx + 1}.</span>
+                      <span className="text-sm font-medium truncate">{venue.name}</span>
+                    </div>
+                    <Badge variant="outline">{venue.count}</Badge>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">No venue data yet</p>
+              )}
+            </div>
+            <div className="mt-4 pt-4 border-t flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm">
+                <XCircle className="h-4 w-4 text-red-500" />
+                <span>Cancellation Rate</span>
+              </div>
+              <span className="font-semibold">{data.eventPerformance.cancellationRate.toFixed(1)}%</span>
+            </div>
           </CardContent>
         </Card>
 
+        {/* Gender Distribution */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Most Popular Event Type</CardTitle>
+            <CardTitle>Gender Distribution</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold capitalize">{topEventType}</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">New vs Returning (This Week)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={120}>
+            <ResponsiveContainer width="100%" height={180}>
               <PieChart>
                 <Pie
-                  data={newVsReturning}
+                  data={data.demographics.genderDistribution}
                   cx="50%"
                   cy="50%"
-                  innerRadius={30}
-                  outerRadius={50}
+                  innerRadius={40}
+                  outerRadius={70}
                   paddingAngle={2}
                   dataKey="value"
                 >
-                  {newVsReturning.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  {data.demographics.genderDistribution.map((_, index) => (
+                    <Cell key={`gender-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip />
-                <Legend 
-                  verticalAlign="bottom" 
-                  height={20}
-                  iconSize={8}
-                  formatter={(value) => <span className="text-xs">{value}</span>}
-                />
+                <Legend verticalAlign="bottom" height={30} iconSize={8} formatter={(value) => <span className="text-xs">{value}</span>} />
               </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Age Distribution */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Age Distribution</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={180}>
+              <BarChart data={data.demographics.ageDistribution} layout="vertical">
+                <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                <YAxis type="category" dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} width={50} />
+                <Tooltip />
+                <Bar dataKey="value" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
+              </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
 
-      {/* Activity Feed */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Activity</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {activities.map((activity, idx) => (
-              <div key={idx} className="flex items-center justify-between border-b pb-3 last:border-0">
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg ${
-                    activity.type === "event" ? "bg-blue-500/10" :
-                    activity.type === "signup" ? "bg-green-500/10" :
-                    "bg-orange-500/10"
-                  }`}>
-                    {activity.type === "event" && <Calendar className="h-4 w-4 text-blue-500" />}
-                    {activity.type === "signup" && <UserPlus className="h-4 w-4 text-green-500" />}
-                    {activity.type === "booking" && <ShoppingCart className="h-4 w-4 text-orange-500" />}
-                  </div>
-                  <div>
-                    <p className="font-medium text-sm">{activity.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {format(new Date(activity.timestamp), "MMM dd, yyyy 'at' HH:mm")}
-                    </p>
+      {/* More Demographics */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* City Breakdown */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MapPin className="h-4 w-4" />
+              Users by City
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {data.demographics.cityBreakdown.slice(0, 6).map((city, idx) => (
+                <div key={city.name} className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-medium">{city.name}</span>
+                      <span className="text-sm text-muted-foreground">{city.value}</span>
+                    </div>
+                    <div className="h-2 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${(city.value / (data.demographics.cityBreakdown[0]?.value || 1)) * 100}%`,
+                          backgroundColor: COLORS[idx % COLORS.length],
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
-                <Button size="sm" variant="ghost" onClick={() => window.location.href = activity.link}>
-                  View
-                </Button>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Personality Distribution */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Personality Types</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie
+                  data={data.demographics.personalityDistribution}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={50}
+                  outerRadius={80}
+                  paddingAngle={2}
+                  dataKey="value"
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  labelLine={false}
+                >
+                  {data.demographics.personalityDistribution.map((_, index) => (
+                    <Cell key={`personality-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

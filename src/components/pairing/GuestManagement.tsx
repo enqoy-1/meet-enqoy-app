@@ -1,11 +1,11 @@
-import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState, useRef } from "react";
+import { pairingApi } from "@/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plus, Upload, Search, X } from "lucide-react";
+import { Plus, Upload, Search, X, FileUp, Users } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import {
@@ -39,15 +39,12 @@ const guestSchema = z.object({
 
 interface Guest {
   id: string;
-  first_name: string;
-  last_name: string;
-  phone: string | null;
+  name: string;
   email: string | null;
   tags: string[];
-  dietary_notes: string | null;
+  dietaryNotes: string | null;
   gender: string | null;
-  age_range: string | null;
-  friend_group: string | null;
+  age: number | null;
 }
 
 interface GuestManagementProps {
@@ -74,6 +71,224 @@ export const GuestManagement = ({ eventId, guests, onRefresh }: GuestManagementP
     friend_group: "",
   });
   const [csvData, setCsvData] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const csvFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Handle CSV file upload
+  const handleCSVFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const lines = text.split('\n');
+
+      if (lines.length < 2) {
+        toast.error("CSV file is empty or has no data");
+        return;
+      }
+
+      // Map CSV fields to personality data
+      const mapDinnerVibe = (value: string) => {
+        if (!value) return undefined;
+        if (value.includes('steering')) return 'steering';
+        if (value.includes('sharing')) return 'sharing';
+        if (value.includes('observe')) return 'observing';
+        if (value.includes('adapt')) return 'adapting';
+        return undefined;
+      };
+
+      const mapTalkTopic = (value: string) => {
+        if (!value) return undefined;
+        if (value.includes('Current events')) return 'current_events';
+        if (value.includes('Arts')) return 'arts_entertainment';
+        if (value.includes('Personal growth')) return 'personal_growth';
+        if (value.includes('Food, travel')) return 'food_travel';
+        if (value.includes('Hobbies')) return 'hobbies';
+        return undefined;
+      };
+
+      const mapGroupDynamic = (value: string) => {
+        if (!value) return undefined;
+        if (value.includes('similar')) return 'similar';
+        if (value.includes('diverse')) return 'diverse';
+        return undefined;
+      };
+
+      const parseCSVLine = (line: string) => {
+        const values: string[] = [];
+        let current = '';
+        let inQuotes = false;
+
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i];
+          const nextChar = line[i + 1];
+
+          if (char === '"') {
+            if (inQuotes && nextChar === '"') {
+              current += '"';
+              i++;
+            } else {
+              inQuotes = !inQuotes;
+            }
+          } else if (char === ',' && !inQuotes) {
+            values.push(current);
+            current = '';
+          } else {
+            current += char;
+          }
+        }
+        values.push(current);
+        return values;
+      };
+
+      const guestsData = [];
+
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        const values = parseCSVLine(line);
+
+        // Extract based on your CSV structure (adjust column indices as needed)
+        const firstName = values[22];
+        const lastName = values[23];
+        const email = values[24];
+        const gender = values[17]?.toLowerCase();
+        const birthYear = values[21];
+
+        if (!firstName || !lastName || firstName.includes('First Name')) continue;
+
+        const calculateAge = (year: string) => {
+          const parts = year?.split('/');
+          if (parts && parts.length === 3) {
+            return 2025 - parseInt(parts[2]);
+          }
+          return undefined;
+        };
+
+        const guest = {
+          eventId: eventId,
+          name: `${firstName} ${lastName}`.trim(),
+          email: email || undefined,
+          gender: gender || undefined,
+          age: calculateAge(birthYear),
+          tags: [],
+          dietaryNotes: values[14] && values[14] !== 'None' ? values[14] : undefined,
+          personality: {
+            dinnerVibe: mapDinnerVibe(values[3]),
+            talkTopic: mapTalkTopic(values[4]),
+            groupDynamic: mapGroupDynamic(values[5]),
+            humorType: values[6]?.includes('Clever') ? 'witty' : values[6]?.includes('Playful') ? 'playful' : 'dry',
+            wardrobeStyle: values[7]?.includes('Bold') ? 'trendy' : 'casual',
+            introvertScale: parseInt(values[8]) || 5,
+            aloneTimeScale: parseInt(values[9]) || 5,
+            familyScale: parseInt(values[10]) || 5,
+            spiritualityScale: parseInt(values[11]) || 5,
+            humorScale: parseInt(values[12]) || 5,
+            meetingPriority: values[13]?.includes('connection') ? 'friendship' : 'networking',
+            spending: values[16]?.includes('500 - 1000') ? 750 : values[16]?.includes('1000 - 1500') ? 1250 : 800,
+            relationshipStatus: values[18]?.includes('Married') ? 'married' : values[18]?.includes('relationship') ? 'committed' : 'single',
+            hasChildren: values[19]?.toLowerCase().includes('yes')
+          }
+        };
+
+        guestsData.push(guest);
+      }
+
+      // Import guests
+      let successCount = 0;
+      for (const guest of guestsData) {
+        try {
+          await pairingApi.createGuest(guest);
+          successCount++;
+        } catch (error) {
+          console.error("Failed to import guest:", guest, error);
+        }
+      }
+
+      toast.success(`Imported ${successCount} out of ${guestsData.length} guests from CSV`);
+      onRefresh();
+
+      if (csvFileInputRef.current) {
+        csvFileInputRef.current.value = "";
+      }
+    } catch (error: any) {
+      toast.error("Failed to parse CSV file");
+      console.error("CSV parse error:", error);
+    }
+  };
+
+  // Handle JSON file upload with personality assessment data
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+
+      // Support both array and single object
+      const guestsData = Array.isArray(data) ? data : [data];
+
+      let successCount = 0;
+      for (const guest of guestsData) {
+        try {
+          // Map fields to PairingGuest schema
+          const guestPayload: any = {
+            eventId: eventId,
+            name: guest.name || `${guest.first_name || ''} ${guest.last_name || ''}`.trim(),
+            email: guest.email || undefined,
+            gender: guest.gender || undefined,
+            age: guest.age || (guest.age_range ? parseInt(guest.age_range) : undefined),
+            tags: guest.tags || [],
+            dietaryNotes: guest.dietary_notes || guest.dietaryNotes || undefined,
+          };
+
+          // Include personality assessment data if present
+          if (guest.personality || guest.assessment) {
+            guestPayload.personality = guest.personality || guest.assessment;
+          }
+
+          // If individual assessment fields are present, build personality object
+          if (guest.talkTopic || guest.dinnerVibe || guest.groupDynamic) {
+            guestPayload.personality = {
+              talkTopic: guest.talkTopic,
+              groupDynamic: guest.groupDynamic,
+              dinnerVibe: guest.dinnerVibe,
+              humorType: guest.humorType,
+              wardrobeStyle: guest.wardrobeStyle,
+              introvertScale: guest.introvertScale,
+              aloneTimeScale: guest.aloneTimeScale,
+              familyScale: guest.familyScale,
+              spiritualityScale: guest.spiritualityScale,
+              humorScale: guest.humorScale,
+              meetingPriority: guest.meetingPriority,
+              spending: guest.spending || guest.budget,
+              relationshipStatus: guest.relationshipStatus,
+              hasChildren: guest.hasChildren,
+            };
+          }
+
+          await pairingApi.createGuest(guestPayload);
+          successCount++;
+        } catch (error) {
+          console.error("Failed to import guest:", guest, error);
+        }
+      }
+
+      toast.success(`Imported ${successCount} out of ${guestsData.length} guests with personality data`);
+      onRefresh();
+
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    } catch (error: any) {
+      toast.error("Failed to parse file. Ensure it's valid JSON.");
+      console.error("File parse error:", error);
+    }
+  };
 
   const handleAddGuest = async () => {
     // Validate input
@@ -95,20 +310,18 @@ export const GuestManagement = ({ eventId, guests, onRefresh }: GuestManagementP
     }
 
     try {
-      const { error } = await supabase.from("pairing_guests").insert({
-        event_id: eventId,
-        first_name: newGuest.first_name.trim(),
-        last_name: newGuest.last_name.trim(),
-        phone: newGuest.phone.trim() || null,
-        email: newGuest.email.trim() || null,
-        tags: newGuest.tags ? newGuest.tags.split(",").map(t => t.trim()).filter(Boolean) : [],
-        dietary_notes: newGuest.dietary_notes.trim() || null,
-        gender: newGuest.gender || null,
-        age_range: newGuest.age_range.trim() || null,
-        friend_group: newGuest.friend_group.trim() || null,
-      });
+      const fullName = `${newGuest.first_name.trim()} ${newGuest.last_name.trim()}`;
+      const tags = newGuest.tags ? newGuest.tags.split(",").map(t => t.trim()).filter(Boolean) : [];
 
-      if (error) throw error;
+      await pairingApi.createGuest({
+        eventId: eventId,
+        name: fullName,
+        email: newGuest.email.trim() || undefined,
+        gender: newGuest.gender || undefined,
+        tags: tags,
+        dietaryNotes: newGuest.dietary_notes.trim() || undefined,
+        age: newGuest.age_range ? parseInt(newGuest.age_range) : undefined,
+      });
 
       toast.success("Guest added successfully");
       setIsAddDialogOpen(false);
@@ -126,7 +339,7 @@ export const GuestManagement = ({ eventId, guests, onRefresh }: GuestManagementP
       });
       onRefresh();
     } catch (error: any) {
-      toast.error("Failed to add guest");
+      toast.error(error.response?.data?.message || "Failed to add guest");
     }
   };
 
@@ -140,28 +353,56 @@ export const GuestManagement = ({ eventId, guests, onRefresh }: GuestManagementP
     try {
       const lines = csvData.trim().split("\n");
       const headers = lines[0].split(",").map(h => h.trim());
-      
+
       const guestsToImport = lines.slice(1).map(line => {
         const values = line.split(",").map(v => v.trim());
-        const guest: any = { event_id: eventId };
-        
+        const guestData: any = {};
+
         headers.forEach((header, index) => {
           const value = values[index];
-          if (header === "tags") {
-            guest.tags = value ? value.split("|").map(t => t.trim()) : [];
-          } else if (value) {
-            guest[header] = value;
+          if (header === "first_name" && value) {
+            guestData.first_name = value;
+          } else if (header === "last_name" && value) {
+            guestData.last_name = value;
+          } else if (header === "email" && value) {
+            guestData.email = value;
+          } else if (header === "gender" && value) {
+            guestData.gender = value;
+          } else if (header === "tags" && value) {
+            guestData.tags = value.split("|").map(t => t.trim()).filter(Boolean);
+          } else if (header === "dietary_notes" && value) {
+            guestData.dietaryNotes = value;
+          } else if (header === "age_range" && value) {
+            guestData.age = parseInt(value);
           }
         });
-        
-        return guest;
+
+        // Combine first and last name
+        const fullName = `${guestData.first_name || ''} ${guestData.last_name || ''}`.trim();
+
+        return {
+          eventId: eventId,
+          name: fullName,
+          email: guestData.email || undefined,
+          gender: guestData.gender || undefined,
+          tags: guestData.tags || [],
+          dietaryNotes: guestData.dietaryNotes || undefined,
+          age: guestData.age || undefined,
+        };
       });
 
-      const { error } = await supabase.from("pairing_guests").insert(guestsToImport);
+      // Import guests one by one
+      let successCount = 0;
+      for (const guest of guestsToImport) {
+        try {
+          await pairingApi.createGuest(guest);
+          successCount++;
+        } catch (error) {
+          console.error("Failed to import guest:", guest, error);
+        }
+      }
 
-      if (error) throw error;
-
-      toast.success(`Imported ${guestsToImport.length} guests successfully`);
+      toast.success(`Imported ${successCount} out of ${guestsToImport.length} guests successfully`);
       setIsImportDialogOpen(false);
       setCsvData("");
       onRefresh();
@@ -171,13 +412,12 @@ export const GuestManagement = ({ eventId, guests, onRefresh }: GuestManagementP
   };
 
   const filteredGuests = guests.filter(guest => {
-    const matchesSearch = searchQuery === "" || 
-      guest.first_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      guest.last_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    const matchesSearch = searchQuery === "" ||
+      guest.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       guest.email?.toLowerCase().includes(searchQuery.toLowerCase());
-    
+
     const matchesTag = filterTag === "all" || guest.tags.includes(filterTag);
-    
+
     return matchesSearch && matchesTag;
   });
 
@@ -209,14 +449,81 @@ export const GuestManagement = ({ eventId, guests, onRefresh }: GuestManagementP
           </Select>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" onClick={() => setIsImportDialogOpen(true)}>
+          <Button variant="outline" onClick={() => csvFileInputRef.current?.click()}>
             <Upload className="h-4 w-4 mr-2" />
-            Import CSV
+            Upload CSV/Excel
           </Button>
+          <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+            <FileUp className="h-4 w-4 mr-2" />
+            Upload JSON
+          </Button>
+          <input
+            type="file"
+            ref={csvFileInputRef}
+            accept=".csv,.xlsx,.xls"
+            onChange={handleCSVFileUpload}
+            className="hidden"
+          />
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept=".json"
+            onChange={handleFileUpload}
+            className="hidden"
+          />
           <Button onClick={() => setIsAddDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Add Guest
           </Button>
+          {guests.length > 0 && (
+            <>
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  if (!window.confirm("Create user accounts for all guests without users? This will create new user accounts.")) {
+                    return;
+                  }
+                  try {
+                    const result = await pairingApi.createUsersFromGuests(eventId);
+                    if (result.created > 0) {
+                      toast.success(`Created ${result.created} new user account${result.created > 1 ? 's' : ''} from guests`);
+                      onRefresh();
+                    } else {
+                      toast.info("No new users needed");
+                    }
+                    if (result.skipped > 0) {
+                      toast.info(`Skipped ${result.skipped} guests (already have users)`);
+                    }
+                    if (result.errors && result.errors.length > 0) {
+                      console.error("Errors creating users:", result.errors);
+                    }
+                  } catch (error) {
+                    toast.error("Failed to create users from guests");
+                  }
+                }}
+              >
+                <Users className="h-4 w-4 mr-2" />
+                Create Users from Guests
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={async () => {
+                  if (window.confirm(`Delete all ${guests.length} guests? This cannot be undone!`)) {
+                    try {
+                      await pairingApi.deleteAllGuests(eventId);
+                      toast.success("All guests deleted");
+                      onRefresh();
+                    } catch (error) {
+                      toast.error("Failed to delete guests");
+                    }
+                  }
+                }}
+              >
+                <X className="h-4 w-4 mr-2" />
+                Clear All Guests
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -225,13 +532,13 @@ export const GuestManagement = ({ eventId, guests, onRefresh }: GuestManagementP
           <Card key={guest.id} className="hover:shadow-md transition-shadow">
             <CardContent className="p-4">
               <h3 className="font-semibold text-lg mb-2">
-                {guest.first_name} {guest.last_name}
+                {guest.name}
               </h3>
               {guest.email && (
                 <p className="text-sm text-muted-foreground mb-1">{guest.email}</p>
               )}
-              {guest.phone && (
-                <p className="text-sm text-muted-foreground mb-2">{guest.phone}</p>
+              {guest.age && (
+                <p className="text-sm text-muted-foreground mb-2">Age: {guest.age}</p>
               )}
               {guest.tags.length > 0 && (
                 <div className="flex flex-wrap gap-1 mb-2">
@@ -242,9 +549,9 @@ export const GuestManagement = ({ eventId, guests, onRefresh }: GuestManagementP
                   ))}
                 </div>
               )}
-              {guest.dietary_notes && (
+              {guest.dietaryNotes && (
                 <p className="text-xs text-muted-foreground mt-2">
-                  Dietary: {guest.dietary_notes}
+                  Dietary: {guest.dietaryNotes}
                 </p>
               )}
             </CardContent>
