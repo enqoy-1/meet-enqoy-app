@@ -10,10 +10,28 @@ export class AnalyticsService {
     const start = startDate || new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); // Default 30 days
     const end = endDate || now;
 
+    console.log('Backend received dates:', {
+      startDate: startDate?.toISOString(),
+      endDate: endDate?.toISOString(),
+      start: start.toISOString(),
+      end: end.toISOString()
+    });
+
+    // For date range queries, use "less than next day" instead of "less than or equal to end of day"
+    // This avoids millisecond precision issues
+    const endExclusive = new Date(end.getTime() + 1); // Add 1ms to make it exclusive upper bound
+
+    console.log('Query will use:', {
+      start: start.toISOString(),
+      endExclusive: endExclusive.toISOString(),
+      query: `createdAt >= ${start.toISOString()} AND createdAt < ${endExclusive.toISOString()}`
+    });
+
     // Calculate previous period for comparison
     const periodLength = end.getTime() - start.getTime();
     const prevStart = new Date(start.getTime() - periodLength);
     const prevEnd = new Date(start.getTime());
+    const prevEndExclusive = new Date(prevEnd.getTime() + 1);
 
     // Fetch all needed data
     const [
@@ -34,21 +52,29 @@ export class AnalyticsService {
       allAssessments,
     ] = await Promise.all([
       this.prisma.user.count(),
-      this.prisma.user.count({ where: { createdAt: { gte: start, lte: end } } }),
-      this.prisma.user.count({ where: { createdAt: { gte: prevStart, lte: prevEnd } } }),
+      this.prisma.user.count({ where: { createdAt: { gte: start, lt: endExclusive } } }),
+      this.prisma.user.count({ where: { createdAt: { gte: prevStart, lt: prevEndExclusive } } }),
       this.prisma.profile.count({ where: { assessmentCompleted: true } }),
-      this.prisma.profile.count({ where: { assessmentCompleted: true, createdAt: { gte: start, lte: end } } }),
+      this.prisma.profile.count({ where: { assessmentCompleted: true, createdAt: { gte: start, lt: endExclusive } } }),
       this.prisma.booking.findMany({ where: { status: 'confirmed' }, select: { userId: true, createdAt: true } }),
-      this.prisma.booking.count({ where: { status: 'confirmed', createdAt: { gte: start, lte: end } } }),
-      this.prisma.booking.count({ where: { status: 'confirmed', createdAt: { gte: prevStart, lte: prevEnd } } }),
+      this.prisma.booking.count({ where: { status: 'confirmed', createdAt: { gte: start, lt: endExclusive } } }),
+      this.prisma.booking.count({ where: { status: 'confirmed', createdAt: { gte: prevStart, lt: prevEndExclusive } } }),
       this.prisma.booking.count({ where: { status: 'cancelled' } }),
-      this.prisma.booking.count({ where: { status: 'cancelled', createdAt: { gte: start, lte: end } } }),
+      this.prisma.booking.count({ where: { status: 'cancelled', createdAt: { gte: start, lt: endExclusive } } }),
       this.prisma.event.findMany({ select: { id: true, capacity: true, venueId: true, createdAt: true } }),
-      this.prisma.event.count({ where: { createdAt: { gte: start, lte: end } } }),
-      this.prisma.event.count({ where: { createdAt: { gte: prevStart, lte: prevEnd } } }),
+      this.prisma.event.count({ where: { createdAt: { gte: start, lt: endExclusive } } }),
+      this.prisma.event.count({ where: { createdAt: { gte: prevStart, lt: prevEndExclusive } } }),
       this.prisma.profile.findMany({ select: { gender: true, age: true, city: true, assessmentCompleted: true } }),
       this.prisma.personalityAssessment.findMany({ select: { userId: true, answers: true } }),
     ]);
+
+    console.log('Query results:', {
+      totalUsers,
+      usersInPeriod,
+      usersInPrevPeriod,
+      bookingsInPeriod,
+      eventsInPeriod
+    });
 
     // ========== KPIs with Period Comparison ==========
     const kpis = {
@@ -302,13 +328,14 @@ export class AnalyticsService {
     end: Date,
     granularity: 'day' | 'week' | 'month'
   ) {
+    const endExclusive = new Date(end.getTime() + 1);
     const data = type === 'user'
       ? await this.prisma.user.findMany({
-        where: { createdAt: { gte: start, lte: end } },
+        where: { createdAt: { gte: start, lt: endExclusive } },
         select: { createdAt: true },
       })
       : await this.prisma.booking.findMany({
-        where: { status: 'confirmed', createdAt: { gte: start, lte: end } },
+        where: { status: 'confirmed', createdAt: { gte: start, lt: endExclusive } },
         select: { createdAt: true },
       });
 

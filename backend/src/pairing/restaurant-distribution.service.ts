@@ -127,6 +127,13 @@ export class RestaurantDistributionService {
       allocation.currentCapacity += group.participants.length;
     }
 
+    // Reset pairing notification flags for all guests in this event
+    // This will trigger the notification banner on user dashboards
+    await this.prisma.pairingGuest.updateMany({
+      where: { eventId },
+      data: { pairingNotificationSent: false },
+    });
+
     // Create tables and assignments for each restaurant
     for (const allocation of restaurantAllocations) {
       const restaurantResult = {
@@ -285,27 +292,36 @@ export class RestaurantDistributionService {
    * Clear all restaurant assignments for an event
    */
   async clearEventAssignments(eventId: string): Promise<void> {
+    // Get all guests for this event
+    const guests = await this.prisma.pairingGuest.findMany({
+      where: { eventId },
+      select: { id: true },
+    });
+    const guestIds = guests.map(g => g.id);
+
+    // Delete ALL assignments for guests in this event (including those not in tables)
+    if (guestIds.length > 0) {
+      await this.prisma.pairingAssignment.deleteMany({
+        where: {
+          guestId: { in: guestIds },
+        },
+      });
+    }
+
     // Get all restaurants for this event
     const restaurants = await this.prisma.pairingRestaurant.findMany({
       where: { eventId },
-      include: { tables: true },
+      select: { id: true },
     });
-
-    // Delete all assignments for tables in these restaurants
-    for (const restaurant of restaurants) {
-      for (const table of restaurant.tables) {
-        await this.prisma.pairingAssignment.deleteMany({
-          where: { tableId: table.id },
-        });
-      }
-    }
 
     // Delete all tables
-    await this.prisma.pairingTable.deleteMany({
-      where: {
-        restaurantId: { in: restaurants.map((r) => r.id) },
-      },
-    });
+    if (restaurants.length > 0) {
+      await this.prisma.pairingTable.deleteMany({
+        where: {
+          restaurantId: { in: restaurants.map((r) => r.id) },
+        },
+      });
+    }
 
     // Delete all restaurants
     await this.prisma.pairingRestaurant.deleteMany({

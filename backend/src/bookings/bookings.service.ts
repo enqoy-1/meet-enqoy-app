@@ -27,14 +27,15 @@ export class BookingsService {
       throw new NotFoundException('Event not found');
     }
 
-    // Check if event is within 48 hours (booking deadline)
+    // Check if event is within cutoff hours (booking deadline)
     const now = new Date();
     const eventStartTime = new Date(event.startTime);
     const hoursUntilEvent = (eventStartTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+    const cutoffHours = event.bookingCutoffHours ?? 24;
 
-    if (hoursUntilEvent < 48) {
+    if (hoursUntilEvent < cutoffHours) {
       throw new BadRequestException(
-        'Bookings close 48 hours before the event. This event is too soon to book.'
+        `Bookings close ${cutoffHours} hours before the event. This event is too soon to book.`
       );
     }
 
@@ -132,6 +133,8 @@ export class BookingsService {
         paymentStatus: dto.useCredit ? 'credit_used' : 'pending',
         amountPaid: dto.useCredit ? '0' : totalPrice.toString(),
         usedCredit: dto.useCredit || false,
+        purchasedTwoEvents: dto.twoEvents && !dto.useCredit,
+        creditGranted: false, // Will be set to true when payment is confirmed
       },
       include: {
         event: {
@@ -142,15 +145,9 @@ export class BookingsService {
       },
     });
 
-    // Handle two-events purchase - add credit to user profile
-    if (dto.twoEvents && !dto.useCredit) {
-      await this.prisma.profile.update({
-        where: { userId },
-        data: {
-          eventCredits: { increment: 1 },
-        },
-      });
-    }
+    // NOTE: Credit is NOT added immediately for two-events purchases
+    // Credit will be added when the booking is confirmed (payment verified)
+    // See the confirmBooking method below
 
     // Handle using a credit - decrement credits
     if (dto.useCredit) {
@@ -225,7 +222,7 @@ export class BookingsService {
 
     return {
       ...booking,
-      creditAdded: dto.twoEvents && !dto.useCredit,
+      creditPending: dto.twoEvents && !dto.useCredit, // Credit will be added when payment is confirmed
       friendInvited: dto.bringFriend,
     };
   }
@@ -299,6 +296,7 @@ export class BookingsService {
         { user: { email: { contains: filters.search, mode: 'insensitive' } } },
         { user: { profile: { firstName: { contains: filters.search, mode: 'insensitive' } } } },
         { user: { profile: { lastName: { contains: filters.search, mode: 'insensitive' } } } },
+        { user: { profile: { phone: { contains: filters.search, mode: 'insensitive' } } } },
         { payment: { transactionId: { contains: filters.search, mode: 'insensitive' } } },
       ];
     }
@@ -306,7 +304,18 @@ export class BookingsService {
     // Payment status filter (handled differently as it's a relation or field)
     if (filters.paymentStatus && filters.paymentStatus !== 'all') {
       if (filters.paymentStatus === 'pending_verification') {
-        where.payment = { status: 'pending' };
+        // Show bookings that either:
+        // 1. Have a payment record with status 'pending' (awaiting verification)
+        // 2. Have booking status 'pending' and no payment record (awaiting payment submission)
+        where.OR = [
+          { payment: { status: 'pending' } },
+          {
+            AND: [
+              { status: 'pending' },
+              { payment: null }
+            ]
+          }
+        ];
       } else if (filters.paymentStatus === 'verified') {
         where.payment = { status: 'verified' };
       } else if (filters.paymentStatus === 'rejected') {
@@ -346,7 +355,10 @@ export class BookingsService {
     // Calculate summary stats
     const totalBookings = bookings.length;
     const confirmedCount = bookings.filter(b => b.status === 'confirmed').length;
-    const pendingPaymentCount = bookings.filter(b => b.payment?.status === 'pending').length;
+    // Pending payment count: bookings awaiting verification OR awaiting payment submission
+    const pendingPaymentCount = bookings.filter(b =>
+      b.payment?.status === 'pending' || (b.status === 'pending' && !b.payment)
+    ).length;
     const totalRevenue = bookings.reduce((sum, b) => {
       if (b.status === 'confirmed' || b.payment?.status === 'verified') {
         return sum + Number(b.payment?.amount || 0);
@@ -455,6 +467,117 @@ export class BookingsService {
         },
       },
     });
+  }
+
+  async confirmBooking(id: string) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id },
+      include: {
+        user: {
+          include: {
+            profile: true,
+          },
+        },
+        event: {
+          include: {
+            venue: true,
+          },
+        },
+      },
+    });
+
+    if (!booking) {
+      throw new NotFoundException('Booking not found');
+    }
+
+    if (booking.status === 'confirmed') {
+      throw new BadRequestException('Booking is already confirmed');
+    }
+
+    // Update booking to confirmed
+    const updatedBooking = await this.prisma.booking.update({
+      where: { id },
+      data: {
+        status: 'confirmed',
+        paymentStatus: 'verified',
+      },
+      include: {
+        event: {
+          include: {
+            venue: true,
+          },
+        },
+      },
+    });
+
+    // Grant credit if this was a two-events purchase and credit hasn't been granted yet
+    if (booking.purchasedTwoEvents && !booking.creditGranted) {
+      await this.prisma.profile.update({
+        where: { userId: booking.userId },
+        data: {
+          eventCredits: { increment: 1 },
+        },
+      });
+
+      // Mark credit as granted
+      await this.prisma.booking.update({
+        where: { id },
+        data: {
+          creditGranted: true,
+        },
+      });
+
+      console.log(`✓ Credit granted to user ${booking.userId} for two-events purchase (booking ${id})`);
+    }
+
+    return updatedBooking;
+  }
+
+  async rejectPayment(id: string, reason?: string) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id },
+      include: {
+        user: {
+          include: {
+            profile: true,
+          },
+        },
+        payment: true,
+        event: true,
+      },
+    });
+
+    if (!booking) {
+      throw new NotFoundException('Booking not found');
+    }
+
+    // Update payment status to rejected if payment exists
+    if (booking.payment) {
+      await this.prisma.payment.update({
+        where: { id: booking.payment.id },
+        data: {
+          status: 'rejected',
+          rejectionReason: reason || 'Payment verification failed',
+        },
+      });
+    }
+
+    // Cancel the booking
+    await this.prisma.booking.update({
+      where: { id },
+      data: {
+        status: 'cancelled',
+      },
+    });
+
+    // TODO: Send rejection email notification to user
+    // await this.emailService.sendPaymentRejectionEmail(booking.user.email, booking.event.title, reason);
+
+    return {
+      message: 'Payment rejected and booking cancelled',
+      bookingId: id,
+      reason: reason || 'Payment verification failed',
+    };
   }
 
   async delete(id: string) {

@@ -52,7 +52,7 @@ const AdminEvents = () => {
   const [twoEventsDiscountType, setTwoEventsDiscountType] = useState("");
   const [twoEventsDiscountValue, setTwoEventsDiscountValue] = useState("");
   const [capacity, setCapacity] = useState("");
-  const [bookingCutoffPreset, setBookingCutoffPreset] = useState("48");
+  const [bookingCutoffPreset, setBookingCutoffPreset] = useState("24");
   const [customCutoffHours, setCustomCutoffHours] = useState("");
   const [venueId, setVenueId] = useState("");
   const [isVisible, setIsVisible] = useState(true);
@@ -95,7 +95,7 @@ const AdminEvents = () => {
     setTwoEventsDiscountType("");
     setTwoEventsDiscountValue("");
     setCapacity("");
-    setBookingCutoffPreset("48");
+    setBookingCutoffPreset("24");
     setCustomCutoffHours("");
     setVenueId("");
     setIsVisible(true);
@@ -131,7 +131,7 @@ const AdminEvents = () => {
     setCapacity(event.capacity ? event.capacity.toString() : "");
 
     // Handle booking cutoff hours
-    const cutoffHours = event.bookingCutoffHours ?? 48; // Default to 48 if null/undefined
+    const cutoffHours = event.bookingCutoffHours ?? 24; // Default to 24 if null/undefined
     if ([24, 48, 72].includes(cutoffHours)) {
       setBookingCutoffPreset(cutoffHours.toString());
       setCustomCutoffHours("");
@@ -163,7 +163,7 @@ const AdminEvents = () => {
     // Calculate booking cutoff hours
     let bookingCutoffHours: number;
     if (bookingCutoffPreset === "custom") {
-      bookingCutoffHours = customCutoffHours ? parseInt(customCutoffHours) : 48;
+      bookingCutoffHours = customCutoffHours ? parseInt(customCutoffHours) : 24;
     } else {
       bookingCutoffHours = parseInt(bookingCutoffPreset);
     }
@@ -230,7 +230,7 @@ const AdminEvents = () => {
       <div className="p-6">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h1 className="text-3xl font-bold">Event Management</h1>
+            <h1 className="text-3xl font-bold">Create Events</h1>
             <p className="text-muted-foreground">Create and manage events</p>
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -382,8 +382,8 @@ const AdminEvents = () => {
                         <SelectValue placeholder="Select cutoff time" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="24">24 hours before</SelectItem>
-                        <SelectItem value="48">48 hours before (default)</SelectItem>
+                        <SelectItem value="24">24 hours before (default)</SelectItem>
+                        <SelectItem value="48">48 hours before</SelectItem>
                         <SelectItem value="72">72 hours before (3 days)</SelectItem>
                         <SelectItem value="custom">Custom hours</SelectItem>
                       </SelectContent>
@@ -484,7 +484,7 @@ const AdminEvents = () => {
                         <TableCell>
                           {event.startTime ? format(new Date(event.startTime), "MMM d, yyyy 'at' h:mm a") : 'Date TBA'}
                         </TableCell>
-                        <TableCell>${event.price}</TableCell>
+                        <TableCell>{event.price} Birr</TableCell>
                         <TableCell>{event.venue?.name || "-"}</TableCell>
                         <TableCell>
                           <Badge variant={event.isVisible ? "default" : "secondary"}>

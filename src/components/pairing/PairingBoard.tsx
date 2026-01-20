@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Users, AlertCircle, Check, Upload } from "lucide-react";
+import { Users, AlertCircle, Check, Upload, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -86,9 +86,24 @@ export const PairingBoard = ({ eventId, guests, restaurants, assignments, onRefr
   const [isImporting, setIsImporting] = useState(false);
   const [draggedGroup, setDraggedGroup] = useState<number | null>(null);
   const [assignedGroupIndices, setAssignedGroupIndices] = useState<Set<number>>(new Set());
+  const [isPairingPublished, setIsPairingPublished] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
 
   const assignedGuestIds = new Set(assignments.map(a => a.guestId));
   const unassignedGuests = guests.filter(g => !assignedGuestIds.has(g.id));
+
+  // Fetch pairing published status on mount
+  useEffect(() => {
+    const fetchPairingStatus = async () => {
+      try {
+        const status = await pairingApi.getPairingStatus(eventId);
+        setIsPairingPublished(status.published);
+      } catch (error) {
+        console.error('Failed to fetch pairing status:', error);
+      }
+    };
+    fetchPairingStatus();
+  }, [eventId]);
 
   const filteredUnassigned = unassignedGuests.filter(guest =>
     filterTag === "all" || guest.tags.includes(filterTag)
@@ -447,14 +462,103 @@ export const PairingBoard = ({ eventId, guests, restaurants, assignments, onRefr
 
   const getGuestById = (guestId: string) => guests.find(g => g.id === guestId);
 
+  const handlePublishPairing = async () => {
+    if (!assignments || assignments.length === 0) {
+      toast.error("No assignments to publish. Please assign guests to restaurants first.");
+      return;
+    }
+
+    try {
+      setIsPublishing(true);
+      await pairingApi.publishPairing(eventId);
+      setIsPairingPublished(true);
+      toast.success("Pairing published! Notifications will be sent to all assigned guests.");
+    } catch (error: any) {
+      toast.error("Failed to publish pairing");
+      console.error(error);
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  const handleUnpublishPairing = async () => {
+    try {
+      setIsPublishing(true);
+      await pairingApi.unpublishPairing(eventId);
+      setIsPairingPublished(false);
+      toast.success("Pairing unpublished successfully");
+    } catch (error: any) {
+      toast.error("Failed to unpublish pairing");
+      console.error(error);
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  const handleSavePairingBoard = () => {
+    // The pairing board state is automatically saved as assignments are created
+    // This button just confirms to the user that their work is saved
+    toast.success("Pairing board saved! All assignments have been recorded.");
+  };
+
+  const handleClearPairingBoard = async () => {
+    const totalAssignments = assignments.length;
+
+    if (totalAssignments === 0) {
+      toast.info("Pairing board is already empty.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Are you sure you want to clear all ${totalAssignments} assignment${totalAssignments > 1 ? 's' : ''}? This action cannot be undone.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      await pairingApi.clearAllAssignments(eventId);
+      toast.success(`Cleared ${totalAssignments} assignment${totalAssignments > 1 ? 's' : ''} from pairing board`);
+      setSelectedGuest(null);
+      setSelectedGroup(null);
+      onRefresh();
+    } catch (error: any) {
+      toast.error("Failed to clear pairing board");
+      console.error(error);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-semibold">Pairing Board</h2>
-        <Button onClick={() => setIsImportDialogOpen(true)}>
-          <Upload className="h-4 w-4 mr-2" />
-          Import Assignments
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleSavePairingBoard}>
+            <Check className="h-4 w-4 mr-2" />
+            Save Pairing Board
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleClearPairingBoard}
+            className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+          >
+            <XCircle className="h-4 w-4 mr-2" />
+            Clear Pairing Board
+          </Button>
+          {isPairingPublished ? (
+            <Button variant="secondary" onClick={handleUnpublishPairing} disabled={isPublishing}>
+              {isPublishing ? "Unpublishing..." : "Unpublish Pairing"}
+            </Button>
+          ) : (
+            <Button onClick={handlePublishPairing} disabled={isPublishing} className="bg-green-600 hover:bg-green-700">
+              <Check className="h-4 w-4 mr-2" />
+              {isPublishing ? "Publishing..." : "Publish Pairing"}
+            </Button>
+          )}
+          <Button variant="outline" onClick={() => setIsImportDialogOpen(true)}>
+            <Upload className="h-4 w-4 mr-2" />
+            Import Assignments
+          </Button>
+        </div>
       </div>
 
       {/* Instructions banner */}
@@ -551,6 +655,33 @@ export const PairingBoard = ({ eventId, guests, restaurants, assignments, onRefr
                         <p className={`text-xs ${selectedGroup === index ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
                           Avg: {group.averageAge?.toFixed(0)}y • {group.budget}
                         </p>
+
+                        {/* Participant Details */}
+                        <div className={`mt-2 pt-2 border-t space-y-1 ${selectedGroup === index ? "border-primary-foreground/30" : "border-border/50"}`}>
+                          <p className={`text-[10px] font-medium ${selectedGroup === index ? "text-primary-foreground/90" : "text-muted-foreground"}`}>
+                            Participants:
+                          </p>
+                          {group.participants.slice(0, 3).map((participant: any, pIndex: number) => {
+                            const guest = guests.find((g: any) => g.id === participant.userId || g.userId === participant.userId);
+                            const displayName = guest?.name || guest?.first_name || `Person ${pIndex + 1}`;
+                            return (
+                              <div key={pIndex} className={`text-[10px] flex items-center gap-1 ${selectedGroup === index ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+                                <span>•</span>
+                                <span className="truncate">{displayName}</span>
+                                {participant.budget && (
+                                  <Badge variant="outline" className={`text-[9px] px-1 py-0 h-3.5 ml-auto ${selectedGroup === index ? "border-primary-foreground/40" : ""}`}>
+                                    {participant.budget}
+                                  </Badge>
+                                )}
+                              </div>
+                            );
+                          })}
+                          {group.participants.length > 3 && (
+                            <p className={`text-[10px] ${selectedGroup === index ? "text-primary-foreground/70" : "text-muted-foreground/70"}`}>
+                              +{group.participants.length - 3} more
+                            </p>
+                          )}
+                        </div>
                       </div>
                       );
                     })}
@@ -676,13 +807,14 @@ export const PairingBoard = ({ eventId, guests, restaurants, assignments, onRefr
                               {groupAssigns.map(a => {
                                 const guest = getGuestById(a.guestId);
                                 if (!guest) return null;
+                                const guestName = (guest as any).name || `${guest.first_name || ''} ${guest.last_name || ''}`.trim() || guest.email || 'Unknown';
                                 return (
-                                  <div key={a.guestId} className="flex justify-between items-center text-xs text-muted-foreground">
-                                    <span>{guest.first_name} {guest.last_name}</span>
+                                  <div key={a.guestId} className="flex justify-between items-center text-xs">
+                                    <span className="truncate flex-1">{guestName}</span>
                                     <Button
                                       variant="ghost"
                                       size="icon"
-                                      className="h-4 w-4 ml-1 hover:bg-destructive/10 hover:text-destructive"
+                                      className="h-5 w-5 ml-1 hover:bg-destructive/10 hover:text-destructive flex-shrink-0"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         handleUnassignGuest(a.id);
@@ -704,12 +836,14 @@ export const PairingBoard = ({ eventId, guests, restaurants, assignments, onRefr
                             {ungroupedAssignments.map(a => {
                               const guest = getGuestById(a.guestId);
                               if (!guest) return null;
+                              const guestName = (guest as any).name || `${guest.first_name || ''} ${guest.last_name || ''}`.trim() || guest.email || 'Unknown';
                               return (
                                 <div key={a.guestId} className="flex items-center justify-between p-2 bg-muted rounded text-sm" onClick={(e) => e.stopPropagation()}>
-                                  <span>{guest.first_name} {guest.last_name}</span>
+                                  <span className="truncate flex-1">{guestName}</span>
                                   <Button
                                     variant="ghost"
                                     size="sm"
+                                    className="flex-shrink-0 ml-2"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       handleUnassignGuest(a.id);

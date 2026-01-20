@@ -32,6 +32,12 @@ export class AssessmentsController {
     return this.assessmentsService.getUserAssessment(user.id);
   }
 
+  @Post('save-progress')
+  @UseGuards(JwtAuthGuard)
+  saveProgress(@CurrentUser() user: any, @Body() data: { answers: any }) {
+    return this.assessmentsService.saveProgress(user.id, data.answers);
+  }
+
   @Post('submit')
   @UseGuards(JwtAuthGuard)
   submitAssessment(@CurrentUser() user: any, @Body() data: { answers: any }) {

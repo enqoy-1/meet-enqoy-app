@@ -51,18 +51,13 @@ const adminSections = [
   },
   {
     title: "Events",
-    path: "/admin/events",
+    path: "/admin/pairings",
     icon: Calendar,
   },
   {
     title: "Venues",
     path: "/admin/venues",
     icon: MapPin,
-  },
-  {
-    title: "Event Pairings",
-    path: "/admin/pairings",
-    icon: Users,
   },
   {
     title: "Icebreakers",

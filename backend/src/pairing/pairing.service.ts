@@ -23,6 +23,11 @@ export class PairingService {
         },
         constraintsAsGuest1: true,
         constraintsAsGuest2: true,
+        user: {
+          include: {
+            profile: true,
+          },
+        },
       },
     });
   }
@@ -304,6 +309,7 @@ export class PairingService {
         id: assignment.restaurant.id,
         name: assignment.restaurant.name,
         address: assignment.restaurant.address,
+        googleMapsUrl: assignment.restaurant.googleMapsUrl,
         contactInfo: assignment.restaurant.contactInfo,
       } : null,
       status: assignment.status,

@@ -45,4 +45,9 @@ export const usersApi = {
     const response = await apiClient.delete(`/users/${id}`);
     return response.data;
   },
+
+  search: async (query: string) => {
+    const response = await apiClient.get(`/users/search?q=${encodeURIComponent(query)}`);
+    return response.data;
+  },
 };

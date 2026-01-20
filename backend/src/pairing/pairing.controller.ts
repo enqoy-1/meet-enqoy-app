@@ -4,11 +4,14 @@ import { PairingAlgorithmService } from './pairing-algorithm.service';
 import { GeminiPairingService } from './gemini-pairing.service';
 import { RestaurantDistributionService, Restaurant } from './restaurant-distribution.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { IcebreakersService } from '../icebreakers/icebreakers.service';
+import { EmailService } from '../email/email.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Prisma, UserRole } from '@prisma/client';
+import { format } from 'date-fns';
 
 @Controller('pairing')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -20,6 +23,8 @@ export class PairingController {
     private geminiPairingService: GeminiPairingService,
     private restaurantDistributionService: RestaurantDistributionService,
     private prisma: PrismaService,
+    private icebreakersService: IcebreakersService,
+    private emailService: EmailService,
   ) { }
 
   @Get('events/:eventId/guests')
@@ -331,12 +336,12 @@ export class PairingController {
           },
         };
 
-        // Only add personality assessment if it exists
         if (guest.personality) {
           userData.personalityAssessment = {
             create: {
               answers: guest.personality,
               completedAt: new Date(),
+              isCompleted: true,
             },
           };
         }
@@ -464,15 +469,38 @@ export class PairingController {
     const useAI = body.useAI !== false; // Default to true
     const allowConstraintRelaxation = body.allowConstraintRelaxation !== false; // Default to true
 
+    let groups;
     if (useAI) {
       // Use Gemini-enhanced group generation with constraint relaxation
-      return this.geminiPairingService.generateOptimalGroups(eventId, groupSize, {
+      groups = await this.geminiPairingService.generateOptimalGroups(eventId, groupSize, {
         allowConstraintRelaxation,
       });
+
+      // Save AI-generated conversation starters to icebreakers database
+      if (groups && groups.length > 0) {
+        let totalCreated = 0;
+        let totalSkipped = 0;
+
+        for (const group of groups) {
+          if (group.conversationStarters && group.conversationStarters.length > 0) {
+            const result = await this.icebreakersService.createAIGeneratedQuestions(
+              group.conversationStarters,
+              eventId,
+              group.name,
+            );
+            totalCreated += result.created;
+            totalSkipped += result.skipped;
+          }
+        }
+
+        console.log(`💬 Saved ${totalCreated} AI-generated conversation starters (${totalSkipped} duplicates skipped)`);
+      }
     } else {
       // Use base algorithm only (strict mode, no relaxation)
-      return this.pairingAlgorithmService.generateGroups(eventId, groupSize);
+      groups = await this.pairingAlgorithmService.generateGroups(eventId, groupSize);
     }
+
+    return groups;
   }
 
   @Get('events/:eventId/categorize-all')
@@ -636,6 +664,26 @@ export class PairingController {
     let groups;
     if (useAI) {
       groups = await this.geminiPairingService.generateOptimalGroups(eventId, groupSize);
+
+      // Save AI-generated conversation starters to icebreakers database
+      if (groups && groups.length > 0) {
+        let totalCreated = 0;
+        let totalSkipped = 0;
+
+        for (const group of groups) {
+          if (group.conversationStarters && group.conversationStarters.length > 0) {
+            const result = await this.icebreakersService.createAIGeneratedQuestions(
+              group.conversationStarters,
+              eventId,
+              group.name,
+            );
+            totalCreated += result.created;
+            totalSkipped += result.skipped;
+          }
+        }
+
+        console.log(`💬 Saved ${totalCreated} AI-generated conversation starters (${totalSkipped} duplicates skipped)`);
+      }
     } else {
       groups = await this.pairingAlgorithmService.generateGroups(eventId, groupSize);
     }
@@ -679,6 +727,26 @@ export class PairingController {
     let groups;
     if (useAI) {
       groups = await this.geminiPairingService.generateOptimalGroups(eventId, groupSize);
+
+      // Save AI-generated conversation starters to icebreakers database
+      if (groups && groups.length > 0) {
+        let totalCreated = 0;
+        let totalSkipped = 0;
+
+        for (const group of groups) {
+          if (group.conversationStarters && group.conversationStarters.length > 0) {
+            const result = await this.icebreakersService.createAIGeneratedQuestions(
+              group.conversationStarters,
+              eventId,
+              group.name,
+            );
+            totalCreated += result.created;
+            totalSkipped += result.skipped;
+          }
+        }
+
+        console.log(`💬 Saved ${totalCreated} AI-generated conversation starters (${totalSkipped} duplicates skipped)`);
+      }
     } else {
       groups = await this.pairingAlgorithmService.generateGroups(eventId, groupSize);
     }
@@ -708,6 +776,241 @@ export class PairingController {
       message: 'All restaurant assignments cleared for this event',
     };
   }
+
+  /**
+   * Publish pairing for an event (marks event as published and sends notifications)
+   */
+  @Post('events/:eventId/publish-pairing')
+  async publishPairing(@Param('eventId') eventId: string) {
+    // Get event details
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+    });
+
+    if (!event) {
+      throw new Error('Event not found');
+    }
+
+    const wasAlreadyPublished = event.pairingPublished;
+
+    // Mark event as published
+    await this.prisma.event.update({
+      where: { id: eventId },
+      data: { pairingPublished: true },
+    });
+
+    // Get all assignments with guest and restaurant info
+    const assignments = await this.prisma.pairingAssignment.findMany({
+      where: {
+        guest: {
+          eventId: eventId,
+        },
+      },
+      include: {
+        guest: true,
+        restaurant: true,
+      },
+    });
+
+    // Send emails to all guests with assignments (in parallel, non-blocking)
+    const eventDate = format(new Date(event.startTime), 'EEEE, MMMM d, yyyy \'at\' h:mm a');
+    const emailsToSend = assignments.filter(a => a.guest.email && a.restaurant).length;
+
+    // Fire and forget - send emails in background
+    Promise.all(
+      assignments
+        .filter(a => a.guest.email && a.restaurant)
+        .map(assignment =>
+          this.emailService.sendRestaurantAssignment({
+            to: assignment.guest.email,
+            userName: assignment.guest.name || 'Guest',
+            eventTitle: event.title,
+            eventDate: eventDate,
+            restaurantName: assignment.restaurant.name,
+            restaurantAddress: assignment.restaurant.address || 'Address TBD',
+            groupName: assignment.groupName || undefined,
+          }).catch(error => console.error(`Failed to send email to ${assignment.guest.email}:`, error))
+        )
+    ).then(() => console.log(`✅ All ${emailsToSend} pairing emails sent`));
+
+    return {
+      success: true,
+      message: wasAlreadyPublished
+        ? `Pairing updated. ${emailsToSend} notification${emailsToSend !== 1 ? 's' : ''} being sent.`
+        : `Pairing published successfully. ${emailsToSend} notification${emailsToSend !== 1 ? 's' : ''} being sent.`,
+      emailsSent: emailsToSend,
+    };
+  }
+
+  /**
+   * Update pairing for an event (sends update notifications to affected guests)
+   */
+  @Post('events/:eventId/update-pairing')
+  async updatePairing(
+    @Param('eventId') eventId: string,
+    @Body() body: { changedAssignments?: { guestId: string; oldRestaurantId: string; newRestaurantId: string }[] },
+  ) {
+    // Get event details
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+    });
+
+    if (!event) {
+      throw new Error('Event not found');
+    }
+
+    if (!event.pairingPublished) {
+      // If not published yet, just publish
+      return this.publishPairing(eventId);
+    }
+
+    // Get changed assignments info
+    const changedAssignments = body.changedAssignments || [];
+    const eventDate = format(new Date(event.startTime), 'EEEE, MMMM d, yyyy \'at\' h:mm a');
+
+    if (changedAssignments.length === 0) {
+      return {
+        success: true,
+        message: 'Pairing updated. No notification emails needed.',
+        emailsSent: 0,
+      };
+    }
+
+    // Fetch all data in parallel for speed
+    const [guests, restaurants, assignments] = await Promise.all([
+      this.prisma.pairingGuest.findMany({
+        where: { id: { in: changedAssignments.map(c => c.guestId) } },
+      }),
+      this.prisma.pairingRestaurant.findMany({
+        where: {
+          id: {
+            in: [
+              ...changedAssignments.map(c => c.oldRestaurantId),
+              ...changedAssignments.map(c => c.newRestaurantId),
+            ],
+          },
+        },
+      }),
+      this.prisma.pairingAssignment.findMany({
+        where: { guestId: { in: changedAssignments.map(c => c.guestId) } },
+      }),
+    ]);
+
+    // Create lookup maps
+    const guestMap = new Map(guests.map(g => [g.id, g]));
+    const restaurantMap = new Map(restaurants.map(r => [r.id, r]));
+    const assignmentMap = new Map(assignments.map(a => [a.guestId, a]));
+
+    // Build email list
+    const emailsToSend = changedAssignments
+      .map(change => {
+        const guest = guestMap.get(change.guestId);
+        const oldRestaurant = restaurantMap.get(change.oldRestaurantId);
+        const newRestaurant = restaurantMap.get(change.newRestaurantId);
+        const assignment = assignmentMap.get(change.guestId);
+
+        if (guest?.email && oldRestaurant && newRestaurant) {
+          return {
+            to: guest.email,
+            userName: guest.name || 'Guest',
+            eventTitle: event.title,
+            eventDate: eventDate,
+            oldRestaurantName: oldRestaurant.name,
+            newRestaurantName: newRestaurant.name,
+            newRestaurantAddress: newRestaurant.address || 'Address TBD',
+            groupName: assignment?.groupName || undefined,
+          };
+        }
+        return null;
+      })
+      .filter(Boolean);
+
+    // Fire and forget - send emails in background
+    Promise.all(
+      emailsToSend.map(emailData =>
+        this.emailService.sendRestaurantAssignmentUpdate(emailData)
+          .catch(error => console.error(`Failed to send update email to ${emailData.to}:`, error))
+      )
+    ).then(() => console.log(`✅ All ${emailsToSend.length} update emails sent`));
+
+    return {
+      success: true,
+      message: `Pairing updated. ${emailsToSend.length} update notification${emailsToSend.length !== 1 ? 's' : ''} being sent.`,
+      emailsSent: emailsToSend.length,
+    };
+  }
+
+  /**
+   * Unpublish pairing for an event
+   */
+  @Post('events/:eventId/unpublish-pairing')
+  async unpublishPairing(@Param('eventId') eventId: string) {
+    await this.prisma.event.update({
+      where: { id: eventId },
+      data: { pairingPublished: false },
+    });
+
+    return {
+      success: true,
+      message: 'Pairing unpublished successfully.',
+    };
+  }
+
+  /**
+   * Get users who haven't booked this event (for export)
+   */
+  @Get('events/:eventId/non-attendees')
+  async getNonAttendees(@Param('eventId') eventId: string) {
+    // Get all users who haven't booked this event
+    const bookings = await this.prisma.booking.findMany({
+      where: { eventId, status: 'confirmed' },
+      select: { userId: true },
+    });
+
+    const bookedUserIds = new Set(bookings.map(b => b.userId));
+
+    // Get all users excluding those who booked
+    const users = await this.prisma.user.findMany({
+      where: {
+        id: { notIn: Array.from(bookedUserIds) },
+      },
+      include: {
+        profile: true,
+        personalityAssessment: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Transform to include useful information
+    return users.map(({ password, profile, personalityAssessment, ...user }) => ({
+      id: user.id,
+      email: user.email,
+      fullName: profile?.firstName && profile?.lastName
+        ? `${profile.firstName} ${profile.lastName}`
+        : profile?.firstName || user.email.split('@')[0],
+      phone: profile?.phone || null,
+      age: profile?.age || null,
+      gender: profile?.gender || null,
+      city: profile?.city || null,
+      assessmentCompleted: profile?.assessmentCompleted || false,
+      createdAt: user.createdAt,
+    }));
+  }
+
+  /**
+   * Check if pairing is published for an event
+   */
+  @Get('events/:eventId/pairing-status')
+  async getPairingStatus(@Param('eventId') eventId: string) {
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+      select: { pairingPublished: true },
+    });
+
+    return {
+      published: event?.pairingPublished || false,
+    };
+  }
 }
 
 // ============================================
@@ -717,7 +1020,10 @@ export class PairingController {
 @Controller('user-pairing')
 @UseGuards(JwtAuthGuard)
 export class UserPairingController {
-  constructor(private pairingService: PairingService) { }
+  constructor(
+    private pairingService: PairingService,
+    private prisma: PrismaService,
+  ) { }
 
   /**
    * Get the current user's restaurant assignment for a specific event
@@ -729,6 +1035,19 @@ export class UserPairingController {
   ) {
     const assignment = await this.pairingService.getUserAssignment(user.id, eventId);
 
+    // Mark notification as seen when user views their assignment
+    if (assignment) {
+      await this.prisma.pairingGuest.updateMany({
+        where: {
+          eventId,
+          userId: user.id,
+        },
+        data: {
+          pairingNotificationSent: true,
+        },
+      });
+    }
+
     if (!assignment) {
       return {
         hasAssignment: false,
@@ -739,6 +1058,97 @@ export class UserPairingController {
     return {
       hasAssignment: true,
       ...assignment,
+    };
+  }
+
+  /**
+   * Check if user has any unseen pairing notifications
+   */
+  @Get('has-pairing-updates')
+  async hasPairingUpdates(@CurrentUser() user: any) {
+    // Find all upcoming events where user has a booking and pairing assignment
+    const upcomingBookings = await this.prisma.booking.findMany({
+      where: {
+        userId: user.id,
+        status: 'confirmed',
+        event: {
+          startTime: {
+            gte: new Date(),
+          },
+        },
+      },
+      select: {
+        event: {
+          select: {
+            id: true,
+            title: true,
+            startTime: true,
+          },
+        },
+      },
+    });
+
+    const eventIds = upcomingBookings.map((b) => b.event.id);
+
+    if (eventIds.length === 0) {
+      return {
+        hasPairingUpdates: false,
+        eventsWithUpdates: [],
+      };
+    }
+
+    // Check if any of these events have unseen pairing assignments
+    const unseenPairings = await this.prisma.pairingGuest.findMany({
+      where: {
+        userId: user.id,
+        eventId: { in: eventIds },
+        pairingNotificationSent: false,
+        assignments: {
+          some: {},
+        },
+      },
+      include: {
+        event: {
+          select: {
+            id: true,
+            title: true,
+            startTime: true,
+          },
+        },
+      },
+    });
+
+    return {
+      hasPairingUpdates: unseenPairings.length > 0,
+      eventsWithUpdates: unseenPairings.map((p) => ({
+        eventId: p.event.id,
+        eventTitle: p.event.title,
+        eventStartTime: p.event.startTime,
+      })),
+    };
+  }
+
+  /**
+   * Mark pairing notification as seen for a specific event
+   */
+  @Post('events/:eventId/mark-notification-seen')
+  async markNotificationSeen(
+    @Param('eventId') eventId: string,
+    @CurrentUser() user: any,
+  ) {
+    await this.prisma.pairingGuest.updateMany({
+      where: {
+        eventId,
+        userId: user.id,
+      },
+      data: {
+        pairingNotificationSent: true,
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Notification marked as seen',
     };
   }
 }

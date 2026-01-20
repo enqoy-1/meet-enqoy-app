@@ -62,8 +62,8 @@ export default function Terms() {
             <section>
               <h2 className="text-xl font-semibold mb-3">4. Payment and Refunds</h2>
               <p className="text-muted-foreground">
-                All payments are processed securely. Refund policies vary by event and will be clearly 
-                stated at the time of booking. Generally, cancellations made 48 hours before an event 
+                All payments are processed securely. Refund policies vary by event and will be clearly
+                stated at the time of booking. Generally, cancellations made 24 hours before an event
                 may be eligible for a partial or full refund.
               </p>
             </section>

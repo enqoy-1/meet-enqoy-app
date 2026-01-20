@@ -90,7 +90,12 @@ export default function AdminAnalytics() {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   useEffect(() => {
-    fetchAnalytics();
+    // Only fetch if:
+    // 1. Not in custom mode, OR
+    // 2. In custom mode AND both dates are selected
+    if (timeFilter !== "custom" || (timeFilter === "custom" && dateRange?.from && dateRange?.to)) {
+      fetchAnalytics();
+    }
   }, [timeFilter, dateRange]);
 
   const getDateRange = () => {
@@ -99,23 +104,35 @@ export default function AdminAnalytics() {
       case "today":
         return { start: startOfDay(now), end: endOfDay(now) };
       case "week":
-        return { start: subDays(now, 7), end: now };
+        return { start: startOfDay(subDays(now, 7)), end: endOfDay(now) };
       case "month":
-        return { start: subMonths(now, 1), end: now };
+        return { start: startOfDay(subMonths(now, 1)), end: endOfDay(now) };
       case "custom":
         if (dateRange?.from && dateRange?.to) {
-          return { start: dateRange.from, end: dateRange.to };
+          const start = startOfDay(dateRange.from);
+          const end = endOfDay(dateRange.to);
+          return { start, end };
         }
-        return { start: subMonths(now, 1), end: now };
+        // Return null if custom but no dates selected
+        return null;
       default:
-        return { start: subMonths(now, 1), end: now };
+        return { start: startOfDay(subMonths(now, 1)), end: endOfDay(now) };
     }
   };
 
   const fetchAnalytics = async () => {
     try {
       setLoading(true);
-      const { start, end } = getDateRange();
+      const dateRangeResult = getDateRange();
+      
+      // If custom mode but no dates selected, don't fetch
+      if (!dateRangeResult) {
+        setLoading(false);
+        return;
+      }
+
+      const { start, end } = dateRangeResult;
+
       const result = await analyticsApi.getEnhanced(
         start.toISOString(),
         end.toISOString()
@@ -138,6 +155,63 @@ export default function AdminAnalytics() {
       </span>
     );
   };
+
+  // Show message if custom mode is selected but no date range is chosen
+  if (timeFilter === "custom" && (!dateRange?.from || !dateRange?.to)) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
+            <p className="text-muted-foreground">Select a date range to view analytics</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Tabs value={timeFilter} onValueChange={(v) => setTimeFilter(v as TimeFilter)}>
+              <TabsList>
+                <TabsTrigger value="today">Today</TabsTrigger>
+                <TabsTrigger value="week">Week</TabsTrigger>
+                <TabsTrigger value="month">Month</TabsTrigger>
+                <TabsTrigger value="custom">Custom</TabsTrigger>
+              </TabsList>
+            </Tabs>
+            <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <CalendarIcon className="h-4 w-4 mr-2" />
+                  {dateRange?.from && dateRange?.to ? (
+                    `${format(dateRange.from, "MMM d, yyyy")} - ${format(dateRange.to, "MMM d, yyyy")}`
+                  ) : dateRange?.from ? (
+                    `${format(dateRange.from, "MMM d, yyyy")} - ...`
+                  ) : (
+                    "Pick dates"
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <Calendar
+                  mode="range"
+                  selected={dateRange}
+                  onSelect={(range) => {
+                    setDateRange(range);
+                    if (range?.from && range?.to) {
+                      setIsCalendarOpen(false);
+                    }
+                  }}
+                  numberOfMonths={2}
+                  defaultMonth={dateRange?.from || new Date()}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+        </div>
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-center text-muted-foreground">Please select a date range to view analytics data</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (loading || !data) {
     return (
@@ -173,12 +247,10 @@ export default function AdminAnalytics() {
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm">
                   <CalendarIcon className="h-4 w-4 mr-2" />
-                  {dateRange?.from ? (
-                    dateRange.to ? (
-                      `${format(dateRange.from, "MMM d")} - ${format(dateRange.to, "MMM d")}`
-                    ) : (
-                      format(dateRange.from, "MMM d, yyyy")
-                    )
+                  {dateRange?.from && dateRange?.to ? (
+                    `${format(dateRange.from, "MMM d, yyyy")} - ${format(dateRange.to, "MMM d, yyyy")}`
+                  ) : dateRange?.from ? (
+                    `${format(dateRange.from, "MMM d, yyyy")} - ...`
                   ) : (
                     "Pick dates"
                   )}
@@ -190,11 +262,13 @@ export default function AdminAnalytics() {
                   selected={dateRange}
                   onSelect={(range) => {
                     setDateRange(range);
+                    // Close calendar only when both dates are selected
                     if (range?.from && range?.to) {
                       setIsCalendarOpen(false);
                     }
                   }}
                   numberOfMonths={2}
+                  defaultMonth={dateRange?.from || new Date()}
                 />
               </PopoverContent>
             </Popover>

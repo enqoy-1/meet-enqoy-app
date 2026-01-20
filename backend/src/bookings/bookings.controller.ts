@@ -101,7 +101,15 @@ export class BookingsController {
   @UseGuards(RolesGuard)
   @Roles(UserRole.admin, UserRole.super_admin)
   confirm(@Param('id') id: string) {
-    return this.bookingsService.update(id, { status: 'confirmed' as any });
+    return this.bookingsService.confirmBooking(id);
+  }
+
+  // Admin: Reject a booking payment
+  @Patch(':id/reject')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.admin, UserRole.super_admin)
+  reject(@Param('id') id: string, @Body('reason') reason?: string) {
+    return this.bookingsService.rejectPayment(id, reason);
   }
 
   // Admin: Confirm all pending bookings for an event

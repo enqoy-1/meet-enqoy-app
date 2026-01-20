@@ -87,3 +87,6 @@ echo "To check status: docker-compose ps"
 echo ""
 
 
+
+
+

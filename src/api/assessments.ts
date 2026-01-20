@@ -11,6 +11,11 @@ export const assessmentsApi = {
     return response.data;
   },
 
+  saveProgress: async (answers: any) => {
+    const response = await apiClient.post('/assessments/save-progress', { answers });
+    return response.data;
+  },
+
   submit: async (answers: any) => {
     const response = await apiClient.post('/assessments/submit', { answers });
     return response.data;

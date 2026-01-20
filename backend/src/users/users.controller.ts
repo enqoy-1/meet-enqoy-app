@@ -12,6 +12,16 @@ import { UserRole } from '@prisma/client';
 export class UsersController {
   constructor(private usersService: UsersService) { }
 
+  @Get('search')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.admin, UserRole.super_admin)
+  searchUsers(@Query('q') query: string) {
+    if (!query || query.trim().length < 2) {
+      return [];
+    }
+    return this.usersService.searchUsers(query);
+  }
+
   @Get()
   @UseGuards(RolesGuard)
   @Roles(UserRole.admin, UserRole.super_admin)

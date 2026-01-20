@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, MapPin, ArrowLeft, DollarSign, Users, ChevronRight, ChevronLeft, MoreVertical, ClipboardList } from "lucide-react";
+import { Calendar, MapPin, ArrowLeft, Users, ChevronRight, ChevronLeft, MoreVertical, ClipboardList, MessageCircle, Home, Check, Banknote } from "lucide-react";
 import { toast } from "sonner";
 import { format, differenceInHours, isSameDay } from "date-fns";
 import { getCurrentTime } from "@/utils/time";
@@ -43,6 +43,8 @@ interface Event {
   price: number;
   venueId: string | null;
   bookingCutoffHours?: number;
+  createdAt?: string;
+  updatedAt?: string;
   venue: {
     name: string;
     address: string;
@@ -78,15 +80,15 @@ const EventDetail = () => {
   // Check if event is within booking cutoff window
   const isWithinCutoff = () => {
     if (!event) return false;
-    const cutoffHours = event.bookingCutoffHours ?? 48; // Default to 48 if not set
+    const cutoffHours = event.bookingCutoffHours ?? 24; // Default to 24 if not set
     const now = new Date();
     const eventStartTime = new Date(event.startTime);
     const hoursUntilEvent = (eventStartTime.getTime() - now.getTime()) / (1000 * 60 * 60);
     return hoursUntilEvent < cutoffHours;
   };
 
-  // Get cutoff hours for display
-  const getCutoffHours = () => event?.bookingCutoffHours ?? 48;
+  // Get cutoff hours for display (default 24 hours)
+  const getCutoffHours = () => event?.bookingCutoffHours ?? 24;
 
   useEffect(() => {
     fetchEventDetails();
@@ -105,7 +107,7 @@ const EventDetail = () => {
 
       // Check if user has booked this event
       const myBookings = await bookingsApi.getMy();
-      const bookingData = myBookings.find((b: any) => b.eventId === id && b.status === "confirmed");
+      const bookingData = myBookings.find((b: any) => b.eventId === id && (b.status === "confirmed" || b.status === "pending"));
       setBooking(bookingData);
 
       if (bookingData) {
@@ -284,12 +286,42 @@ const EventDetail = () => {
   // Check if user is admin
   const isAdmin = user?.roles?.some((r: any) => r.role === 'admin' || r.role === 'super_admin');
 
+  // Check if venue was set at event creation time
+  // We consider venue set at creation if:
+  // 1. Event was created recently (within 48 hours) and has a venue, OR
+  // 2. createdAt and updatedAt are very close (within 10 minutes), indicating minimal edits
+  const isVenueSetAtCreation = (): boolean => {
+    if (!event.venueId) return false;
+    
+    // If we don't have timestamps, we can't determine, so return false to use default behavior
+    if (!event.createdAt) return false;
+    
+    const createdAt = new Date(event.createdAt);
+    const now = new Date();
+    const hoursSinceCreation = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+    
+    // If event was created within 48 hours and has a venue, assume venue was set at creation
+    if (hoursSinceCreation <= 48) {
+      return true;
+    }
+    
+    // Otherwise, check if updatedAt is close to createdAt (within 10 minutes)
+    if (event.updatedAt) {
+      const updatedAt = new Date(event.updatedAt);
+      const diffMinutes = Math.abs((updatedAt.getTime() - createdAt.getTime()) / (1000 * 60));
+      return diffMinutes <= 10;
+    }
+    
+    return false;
+  };
+
   // Show venue if:
   // 1. User has a booking AND
   // 2. Venue is assigned AND
-  // 3. (It is within cutoff hours OR user is admin)
+  // 3. (Venue was set at creation time OR within cutoff hours OR user is admin)
   const cutoffHours = getCutoffHours();
-  const showVenue = booking && !!event.venue && (hoursUntilEvent <= cutoffHours || isAdmin);
+  const venueSetAtCreation = isVenueSetAtCreation();
+  const showVenue = booking && !!event.venue && (venueSetAtCreation || hoursUntilEvent <= cutoffHours || isAdmin);
   const showSnapshot = booking && snapshot && hoursUntilEvent <= 24;
   const showIcebreakers = booking && questions.length > 0 && hoursUntilEvent <= 0;
   const isEventToday = booking && isSameDay(new Date(event.startTime), now);
@@ -305,15 +337,14 @@ const EventDetail = () => {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-3xl">
-        <Card className="shadow-elevated">
-          <CardHeader>
-            <div className="flex justify-between items-start">
-              <div className="flex-1">
-                <CardTitle className="text-3xl">{event.title}</CardTitle>
-              </div>
+      <main className="container mx-auto px-4 py-8 max-w-3xl space-y-4">
+        {/* Main Event Card */}
+        <Card className="shadow-sm">
+          <CardContent className="p-6">
+            <div className="flex justify-between items-start mb-6">
+              <h1 className="text-3xl font-bold capitalize">{event.eventType}</h1>
               <div className="flex items-center gap-2">
-                <Badge className="text-base">{event.eventType}</Badge>
+                <Badge className="bg-teal-600 hover:bg-teal-700 text-white capitalize">{event.eventType}</Badge>
                 {booking && hoursUntilEvent >= cutoffHours && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -333,169 +364,198 @@ const EventDetail = () => {
                 )}
               </div>
             </div>
-            {event.description && (
-              <CardDescription className="text-base mt-4">
-                {event.description}
-              </CardDescription>
-            )}
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid gap-4">
-              <div className="flex items-center gap-3">
-                <Calendar className="h-5 w-5 text-primary" />
+
+            <div className="space-y-4">
+              <div className="flex items-start gap-3">
+                <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
                 <div>
-                  <p className="font-semibold">{event.startTime ? format(new Date(event.startTime), "PPPP") : 'Date TBA'}</p>
+                  <p className="font-medium">{event.startTime ? format(new Date(event.startTime), "EEEE, MMMM do, yyyy") : 'Date TBA'}</p>
                   <p className="text-sm text-muted-foreground">
-                    {event.startTime ? format(new Date(event.startTime), "p") : ''}
+                    {event.startTime ? format(new Date(event.startTime), "h:mm a") : ''}
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                <DollarSign className="h-5 w-5 text-primary" />
+              <div className="flex items-start gap-3">
+                <Banknote className="h-5 w-5 text-muted-foreground mt-0.5" />
                 <div>
-                  <p className="font-semibold">${event.price}</p>
+                  <p className="font-medium">{event.price} Birr</p>
                   <p className="text-sm text-muted-foreground">Per person</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                <MapPin className="h-5 w-5 text-primary" />
-                <div>
-                  {showVenue && event.venue ? (
-                    <>
-                      <p className="font-semibold">{event.venue.name}</p>
-                      <p className="text-sm text-muted-foreground">{event.venue.address}</p>
-                      {event.venue.googleMapsUrl && (
-                        <a
-                          href={event.venue.googleMapsUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-primary hover:underline"
-                        >
-                          View on Google Maps
-                        </a>
-                      )}
-                    </>
-                  ) : (
-                    <p className="text-muted-foreground">
-                      Location will be revealed {cutoffHours} hours before the event
-                    </p>
-                  )}
-                </div>
+              <div className="bg-muted/50 p-3 rounded-md">
+                <p className="text-sm text-muted-foreground">
+                  Location details shared {cutoffHours} hours before the event
+                </p>
               </div>
-            </div>
-
-            {/* Restaurant Assignment Card */}
-            {booking && restaurantAssignment && restaurantAssignment.restaurant && (
-              <Card className="bg-accent/10 border-primary/20">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Users className="h-5 w-5" />
-                    Your Restaurant Assignment
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Restaurant</p>
-                    <p className="font-semibold">{restaurantAssignment.restaurant.name}</p>
-                  </div>
-                  {restaurantAssignment.restaurant.address && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Address</p>
-                      <p className="text-sm">{restaurantAssignment.restaurant.address}</p>
-                    </div>
-                  )}
-                  {restaurantAssignment.restaurant.contactInfo && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Contact</p>
-                      <p className="text-sm">{restaurantAssignment.restaurant.contactInfo}</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
-            {showSnapshot && (
-              <Card className="bg-accent/10">
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Users className="h-5 w-5" />
-                    Who's Coming
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p>{snapshot}</p>
-                </CardContent>
-              </Card>
-            )}
-
-            {showIcebreakers && (
-              <Card className="bg-accent/10">
-                <CardHeader>
-                  <CardTitle className="text-lg">Icebreaker Questions</CardTitle>
-                  <CardDescription>
-                    Question {currentQuestionIndex + 1} of {questions.length}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-lg">{questions[currentQuestionIndex]?.questionText}</p>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => setCurrentQuestionIndex(Math.max(0, currentQuestionIndex - 1))}
-                      disabled={currentQuestionIndex === 0}
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => setCurrentQuestionIndex(Math.min(questions.length - 1, currentQuestionIndex + 1))}
-                      disabled={currentQuestionIndex === questions.length - 1}
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            <div className="flex flex-col gap-3">
-              <div className="flex gap-3 flex-col sm:flex-row">
-                {booking ? (
-                  <Badge variant="secondary" className="text-base py-2 px-4">
-                    Booking Confirmed
-                  </Badge>
-                ) : isWithinCutoff() ? (
-                  <div className="flex flex-col gap-2">
-                    <Button disabled size="lg" className="w-full sm:w-auto" variant="secondary">
-                      Booking Closed
-                    </Button>
-                    <p className="text-sm text-muted-foreground">
-                      Bookings close {cutoffHours} hours before the event
-                    </p>
-                  </div>
-                ) : (
-                  <Button onClick={handleOpenBookingModal} size="lg" className="w-full sm:w-auto">
-                    Book This Event - {event.price} ETB
-                  </Button>
-                )}
-              </div>
-
-              {booking && hoursUntilEvent > cutoffHours && (
-                <Button
-                  onClick={() => setIsBringFriendDialogOpen(true)}
-                  variant="outline"
-                  size="lg"
-                  className="w-full sm:w-auto"
-                >
-                  <Users className="h-4 w-4 mr-2" />
-                  Bring a Friend
-                </Button>
-              )}
             </div>
           </CardContent>
         </Card>
+
+        {/* Restaurant Assignment Card */}
+        {booking && restaurantAssignment && restaurantAssignment.restaurant && (
+          <Card className="bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900 shadow-sm">
+            <CardContent className="p-6">
+              <div className="space-y-3">
+                <p className="text-sm font-medium text-muted-foreground">Your Table & Restaurant</p>
+                <h3 className="text-xl font-bold">{restaurantAssignment.restaurant.name}</h3>
+                {restaurantAssignment.restaurant.address && (
+                  <p className="text-sm text-muted-foreground">{restaurantAssignment.restaurant.address}</p>
+                )}
+                {showVenue && restaurantAssignment.restaurant.googleMapsUrl && (
+                  <>
+                    <a
+                      href={restaurantAssignment.restaurant.googleMapsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-primary hover:underline inline-flex items-center gap-1"
+                    >
+                      <MapPin className="h-3.5 w-3.5" />
+                      View on Google Maps
+                    </a>
+                    <div className="mt-4 rounded-lg overflow-hidden border">
+                      <iframe
+                        src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=${encodeURIComponent(restaurantAssignment.restaurant.address || restaurantAssignment.restaurant.name)}`}
+                        width="100%"
+                        height="300"
+                        style={{ border: 0 }}
+                        allowFullScreen
+                        loading="lazy"
+                        referrerPolicy="no-referrer-when-downgrade"
+                      ></iframe>
+                    </div>
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Conversation Starters Card */}
+        {booking && (
+          <Card
+            className="shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => navigate(`/events/${event.id}/conversation-starters`)}
+          >
+            <CardContent className="p-6">
+              <div className="flex items-start gap-4">
+                <MessageCircle className="h-6 w-6 text-muted-foreground shrink-0 mt-1" />
+                <div>
+                  <h3 className="font-semibold text-lg mb-1">Conversation Starters</h3>
+                  <p className="text-sm text-muted-foreground">Simple prompts to get the table talking.</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* House Welcome & Guidelines Card */}
+        {booking && (
+          <Card
+            className="shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => navigate(`/events/${event.id}/guidelines`)}
+          >
+            <CardContent className="p-6">
+              <div className="flex items-start gap-4">
+                <Home className="h-6 w-6 text-muted-foreground shrink-0 mt-1" />
+                <div>
+                  <h3 className="font-semibold text-lg mb-1">House Welcome & Guidelines</h3>
+                  <p className="text-sm text-muted-foreground">How we show up to make the experience great for everyone.</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Who's Coming Snapshot */}
+        {showSnapshot && (
+          <Card className="bg-accent/10">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Who's Coming
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p>{snapshot}</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Icebreaker Questions */}
+        {showIcebreakers && (
+          <Card className="bg-accent/10">
+            <CardHeader>
+              <CardTitle className="text-lg">Want handpicked prompts to help the conversation going?</CardTitle>
+              <CardDescription>
+                Question {currentQuestionIndex + 1} of {questions.length}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-lg">{questions[currentQuestionIndex]?.questionText}</p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setCurrentQuestionIndex(Math.max(0, currentQuestionIndex - 1))}
+                  disabled={currentQuestionIndex === 0}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setCurrentQuestionIndex(Math.min(questions.length - 1, currentQuestionIndex + 1))}
+                  disabled={currentQuestionIndex === questions.length - 1}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Booking Status Card */}
+        {booking && booking.status === "confirmed" && (
+          <Card className="bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900 shadow-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-3">
+                <div className="bg-green-500 rounded-full p-2">
+                  <Check className="h-5 w-5 text-white" />
+                </div>
+                <h3 className="font-semibold text-lg">Booking Confirmed</h3>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Book Event Button */}
+        {!booking && !isWithinCutoff() && (
+          <Button onClick={handleOpenBookingModal} size="lg" className="w-full">
+            Book This Event - {event.price} ETB
+          </Button>
+        )}
+
+        {/* Booking Closed Message */}
+        {!booking && isWithinCutoff() && (
+          <Card className="shadow-sm">
+            <CardContent className="p-6 text-center">
+              <p className="text-muted-foreground">Bookings close {cutoffHours} hours before the event</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Bring a Friend Button */}
+        {booking && hoursUntilEvent > cutoffHours && (
+          <Button
+            onClick={() => setIsBringFriendDialogOpen(true)}
+            variant="outline"
+            size="lg"
+            className="w-full"
+          >
+            <Users className="h-4 w-4 mr-2" />
+            Bring a Friend
+          </Button>
+        )}
       </main>
 
       {/* Ice Breaker Game CTA - Fixed Bottom */}
@@ -526,6 +586,7 @@ const EventDetail = () => {
         onClose={() => setIsBringFriendDialogOpen(false)}
         eventId={event.id}
         eventPrice={Number(event.price)}
+        bookingCutoffHours={event.bookingCutoffHours}
       />
 
       {/* Booking Modal */}
@@ -537,6 +598,7 @@ const EventDetail = () => {
           title: event.title,
           price: Number(event.price),
           startTime: event.startTime,
+          bookingCutoffHours: event.bookingCutoffHours,
         }}
         onSuccess={handleBookingSuccess}
         userCredits={userCredits}
@@ -588,7 +650,7 @@ const EventDetail = () => {
                   <strong>Date:</strong> {availableEvents.find(e => e.id === selectedNewEventId)?.startTime ? format(new Date(availableEvents.find(e => e.id === selectedNewEventId)!.startTime), "PPPP") : 'Date TBA'}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  <strong>Price:</strong> ${availableEvents.find(e => e.id === selectedNewEventId)?.price}
+                  <strong>Price:</strong> {availableEvents.find(e => e.id === selectedNewEventId)?.price} Birr
                 </p>
               </div>
             )}
@@ -639,14 +701,16 @@ const EventDetail = () => {
                 </p>
                 <p className="flex justify-between">
                   <span className="text-muted-foreground">Price:</span>
-                  <span className="font-medium">${event?.price}</span>
+                  <span className="font-medium">{event?.price} Birr</span>
                 </p>
               </div>
               <p className="text-sm text-muted-foreground">
                 A confirmation email has been sent to your inbox with all the event details.
               </p>
               <p className="text-sm text-muted-foreground">
-                The venue location will be revealed {cutoffHours} hours before the event.
+                {venueSetAtCreation 
+                  ? "The venue location is available now." 
+                  : `The venue location will be revealed ${cutoffHours} hours before the event.`}
               </p>
             </DialogDescription>
           </DialogHeader>

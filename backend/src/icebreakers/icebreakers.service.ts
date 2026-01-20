@@ -28,6 +28,39 @@ export class IcebreakersService {
     });
   }
 
+  async createAIGeneratedQuestions(questions: string[], eventId: string, groupName?: string) {
+    // Filter out duplicates before creating
+    const existingQuestions = await this.prisma.icebreakerQuestion.findMany({
+      where: {
+        question: { in: questions },
+      },
+      select: { question: true },
+    });
+
+    const existingQuestionsSet = new Set(existingQuestions.map(q => q.question));
+    const newQuestions = questions.filter(q => !existingQuestionsSet.has(q));
+
+    if (newQuestions.length === 0) {
+      return { created: 0, skipped: questions.length };
+    }
+
+    // Create new AI-generated questions
+    const created = await this.prisma.icebreakerQuestion.createMany({
+      data: newQuestions.map(question => ({
+        question,
+        isActive: true,
+        isAIGenerated: true,
+        eventId,
+        groupName,
+      })),
+    });
+
+    return {
+      created: created.count,
+      skipped: questions.length - newQuestions.length,
+    };
+  }
+
   async updateQuestion(id: string, data: any) {
     const question = await this.prisma.icebreakerQuestion.findUnique({
       where: { id },

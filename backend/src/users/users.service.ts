@@ -39,8 +39,15 @@ export class UsersService {
           where: { status: 'confirmed' },
           select: {
             id: true,
+            status: true,
             createdAt: true,
-            event: { select: { eventType: true } },
+            event: {
+              select: {
+                eventType: true,
+                title: true,
+                startTime: true,
+              }
+            },
           },
         },
         personalityAssessment: {
@@ -109,6 +116,24 @@ export class UsersService {
         }
       }
 
+      // Get latest booking (most recent by creation date)
+      const latestBooking = bookings.length > 0
+        ? [...bookings].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
+        : null;
+
+      // Check if user has any upcoming events (event startTime is in the future)
+      const now = new Date();
+      const hasUpcomingEvent = bookings.some(b => new Date(b.event.startTime) > now);
+
+      // Determine upcoming event status
+      const upcomingBookings = bookings.filter(b => new Date(b.event.startTime) > now);
+      let upcomingEventStatus: "confirmed" | "pending" | "none" = "none";
+      if (upcomingBookings.length > 0) {
+        const hasConfirmed = upcomingBookings.some(b => b.status === "confirmed");
+        const hasPending = upcomingBookings.some(b => b.status === "pending");
+        upcomingEventStatus = hasConfirmed ? "confirmed" : (hasPending ? "pending" : "confirmed");
+      }
+
       return {
         id: user.id,
         email: user.email,
@@ -126,9 +151,14 @@ export class UsersService {
         bookingFrequency,
         avgPerMonth: Math.round(avgPerMonth * 10) / 10, // 1 decimal place
         favoriteEventType, // { type, count, percentage } or null
-        lastBooking: bookings.length > 0
-          ? [...bookings].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0].createdAt
-          : null,
+        lastBooking: latestBooking ? latestBooking.createdAt : null,
+        lastBookingEvent: latestBooking ? {
+          title: latestBooking.event.title,
+          eventType: latestBooking.event.eventType,
+          startTime: latestBooking.event.startTime,
+        } : null,
+        hasUpcomingEvent,
+        upcomingEventStatus,
         personalityType,
         roles: user.roles,
       };
@@ -409,6 +439,38 @@ export class UsersService {
       'Free Spirits': 'Adaptable and easy-going. You go with the flow and make everyone feel comfortable.',
     };
     return descriptions[category] || '';
+  }
+
+  async searchUsers(query: string) {
+    // Search users by email or phone
+    const users = await this.prisma.user.findMany({
+      where: {
+        OR: [
+          { email: { contains: query, mode: 'insensitive' } },
+          { profile: { phone: { contains: query, mode: 'insensitive' } } },
+        ],
+      },
+      include: {
+        profile: true,
+        personalityAssessment: true,
+      },
+      take: 10, // Limit to 10 results
+    });
+
+    // Transform results to remove password and include personality data
+    return users.map(({ password, profile, personalityAssessment, ...user }) => ({
+      id: user.id,
+      email: user.email,
+      fullName: profile?.firstName && profile?.lastName
+        ? `${profile.firstName} ${profile.lastName}`
+        : profile?.firstName || user.email.split('@')[0],
+      phone: profile?.phone || null,
+      age: profile?.age || null,
+      gender: profile?.gender || null,
+      city: profile?.city || null,
+      personality: personalityAssessment?.answers || null,
+      assessmentCompleted: profile?.assessmentCompleted || false,
+    }));
   }
 
   async migrateLegacyPersonalityData() {

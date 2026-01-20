@@ -69,6 +69,12 @@ export const bookingsApi = {
     return response.data;
   },
 
+  // Admin: Reject a booking payment
+  reject: async (id: string, reason?: string) => {
+    const response = await apiClient.patch(`/bookings/${id}/reject`, { reason });
+    return response.data;
+  },
+
   // Admin: Confirm all pending bookings for an event
   confirmEventBookings: async (eventId: string) => {
     const response = await apiClient.post(`/bookings/confirm-event/${eventId}`, {});

@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
-import { Mail, UserPlus, Send, DollarSign } from "lucide-react";
+import { Mail, UserPlus, Send, Banknote } from "lucide-react";
 import { toast } from "sonner";
 import { friendInvitationsApi } from "@/api";
 
@@ -14,9 +14,10 @@ interface BringFriendDialogProps {
   onClose: () => void;
   eventId: string;
   eventPrice: number;
+  bookingCutoffHours?: number;
 }
 
-export const BringFriendDialog = ({ isOpen, onClose, eventId, eventPrice }: BringFriendDialogProps) => {
+export const BringFriendDialog = ({ isOpen, onClose, eventId, eventPrice, bookingCutoffHours = 24 }: BringFriendDialogProps) => {
   const [activeTab, setActiveTab] = useState<string>("invite");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -99,7 +100,7 @@ export const BringFriendDialog = ({ isOpen, onClose, eventId, eventPrice }: Brin
             Bring a Friend
           </DialogTitle>
           <DialogDescription>
-            Invite a friend to join this event or book for them directly. This feature is available until the venue is revealed (48 hours before the event).
+            Invite a friend to join this event or book for them directly. This feature is available until the venue is revealed ({bookingCutoffHours} hours before the event).
           </DialogDescription>
         </DialogHeader>
 
@@ -110,7 +111,7 @@ export const BringFriendDialog = ({ isOpen, onClose, eventId, eventPrice }: Brin
               Send Invitation
             </TabsTrigger>
             <TabsTrigger value="book" className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4" />
+              <Banknote className="h-4 w-4" />
               Book & Pay
             </TabsTrigger>
           </TabsList>
@@ -170,10 +171,10 @@ export const BringFriendDialog = ({ isOpen, onClose, eventId, eventPrice }: Brin
                 <div className="space-y-4">
                   <div className="bg-amber-50 dark:bg-amber-950 p-4 rounded-lg mb-4">
                     <p className="text-sm text-amber-900 dark:text-amber-100 font-semibold mb-1">
-                      Total Cost: ${eventPrice * 2}
+                      Total Cost: {eventPrice * 2} Birr
                     </p>
                     <p className="text-sm text-amber-900 dark:text-amber-100">
-                      You'll be charged for both tickets (${eventPrice} × 2). Your friend will be added to the event.
+                      You'll be charged for both tickets ({eventPrice} × 2 Birr). Your friend will be added to the event.
                     </p>
                   </div>
 
@@ -217,8 +218,8 @@ export const BringFriendDialog = ({ isOpen, onClose, eventId, eventPrice }: Brin
                     className="w-full"
                     disabled={isLoading}
                   >
-                    <DollarSign className="h-4 w-4 mr-2" />
-                    {isLoading ? "Processing..." : `Book & Pay $${eventPrice * 2}`}
+                    <Banknote className="h-4 w-4 mr-2" />
+                    {isLoading ? "Processing..." : `Book & Pay ${eventPrice * 2} Birr`}
                   </Button>
                 </div>
               </CardContent>

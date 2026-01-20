@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, Download, Eye, Upload } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Pencil, Trash2, Download, Eye, Upload, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -17,6 +18,9 @@ interface IcebreakerQuestion {
   id: string;
   question: string;
   isActive: boolean;
+  isAIGenerated: boolean;
+  eventId?: string;
+  groupName?: string;
   createdAt: string;
 }
 
@@ -54,12 +58,14 @@ export default function AdminIcebreakers() {
   );
 
   const exportToCSV = () => {
-    const headers = ["Question", "Active", "Created At"];
+    const headers = ["Question", "Active", "AI Generated", "Group Name", "Created At"];
     const csvContent = [
       headers.join(","),
       ...filteredQuestions.map(q => [
         `"${q.question}"`,
         q.isActive ? "Yes" : "No",
+        q.isAIGenerated ? "Yes" : "No",
+        q.groupName ? `"${q.groupName}"` : "",
         new Date(q.createdAt).toLocaleDateString()
       ].join(","))
     ].join("\n");
@@ -187,7 +193,7 @@ export default function AdminIcebreakers() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">Manage Icebreaker Questions</h1>
-            <p className="text-muted-foreground">Manage icebreaker questions</p>
+            <p className="text-muted-foreground">Manage icebreaker questions including AI-generated conversation starters</p>
           </div>
           <div className="flex gap-2">
             <Button onClick={() => setIsGameOpen(true)} variant="outline">
@@ -303,6 +309,8 @@ export default function AdminIcebreakers() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Question</TableHead>
+                    <TableHead>Source</TableHead>
+                    <TableHead>Group</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Created</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -312,6 +320,21 @@ export default function AdminIcebreakers() {
                   {filteredQuestions.map((question) => (
                     <TableRow key={question.id}>
                       <TableCell className="font-medium">{question.question}</TableCell>
+                      <TableCell>
+                        {question.isAIGenerated ? (
+                          <Badge variant="secondary" className="flex items-center gap-1 w-fit">
+                            <Sparkles className="h-3 w-3" />
+                            AI Generated
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline">Manual</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {question.groupName && (
+                          <span className="text-sm text-muted-foreground">{question.groupName}</span>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <Button
                           variant={question.isActive ? "default" : "secondary"}

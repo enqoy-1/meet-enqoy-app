@@ -9,10 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar, ArrowLeft, Users, MapPin, Search, X } from "lucide-react";
+import { Calendar, ArrowLeft, Users, MapPin, Search, X, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { format, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
+import { AdminLayout } from "@/components/admin/AdminLayout";
 
 interface Event {
   id: string;
@@ -22,6 +23,10 @@ interface Event {
   venue?: {
     name: string;
   } | null;
+  bookings?: {
+    id: string;
+    status: string;
+  }[];
 }
 
 const AdminPairings = () => {
@@ -74,31 +79,49 @@ const AdminPairings = () => {
     });
   }, [events, searchQuery, typeFilter, startDate, endDate]);
 
+  // Separate upcoming and past events
+  const { upcomingEvents, pastEvents } = useMemo(() => {
+    const now = new Date();
+    const upcoming = filteredEvents
+      .filter(event => new Date(event.startTime) >= now)
+      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+
+    const past = filteredEvents
+      .filter(event => new Date(event.startTime) < now)
+      .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
+
+    return { upcomingEvents: upcoming, pastEvents: past };
+  }, [filteredEvents]);
+
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-pulse">Loading...</div>
-      </div>
+      <AdminLayout>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="animate-pulse">Loading...</div>
+        </div>
+      </AdminLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="bg-card border-b sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/admin")}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <div>
-              <h1 className="text-2xl font-bold">Event Pairings</h1>
-              <p className="text-sm text-muted-foreground">
-                Select an event to manage guest pairings
-              </p>
+    <AdminLayout>
+      <div className="min-h-screen bg-background">
+        <header className="bg-card border-b sticky top-0 z-10">
+          <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+            <div className="flex items-center gap-4">
+              <div>
+                <h1 className="text-2xl font-bold">Events</h1>
+                <p className="text-sm text-muted-foreground">
+                  Select an event to manage guest pairings
+                </p>
+              </div>
             </div>
+            <Button onClick={() => navigate("/admin/events")}>
+              <Plus className="h-4 w-4 mr-2" />
+              Create Events
+            </Button>
           </div>
-        </div>
-      </header>
+        </header>
 
       <main className="container mx-auto px-4 py-8">
         {events.length === 0 ? (
@@ -204,73 +227,170 @@ const AdminPairings = () => {
               )}
             </div>
 
-            <Card>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Event</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Venue</TableHead>
-                    <TableHead>Date & Time</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredEvents.length === 0 ? (
+            {/* Upcoming Events */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-xl font-semibold flex items-center gap-2">
+                  Upcoming Events
+                  <Badge variant="secondary">{upcomingEvents.length}</Badge>
+                </h2>
+              </div>
+              <Card>
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                        No events found matching your filters
-                      </TableCell>
+                      <TableHead>Event</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Venue</TableHead>
+                      <TableHead>Date & Time</TableHead>
+                      <TableHead className="text-center">Bookings</TableHead>
+                      <TableHead className="text-right">Action</TableHead>
                     </TableRow>
-                  ) : (
-                    filteredEvents.map((event) => (
-                      <TableRow
-                        key={event.id}
-                        className="cursor-pointer"
-                        onClick={() => navigate(`/admin/pairings/${event.id}`)}
-                      >
-                        <TableCell className="font-medium">{event.title}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{event.eventType}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          {event.venue ? (
-                            <div className="flex items-center gap-1.5">
-                              <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
-                              <span>{event.venue.name}</span>
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground">No venue</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1.5">
-                            <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span>{format(new Date(event.startTime), "PPP 'at' p")}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/admin/pairings/${event.id}`);
-                            }}
-                          >
-                            Manage Pairings
-                          </Button>
+                  </TableHeader>
+                  <TableBody>
+                    {upcomingEvents.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                          No upcoming events found
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </Card>
+                    ) : (
+                      upcomingEvents.map((event) => (
+                        <TableRow
+                          key={event.id}
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => navigate(`/admin/pairings/${event.id}`)}
+                        >
+                          <TableCell className="font-medium">{event.title}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{event.eventType}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            {event.venue ? (
+                              <div className="flex items-center gap-1.5">
+                                <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                                <span>{event.venue.name}</span>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">No venue</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1.5">
+                              <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                              <span>{format(new Date(event.startTime), "PPP 'at' p")}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant="secondary" className="font-semibold">
+                              <Users className="h-3 w-3 mr-1" />
+                              {event.bookings?.length || 0}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/admin/pairings/${event.id}`);
+                              }}
+                            >
+                              Manage Pairings
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </Card>
+            </div>
+
+            {/* Past Events */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-xl font-semibold flex items-center gap-2">
+                  Past Events
+                  <Badge variant="secondary">{pastEvents.length}</Badge>
+                </h2>
+              </div>
+              <Card>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Event</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Venue</TableHead>
+                      <TableHead>Date & Time</TableHead>
+                      <TableHead className="text-center">Bookings</TableHead>
+                      <TableHead className="text-right">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pastEvents.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                          No past events found
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      pastEvents.map((event) => (
+                        <TableRow
+                          key={event.id}
+                          className="cursor-pointer hover:bg-muted/50 opacity-75"
+                          onClick={() => navigate(`/admin/pairings/${event.id}`)}
+                        >
+                          <TableCell className="font-medium">{event.title}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{event.eventType}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            {event.venue ? (
+                              <div className="flex items-center gap-1.5">
+                                <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                                <span>{event.venue.name}</span>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">No venue</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1.5">
+                              <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                              <span>{format(new Date(event.startTime), "PPP 'at' p")}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant="secondary" className="font-semibold">
+                              <Users className="h-3 w-3 mr-1" />
+                              {event.bookings?.length || 0}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/admin/pairings/${event.id}`);
+                              }}
+                            >
+                              View Details
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </Card>
+            </div>
           </div>
         )}
       </main>
     </div>
+    </AdminLayout>
   );
 };
 

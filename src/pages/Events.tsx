@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, MapPin, ArrowLeft, DollarSign } from "lucide-react";
+import { Calendar, MapPin, ArrowLeft, Banknote } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { eventsApi } from "@/api";
@@ -103,13 +103,13 @@ const Events = () => {
                     <span>{event.startTime ? format(new Date(event.startTime), "PPP 'at' p") : 'Date TBA'}</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
-                    <DollarSign className="h-4 w-4 text-primary" />
-                    <span className="font-semibold">${event.price}</span>
+                    <Banknote className="h-4 w-4 text-primary" />
+                    <span className="font-semibold">{event.price} Birr</span>
                   </div>
                   {event.venue && (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <MapPin className="h-4 w-4" />
-                      <span>Location revealed 48h before</span>
+                      <span>Location revealed 24h before</span>
                     </div>
                   )}
                   <Button className="w-full mt-4">

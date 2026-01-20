@@ -72,6 +72,9 @@ export class AuthService {
               personalityAssessment: {
                 update: {
                   answers: enhancedPersonality,
+                  // Ensure legacy assessments are marked as completed
+                  isCompleted: true,
+                  completedAt: existingUser.personalityAssessment.completedAt || new Date(),
                 },
               },
             } : hasPersonality ? {
@@ -79,6 +82,7 @@ export class AuthService {
                 create: {
                   answers: enhancedPersonality,
                   completedAt: new Date(),
+                  isCompleted: true,
                 },
               },
             } : {}),
@@ -172,6 +176,7 @@ export class AuthService {
         create: {
           answers: enhancedPersonality,
           completedAt: new Date(),
+          isCompleted: true,
         },
       };
     }

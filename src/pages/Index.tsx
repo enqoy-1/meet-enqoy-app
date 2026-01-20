@@ -306,7 +306,7 @@ const Index = () => {
                       {format(new Date(event.startTime), "MMM d, h:mm a")}
                     </div>
                     <div className="flex items-center text-sm font-semibold text-primary">
-                      ${event.price}
+                      {event.price} Birr
                     </div>
                     <Button
                       size="sm"
@@ -499,7 +499,7 @@ const Index = () => {
                 What happens after I book an event?
               </AccordionTrigger>
               <AccordionContent className="text-base leading-relaxed text-muted-foreground">
-                You'll get an immediate confirmation. The location is revealed 48 hours before the event, and the attendee snapshot 24 hours before.
+                You'll get an immediate confirmation. The location is revealed 24 hours before the event, and the attendee snapshot 24 hours before.
               </AccordionContent>
             </AccordionItem>
 
@@ -508,7 +508,7 @@ const Index = () => {
                 What if I can't make it?
               </AccordionTrigger>
               <AccordionContent className="text-base leading-relaxed text-muted-foreground">
-                You can reschedule if you cancel at least 48 hours before the event.
+                You can reschedule if you cancel at least 24 hours before the event.
               </AccordionContent>
             </AccordionItem>
 

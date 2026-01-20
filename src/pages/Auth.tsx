@@ -180,7 +180,8 @@ const Auth = () => {
                   variant="outline"
                   className="w-full"
                   onClick={() => {
-                    window.location.href = 'http://localhost:3000/api/auth/google';
+                    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+                    window.location.href = `${apiUrl}/auth/google`;
                   }}
                 >
                   <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -256,7 +257,8 @@ const Auth = () => {
                   variant="outline"
                   className="w-full"
                   onClick={() => {
-                    window.location.href = 'http://localhost:3000/api/auth/google';
+                    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+                    window.location.href = `${apiUrl}/auth/google`;
                   }}
                 >
                   <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">

@@ -26,7 +26,10 @@ const Assessment = () => {
   const [searchParams] = useSearchParams();
   const isRetake = searchParams.get("retake") === "true";
   const [loading, setLoading] = useState(false);
+  const [loadingSavedProgress, setLoadingSavedProgress] = useState(true);
+  const [hasSavedProgress, setHasSavedProgress] = useState(false);
   const [step, setStep] = useState(1);
+  const [autoSaving, setAutoSaving] = useState(false);
 
   // Form state
   const [countryCode, setCountryCode] = useState("+251");
@@ -260,6 +263,7 @@ const Assessment = () => {
 
   useEffect(() => {
     checkAuth();
+    loadSavedProgress();
 
     // Add beforeunload event listener to warn about leaving during assessment
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -276,6 +280,25 @@ const Assessment = () => {
     };
   }, [showUnderageMessage, showOutsideCityMessage]);
 
+  // Auto-save progress whenever form values change
+  useEffect(() => {
+    // Don't auto-save until we've loaded initial data
+    if (loadingSavedProgress) return;
+
+    // Debounce auto-save to avoid too many API calls
+    const timeoutId = setTimeout(() => {
+      autoSaveProgress();
+    }, 2000); // Wait 2 seconds after last change before saving
+
+    return () => clearTimeout(timeoutId);
+  }, [
+    phone, phoneVerify, city, specifiedCity, preferredTime, dinnerVibe, talkTopic,
+    groupDynamic, humorType, wardrobeStyle, introvertScale, aloneTimeScale,
+    familyScale, spiritualityScale, humorScale, meetingPriority, dietaryPreferences,
+    customDietary, restaurantFrequency, spending, gender, relationshipStatus,
+    hasChildren, country, birthday, nickName, neverGuess, funFact, loadingSavedProgress
+  ]);
+
   const checkAuth = async () => {
     if (!user) {
       navigate("/auth");
@@ -284,6 +307,105 @@ const Assessment = () => {
 
     if (user.profile?.assessmentCompleted && !isRetake) {
       navigate("/dashboard");
+    }
+  };
+
+  const loadSavedProgress = async () => {
+    try {
+      const savedAssessment = await assessmentsApi.getMy();
+      if (savedAssessment && savedAssessment.answers) {
+        const answers = savedAssessment.answers;
+
+        // Restore all form fields from saved progress
+        if (answers.phone) {
+          const phoneMatch = answers.phone.match(/^(\+\d+)(.+)$/);
+          if (phoneMatch) {
+            setCountryCode(phoneMatch[1]);
+            setPhone(phoneMatch[2]);
+            setPhoneVerify(phoneMatch[2]);
+          }
+        }
+        if (answers.city) setCity(answers.city);
+        if (answers.specifiedCity) setSpecifiedCity(answers.specifiedCity);
+        if (answers.preferredTime) setPreferredTime(answers.preferredTime);
+        if (answers.dinnerVibe) setDinnerVibe(answers.dinnerVibe);
+        if (answers.talkTopic) setTalkTopic(answers.talkTopic);
+        if (answers.groupDynamic) setGroupDynamic(answers.groupDynamic);
+        if (answers.humorType) setHumorType(answers.humorType);
+        if (answers.wardrobeStyle) setWardrobeStyle(answers.wardrobeStyle);
+        if (answers.introvertScale !== undefined) setIntrovertScale(answers.introvertScale);
+        if (answers.aloneTimeScale !== undefined) setAloneTimeScale(answers.aloneTimeScale);
+        if (answers.familyScale !== undefined) setFamilyScale(answers.familyScale);
+        if (answers.spiritualityScale !== undefined) setSpiritualityScale(answers.spiritualityScale);
+        if (answers.humorScale !== undefined) setHumorScale(answers.humorScale);
+        if (answers.meetingPriority) setMeetingPriority(answers.meetingPriority);
+        if (answers.dietaryPreferences) setDietaryPreferences(answers.dietaryPreferences);
+        if (answers.customDietary) setCustomDietary(answers.customDietary);
+        if (answers.restaurantFrequency) setRestaurantFrequency(answers.restaurantFrequency);
+        if (answers.spending) setSpending(answers.spending);
+        if (answers.gender) setGender(answers.gender);
+        if (answers.relationshipStatus) setRelationshipStatus(answers.relationshipStatus);
+        if (answers.hasChildren) setHasChildren(answers.hasChildren);
+        if (answers.country) setCountry(answers.country);
+        if (answers.birthday) setBirthday(new Date(answers.birthday));
+        if (answers.nickName) setNickName(answers.nickName);
+        if (answers.neverGuess) setNeverGuess(answers.neverGuess);
+        if (answers.funFact) setFunFact(answers.funFact);
+
+        // Show message that user can continue from where they left off
+        if (!savedAssessment.isCompleted) {
+          setHasSavedProgress(true);
+          toast.success("Resuming where you left off!", { duration: 5000 });
+        }
+      }
+    } catch (error) {
+      console.log("No saved progress found");
+    } finally {
+      setLoadingSavedProgress(false);
+    }
+  };
+
+  const autoSaveProgress = async () => {
+    if (!user || autoSaving) return;
+
+    try {
+      setAutoSaving(true);
+      const answers = {
+        phone: phone ? `${countryCode}${phone}` : undefined,
+        city,
+        specifiedCity,
+        preferredTime,
+        dinnerVibe,
+        talkTopic,
+        groupDynamic,
+        humorType,
+        wardrobeStyle,
+        introvertScale,
+        aloneTimeScale,
+        familyScale,
+        spiritualityScale,
+        humorScale,
+        meetingPriority,
+        dietaryPreferences,
+        customDietary,
+        restaurantFrequency,
+        spending,
+        gender,
+        relationshipStatus,
+        hasChildren,
+        country,
+        birthday: birthday?.toISOString(),
+        nickName,
+        neverGuess,
+        funFact,
+      };
+
+      await assessmentsApi.saveProgress(answers);
+      console.log("Progress saved automatically");
+    } catch (error) {
+      console.error("Error auto-saving progress:", error);
+    } finally {
+      setAutoSaving(false);
     }
   };
 
@@ -387,6 +509,7 @@ const Assessment = () => {
       const answers = {
         phone: `${countryCode}${phone}`,
         city,
+        specifiedCity,
         preferredTime,
         dinnerVibe,
         talkTopic,
@@ -1123,10 +1246,34 @@ const Assessment = () => {
       ) : (
         <Card className="w-full max-w-2xl">
           <CardHeader>
-            <CardTitle>Assessment</CardTitle>
-            <CardDescription>
-              Question {step} of {TOTAL_STEPS}
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <CardTitle>Assessment</CardTitle>
+                <CardDescription>
+                  Question {step} of {TOTAL_STEPS}
+                </CardDescription>
+              </div>
+              {!loadingSavedProgress && (
+                <div className="flex items-center gap-2 text-sm">
+                  {autoSaving ? (
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Saving...
+                    </span>
+                  ) : hasSavedProgress || (phone || city || preferredTime) ? (
+                    <span className="text-green-600 dark:text-green-400 flex items-center gap-1">
+                      <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                      Saved
+                    </span>
+                  ) : null}
+                </div>
+              )}
+            </div>
             <Progress value={(step / TOTAL_STEPS) * 100} className="mt-2" />
           </CardHeader>
           <CardContent className="space-y-6">

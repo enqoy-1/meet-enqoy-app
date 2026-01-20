@@ -26,13 +26,42 @@ export class AssessmentsService implements OnModuleInit {
     });
   }
 
-  // Submit assessment
-  async submitAssessment(userId: string, answers: any) {
-    // Upsert assessment
+  // Save assessment progress (auto-save without marking as completed)
+  async saveProgress(userId: string, answers: any) {
+    // Upsert assessment without marking as completed
     const assessment = await this.prisma.personalityAssessment.upsert({
       where: { userId },
-      update: { answers },
-      create: { userId, answers },
+      update: {
+        answers,
+        // Don't update isCompleted or completedAt on auto-save
+      },
+      create: {
+        userId,
+        answers,
+        isCompleted: false,
+        completedAt: null,
+      },
+    });
+
+    return assessment;
+  }
+
+  // Submit assessment (final submission)
+  async submitAssessment(userId: string, answers: any) {
+    // Upsert assessment and mark as completed
+    const assessment = await this.prisma.personalityAssessment.upsert({
+      where: { userId },
+      update: {
+        answers,
+        isCompleted: true,
+        completedAt: new Date(),
+      },
+      create: {
+        userId,
+        answers,
+        isCompleted: true,
+        completedAt: new Date(),
+      },
     });
 
     // Mark profile as assessment completed
@@ -114,17 +143,63 @@ export class AssessmentsService implements OnModuleInit {
 
   // Admin: Get all responses
   async getAllResponses() {
-    return this.prisma.personalityAssessment.findMany({
+    const assessments = await this.prisma.personalityAssessment.findMany({
+      // Include ALL assessments that have answers (not just completed ones)
+      // This ensures legacy imported users are included
+      where: {
+        OR: [
+          { isCompleted: true },
+          { completedAt: { not: null } },
+          // Include any assessment with non-empty answers (legacy data)
+          {
+            answers: {
+              not: {}
+            }
+          },
+        ],
+      },
       include: {
         user: {
           select: {
             id: true,
             email: true,
-            profile: true,
+            profile: {
+              select: {
+                firstName: true,
+                lastName: true,
+                phone: true,
+                age: true,
+                gender: true,
+                city: true,
+                relationshipStatus: true,
+                hasChildren: true,
+              },
+            },
           },
         },
       },
     });
+
+    // Transform to match frontend expected structure
+    return assessments.map((assessment) => ({
+      id: assessment.id,
+      user_id: assessment.userId,
+      answers: assessment.answers,
+      created_at: assessment.completedAt || assessment.createdAt,
+      isCompleted: assessment.isCompleted,
+      profiles: {
+        full_name: assessment.user.profile
+          ? `${assessment.user.profile.firstName} ${assessment.user.profile.lastName}`
+          : 'N/A',
+        email: assessment.user.email,
+        phone: assessment.user.profile?.phone || (assessment.answers as any)?.phone,
+        age: assessment.user.profile?.age,
+        gender: assessment.user.profile?.gender,
+        city: assessment.user.profile?.city,
+        relationshipStatus: assessment.user.profile?.relationshipStatus,
+        hasChildren: assessment.user.profile?.hasChildren,
+      },
+    }));
   }
 
   // Initial Seeder to migrate hardcoded questions to DB

@@ -34,7 +34,7 @@ interface Booking {
     };
     event: {
         title: string;
-        startDate: string;
+        startTime: string;
         eventType: string;
     };
     status: 'confirmed' | 'pending' | 'cancelled';
@@ -142,13 +142,16 @@ const AdminBookings = () => {
                 await bookingsApi.confirm(booking.id);
                 toast.success("Payment verified and booking confirmed");
             } else {
-                toast.error("Rejection not implemented yet");
+                const reason = rejectReason.trim() || "Payment verification failed";
+                await bookingsApi.reject(booking.id, reason);
+                toast.success("Payment rejected and booking cancelled");
             }
 
             setIsPaymentModalOpen(false);
+            setRejectReason("");
             fetchBookings();
-        } catch (error) {
-            toast.error("Failed to update payment status");
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || "Failed to update payment status");
         } finally {
             setIsProcessing(false);
         }
@@ -162,7 +165,7 @@ const AdminBookings = () => {
             `${b.user.profile?.firstName} ${b.user.profile?.lastName}`,
             b.user.email,
             b.event.title,
-            format(new Date(b.event.startDate), "yyyy-MM-dd"),
+            format(new Date(b.event.startTime), "yyyy-MM-dd"),
             b.status,
             b.payment ? `${b.payment.paymentMethod} (${b.payment.status})` : "None",
             b.payment?.amount || "0",
@@ -368,8 +371,8 @@ const AdminBookings = () => {
                                                         <span className="text-sm font-medium">{booking.event.title}</span>
                                                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                                             <span>
-                                                                {booking.event.startDate
-                                                                    ? format(new Date(booking.event.startDate), "MMM d, HH:mm")
+                                                                {booking.event.startTime
+                                                                    ? format(new Date(booking.event.startTime), "MMM d, HH:mm")
                                                                     : "No date"
                                                                 }
                                                             </span>
@@ -513,6 +516,21 @@ const AdminBookings = () => {
                                         </div>
                                     )}
                                 </div>
+
+                                {/* Rejection Reason Input */}
+                                {selectedBooking?.status !== 'confirmed' && (
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-muted-foreground">
+                                            Rejection Reason (optional)
+                                        </label>
+                                        <Input
+                                            placeholder="Enter reason for rejection..."
+                                            value={rejectReason}
+                                            onChange={(e) => setRejectReason(e.target.value)}
+                                            className="text-sm"
+                                        />
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -525,6 +543,7 @@ const AdminBookings = () => {
                                         onClick={() => handleVerifyPayment(selectedBooking!, false)}
                                         disabled={isProcessing}
                                     >
+                                        {isProcessing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
                                         Reject
                                     </Button>
                                     <Button

@@ -85,6 +85,10 @@ const Dashboard = () => {
     buttonLink: "/events",
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [pairingUpdates, setPairingUpdates] = useState<{
+    hasPairingUpdates: boolean;
+    eventsWithUpdates: Array<{ eventId: string; eventTitle: string; eventStartTime: string }>;
+  }>({ hasPairingUpdates: false, eventsWithUpdates: [] });
 
   // Auto-cycle announcements
   useEffect(() => {
@@ -149,6 +153,14 @@ const Dashboard = () => {
         setWelcomeBanner(bannerData);
       } catch (e) {
         // Use defaults if settings not found
+      }
+
+      // Check for pairing updates
+      try {
+        const pairingData = await pairingApi.hasPairingUpdates();
+        setPairingUpdates(pairingData);
+      } catch (e) {
+        // No pairing updates or error
       }
     } catch (error: any) {
       toast.error("Failed to load dashboard");
@@ -269,6 +281,41 @@ const Dashboard = () => {
           </Card>
         )}
 
+        {/* Pairing Update Banner - Shows when group pairings have changed */}
+        {pairingUpdates.hasPairingUpdates && pairingUpdates.eventsWithUpdates.length > 0 && (
+          <Card className="border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800">
+            <CardContent className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 py-4">
+              <div className="flex items-center gap-3">
+                <Users className="h-5 w-5 text-amber-600 flex-shrink-0" />
+                <div>
+                  <p className="font-medium text-amber-800 dark:text-amber-200">
+                    Your Group Pairing is Ready!
+                  </p>
+                  <p className="text-sm text-amber-600 dark:text-amber-400">
+                    {pairingUpdates.eventsWithUpdates.length === 1
+                      ? `Check your restaurant assignment for ${pairingUpdates.eventsWithUpdates[0].eventTitle}`
+                      : `You have new pairings for ${pairingUpdates.eventsWithUpdates.length} events`}
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                className="border-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 flex-shrink-0"
+                onClick={() => {
+                  if (pairingUpdates.eventsWithUpdates.length === 1) {
+                    navigate(`/events/${pairingUpdates.eventsWithUpdates[0].eventId}`);
+                  } else {
+                    // Scroll to "My upcoming events" section
+                    window.scrollTo({ top: 600, behavior: 'smooth' });
+                  }
+                }}
+              >
+                View Details
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Hero Banner - Shows announcements or fallback welcome message */}
         <section className="relative rounded-xl overflow-hidden shadow-elevated">
           <div
@@ -362,7 +409,7 @@ const Dashboard = () => {
                             )}
                             <div className="flex items-center justify-between mt-4">
                               <span className="text-lg font-semibold text-primary">
-                                ${event.price}
+                                {event.price} Birr
                               </span>
                               <Button size="sm" variant="secondary">
                                 View Details
@@ -403,7 +450,7 @@ const Dashboard = () => {
                         )}
                         <div className="flex items-center justify-between mt-4">
                           <span className="text-lg font-semibold text-primary">
-                            ${event.price}
+                            {event.price} Birr
                           </span>
                           <Button size="sm" variant="secondary">
                             View Details

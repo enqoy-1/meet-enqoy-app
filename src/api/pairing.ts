@@ -165,5 +165,50 @@ export const pairingApi = {
     const response = await apiClient.get(`/user-pairing/events/${eventId}/my-assignment`);
     return response.data;
   },
+
+  // Publish/unpublish pairing
+  publishPairing: async (eventId: string) => {
+    const response = await apiClient.post(`/pairing/events/${eventId}/publish-pairing`);
+    return response.data;
+  },
+
+  unpublishPairing: async (eventId: string) => {
+    const response = await apiClient.post(`/pairing/events/${eventId}/unpublish-pairing`);
+    return response.data;
+  },
+
+  updatePairing: async (eventId: string, changedAssignments?: { guestId: string; oldRestaurantId: string; newRestaurantId: string }[]) => {
+    const response = await apiClient.post(`/pairing/events/${eventId}/update-pairing`, { changedAssignments });
+    return response.data;
+  },
+
+  getPairingStatus: async (eventId: string) => {
+    const response = await apiClient.get(`/pairing/events/${eventId}/pairing-status`);
+    return response.data;
+  },
+
+  // Clear all assignments for an event
+  clearAllAssignments: async (eventId: string) => {
+    const response = await apiClient.delete(`/pairing/events/${eventId}/clear-assignments`);
+    return response.data;
+  },
+
+  // Check if user has pairing updates
+  hasPairingUpdates: async () => {
+    const response = await apiClient.get('/user-pairing/has-pairing-updates');
+    return response.data;
+  },
+
+  // Mark pairing notification as seen
+  markNotificationSeen: async (eventId: string) => {
+    const response = await apiClient.post(`/user-pairing/events/${eventId}/mark-notification-seen`);
+    return response.data;
+  },
+
+  // Get users who haven't booked this event
+  getNonAttendees: async (eventId: string) => {
+    const response = await apiClient.get(`/pairing/events/${eventId}/non-attendees`);
+    return response.data;
+  },
 };
 

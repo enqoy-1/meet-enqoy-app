@@ -63,6 +63,8 @@ model Booking {
   assessmentOptional Boolean       @default(false)
   paidByInviter      Boolean       @default(false)
   usedCredit         Boolean       @default(false)
+  purchasedTwoEvents Boolean       @default(false)
+  creditGranted      Boolean       @default(false)
   event              Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
   invitedBy          User?         @relation("bookings_invitedByIdTousers", fields: [invitedById], references: [id])
   user               User          @relation("bookings_userIdTousers", fields: [userId], references: [id], onDelete: Cascade)
@@ -81,9 +83,10 @@ model Event {
   endTime                DateTime?
   price                  String
   capacity               Int?
-  bookingCutoffHours     Int?                 @default(48)
+  bookingCutoffHours     Int?                 @default(24)
   isVisible              Boolean              @default(true)
   isSandbox              Boolean              @default(false)
+  pairingPublished       Boolean              @default(false)
   venueId                String?
   twoEventsDiscountType  String?
   twoEventsDiscountValue String?
@@ -130,11 +133,14 @@ model FriendInvitation {
 }
 
 model IcebreakerQuestion {
-  id        String   @id @default(cuid())
-  question  String
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(cuid())
+  question      String
+  isActive      Boolean  @default(true)
+  isAIGenerated Boolean  @default(false)
+  eventId       String?
+  groupName     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@map("icebreaker_questions")
 }
@@ -210,6 +216,7 @@ model PairingGuest {
   updatedAt              DateTime            @updatedAt
   personality            Json?
   userId                 String?
+  pairingNotificationSent Boolean            @default(false)
   assignments            PairingAssignment[]
   constraintsAsGuest1    PairingConstraint[] @relation("pairing_constraints_guest1IdTopairing_guests")
   constraintsAsGuest2    PairingConstraint[] @relation("pairing_constraints_guest2IdTopairing_guests")
@@ -237,17 +244,18 @@ model PairingPair {
 }
 
 model PairingRestaurant {
-  id          String              @id @default(cuid())
-  eventId     String
-  name        String
-  address     String?
-  capacity    Int?
-  contactInfo String?
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
-  event       Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  tables      PairingTable[]
-  assignments PairingAssignment[]
+  id            String              @id @default(cuid())
+  eventId       String
+  name          String
+  address       String?
+  googleMapsUrl String?
+  capacity      Int?
+  contactInfo   String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  event         Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  tables        PairingTable[]
+  assignments   PairingAssignment[]
 
   @@map("pairing_restaurants")
 }
@@ -270,7 +278,9 @@ model PersonalityAssessment {
   id          String   @id @default(cuid())
   userId      String   @unique
   answers     Json
-  completedAt DateTime @default(now())
+  isCompleted Boolean  @default(false)
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 

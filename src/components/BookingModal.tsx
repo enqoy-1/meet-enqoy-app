@@ -25,6 +25,7 @@ interface BookingModalProps {
         title: string;
         price: number;
         startTime: string;
+        bookingCutoffHours?: number;
     };
     onSuccess: (booking?: any) => void;
     userCredits?: number;
@@ -40,12 +41,13 @@ export const BookingModal = ({
     const { user } = useAuth();
     const [isLoading, setIsLoading] = useState(false);
 
-    // Check if event is within 48 hours
-    const isWithin48Hours = () => {
+    // Check if event is within cutoff hours (default 24)
+    const cutoffHours = event.bookingCutoffHours ?? 24;
+    const isWithinCutoff = () => {
         const now = new Date();
         const eventStartTime = new Date(event.startTime);
         const hoursUntilEvent = (eventStartTime.getTime() - now.getTime()) / (1000 * 60 * 60);
-        return hoursUntilEvent < 48;
+        return hoursUntilEvent < cutoffHours;
     };
 
     // Booking options
@@ -76,10 +78,27 @@ export const BookingModal = ({
     const calculateTotal = () => {
         if (useCredit) return 0;
 
-        let total = eventCount === "two" ? 800 : Number(event.price);
+        const basePrice = Number(event.price);
+        let total = basePrice;
+
+        if (eventCount === "two") {
+            // Calculate total for two events with discount
+            const twoEventsTotal = basePrice * 2;
+
+            if (event.twoEventsDiscountType === 'percentage' && event.twoEventsDiscountValue) {
+                const discountPercent = Number(event.twoEventsDiscountValue);
+                const discount = (twoEventsTotal * discountPercent) / 100;
+                total = twoEventsTotal - discount;
+            } else if (event.twoEventsDiscountType === 'fixed' && event.twoEventsDiscountValue) {
+                const discountAmount = Number(event.twoEventsDiscountValue);
+                total = twoEventsTotal - discountAmount;
+            } else {
+                total = twoEventsTotal;
+            }
+        }
 
         if (bringFriend && payForFriend) {
-            total += 400;
+            total += basePrice;
         }
 
         return total;
@@ -132,6 +151,28 @@ export const BookingModal = ({
 
     const total = calculateTotal();
 
+    // Calculate two events price and savings
+    const getTwoEventsPrice = () => {
+        const basePrice = Number(event.price);
+        const twoEventsTotal = basePrice * 2;
+
+        if (event.twoEventsDiscountType === 'percentage' && event.twoEventsDiscountValue) {
+            const discountPercent = Number(event.twoEventsDiscountValue);
+            const discount = (twoEventsTotal * discountPercent) / 100;
+            return twoEventsTotal - discount;
+        } else if (event.twoEventsDiscountType === 'fixed' && event.twoEventsDiscountValue) {
+            const discountAmount = Number(event.twoEventsDiscountValue);
+            return twoEventsTotal - discountAmount;
+        }
+        return twoEventsTotal;
+    };
+
+    const getTwoEventsSavings = () => {
+        const basePrice = Number(event.price);
+        const twoEventsTotal = basePrice * 2;
+        return twoEventsTotal - getTwoEventsPrice();
+    };
+
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="sm:max-w-md">
@@ -146,20 +187,20 @@ export const BookingModal = ({
                 </DialogHeader>
 
                 <div className="space-y-6 py-4">
-                    {/* 48-Hour Warning */}
-                    {isWithin48Hours() && (
+                    {/* Cutoff Warning */}
+                    {isWithinCutoff() && (
                         <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
                             <p className="text-red-800 dark:text-red-200 font-medium text-sm">
                                 ⚠️ Booking Closed
                             </p>
                             <p className="text-red-600 dark:text-red-400 text-xs mt-1">
-                                This event is less than 48 hours away. Bookings are no longer available.
+                                This event is less than {cutoffHours} hours away. Bookings are no longer available.
                             </p>
                         </div>
                     )}
 
                     {/* Use Credit Option */}
-                    {!isWithin48Hours() && userCredits > 0 && (
+                    {!isWithinCutoff() && userCredits > 0 && (
                         <>
                             <div className="flex items-center space-x-3 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
                                 <Checkbox
@@ -187,7 +228,7 @@ export const BookingModal = ({
                     )}
 
                     {/* Event Count Selection */}
-                    {!isWithin48Hours() && !useCredit && (
+                    {!isWithinCutoff() && !useCredit && (
                         <>
                             <div className="space-y-3">
                                 <Label className="text-base font-medium">How many events?</Label>
@@ -211,9 +252,11 @@ export const BookingModal = ({
                                             <div className="flex justify-between">
                                                 <div>
                                                     <span>Two events</span>
-                                                    <span className="text-xs text-green-600 ml-2">(Save 200!)</span>
+                                                    {getTwoEventsSavings() > 0 && (
+                                                        <span className="text-xs text-green-600 ml-2">(Save {getTwoEventsSavings()} Birr!)</span>
+                                                    )}
                                                 </div>
-                                                <span className="font-semibold">800 ETB</span>
+                                                <span className="font-semibold">{getTwoEventsPrice()} ETB</span>
                                             </div>
                                             <p className="text-xs text-muted-foreground mt-1">
                                                 Get 1 credit to use on any future event
@@ -227,7 +270,7 @@ export const BookingModal = ({
                     )}
 
                     {/* Bring a Friend */}
-                    {!isWithin48Hours() && (
+                    {!isWithinCutoff() && (
                     <div className="space-y-4">
                         <div className="flex items-center space-x-3">
                             <Checkbox
@@ -284,7 +327,7 @@ export const BookingModal = ({
                                         <Label htmlFor="pay" className="flex-1 cursor-pointer">
                                             <div className="flex justify-between">
                                                 <span>I'll pay for my friend</span>
-                                                <span className="font-semibold">+400 ETB</span>
+                                                <span className="font-semibold">+{event.price} ETB</span>
                                             </div>
                                             <p className="text-xs text-muted-foreground">
                                                 Friend gets an "Already Paid" invitation
@@ -306,10 +349,10 @@ export const BookingModal = ({
                     </div>
                     )}
 
-                    {!isWithin48Hours() && <Separator />}
+                    {!isWithinCutoff() && <Separator />}
 
                     {/* Total */}
-                    {!isWithin48Hours() && (
+                    {!isWithinCutoff() && (
                     <div className="flex justify-between items-center text-lg">
                         <span className="font-medium">Total:</span>
                         <span className="font-bold text-primary">
@@ -328,9 +371,9 @@ export const BookingModal = ({
                     {/* Action Buttons */}
                     <div className="flex gap-3">
                         <Button variant="outline" onClick={onClose} className="flex-1">
-                            {isWithin48Hours() ? "Close" : "Cancel"}
+                            {isWithinCutoff() ? "Close" : "Cancel"}
                         </Button>
-                        {!isWithin48Hours() && (
+                        {!isWithinCutoff() && (
                         <Button
                             onClick={handleSubmit}
                             disabled={isLoading}
@@ -341,7 +384,7 @@ export const BookingModal = ({
                         )}
                     </div>
 
-                    {!isWithin48Hours() && (
+                    {!isWithinCutoff() && (
                     <p className="text-xs text-center text-muted-foreground">
                         Payment details will be shown on the next step
                     </p>

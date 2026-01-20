@@ -22,7 +22,7 @@ export default function FAQ() {
     },
     {
       question: "Can I cancel my booking?",
-      answer: "Yes, cancellations are typically allowed up to 48 hours before the event for a full or partial refund, depending on the event's specific policy. Check the event details or your booking confirmation for the exact cancellation terms."
+      answer: "Yes, cancellations are typically allowed up to 24 hours before the event for a full or partial refund, depending on the event's specific policy. Check the event details or your booking confirmation for the exact cancellation terms."
     },
     {
       question: "What should I expect at an event?",

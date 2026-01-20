@@ -1,5 +1,5 @@
-import { useState, useRef } from "react";
-import { pairingApi } from "@/api";
+import { useState, useRef, useEffect } from "react";
+import { pairingApi, usersApi } from "@/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,6 +45,11 @@ interface Guest {
   dietaryNotes: string | null;
   gender: string | null;
   age: number | null;
+  user?: {
+    profile?: {
+      phone?: string | null;
+    };
+  } | null;
 }
 
 interface GuestManagementProps {
@@ -73,6 +78,88 @@ export const GuestManagement = ({ eventId, guests, onRefresh }: GuestManagementP
   const [csvData, setCsvData] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const csvFileInputRef = useRef<HTMLInputElement>(null);
+
+  // User search states
+  const [userSearchQuery, setUserSearchQuery] = useState("");
+  const [userSearchResults, setUserSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+
+  // Search for users when search query changes
+  useEffect(() => {
+    const searchUsers = async () => {
+      if (userSearchQuery.trim().length < 2) {
+        setUserSearchResults([]);
+        setShowUserDropdown(false);
+        return;
+      }
+
+      setIsSearching(true);
+      try {
+        const results = await usersApi.search(userSearchQuery);
+        setUserSearchResults(results);
+        setShowUserDropdown(true);
+      } catch (error) {
+        console.error("Failed to search users:", error);
+        setUserSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    const debounce = setTimeout(searchUsers, 300);
+    return () => clearTimeout(debounce);
+  }, [userSearchQuery]);
+
+  // Handle user selection from search results
+  const handleSelectUser = (user: any) => {
+    setSelectedUser(user);
+    setShowUserDropdown(false);
+    setUserSearchQuery("");
+
+    // Auto-populate form with user data
+    const nameParts = user.fullName.split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+
+    setNewGuest({
+      first_name: firstName,
+      last_name: lastName,
+      phone: user.phone || "",
+      email: user.email || "",
+      gender: user.gender || "",
+      age_range: user.age ? String(user.age) : "",
+      tags: "",
+      dietary_notes: "",
+      friend_group: "",
+    });
+
+    toast.success(`Selected ${user.fullName} - form auto-filled`);
+  };
+
+  // Reset search when dialog closes
+  const handleDialogClose = (open: boolean) => {
+    setIsAddDialogOpen(open);
+    if (!open) {
+      setUserSearchQuery("");
+      setUserSearchResults([]);
+      setShowUserDropdown(false);
+      setSelectedUser(null);
+      setValidationErrors({});
+      setNewGuest({
+        first_name: "",
+        last_name: "",
+        phone: "",
+        email: "",
+        tags: "",
+        dietary_notes: "",
+        gender: "",
+        age_range: "",
+        friend_group: "",
+      });
+    }
+  };
 
   // Handle CSV file upload
   const handleCSVFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -313,7 +400,7 @@ export const GuestManagement = ({ eventId, guests, onRefresh }: GuestManagementP
       const fullName = `${newGuest.first_name.trim()} ${newGuest.last_name.trim()}`;
       const tags = newGuest.tags ? newGuest.tags.split(",").map(t => t.trim()).filter(Boolean) : [];
 
-      await pairingApi.createGuest({
+      const guestData: any = {
         eventId: eventId,
         name: fullName,
         email: newGuest.email.trim() || undefined,
@@ -321,22 +408,23 @@ export const GuestManagement = ({ eventId, guests, onRefresh }: GuestManagementP
         tags: tags,
         dietaryNotes: newGuest.dietary_notes.trim() || undefined,
         age: newGuest.age_range ? parseInt(newGuest.age_range) : undefined,
-      });
+      };
 
-      toast.success("Guest added successfully");
-      setIsAddDialogOpen(false);
-      setValidationErrors({});
-      setNewGuest({
-        first_name: "",
-        last_name: "",
-        phone: "",
-        email: "",
-        tags: "",
-        dietary_notes: "",
-        gender: "",
-        age_range: "",
-        friend_group: "",
-      });
+      // If user was selected from search, link the guest to that user and include personality data
+      if (selectedUser) {
+        guestData.userId = selectedUser.id;
+        if (selectedUser.personality) {
+          guestData.personality = selectedUser.personality;
+        }
+      }
+
+      await pairingApi.createGuest(guestData);
+
+      toast.success(selectedUser
+        ? `Guest added and linked to ${selectedUser.fullName}`
+        : "Guest added successfully");
+
+      handleDialogClose(false);
       onRefresh();
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Failed to add guest");
@@ -414,7 +502,8 @@ export const GuestManagement = ({ eventId, guests, onRefresh }: GuestManagementP
   const filteredGuests = guests.filter(guest => {
     const matchesSearch = searchQuery === "" ||
       guest.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      guest.email?.toLowerCase().includes(searchQuery.toLowerCase());
+      guest.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      guest.user?.profile?.phone?.includes(searchQuery);
 
     const matchesTag = filterTag === "all" || guest.tags.includes(filterTag);
 
@@ -568,12 +657,107 @@ export const GuestManagement = ({ eventId, guests, onRefresh }: GuestManagementP
       )}
 
       {/* Add Guest Dialog */}
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+      <Dialog open={isAddDialogOpen} onOpenChange={handleDialogClose}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add New Guest</DialogTitle>
-            <DialogDescription>Enter guest information</DialogDescription>
+            <DialogDescription>
+              {selectedUser
+                ? `Adding guest from user: ${selectedUser.fullName}`
+                : "Search for an existing user or enter guest information manually"}
+            </DialogDescription>
           </DialogHeader>
+
+          {/* User Search Field */}
+          <div className="space-y-2 mb-4 border-b pb-4">
+            <Label htmlFor="userSearch">Search for Existing User (by email or phone)</Label>
+            <div className="relative">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="userSearch"
+                  value={userSearchQuery}
+                  onChange={(e) => setUserSearchQuery(e.target.value)}
+                  placeholder="Type email or phone number..."
+                  className="pl-10"
+                  disabled={!!selectedUser}
+                />
+              </div>
+              {isSearching && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full"></div>
+                </div>
+              )}
+
+              {/* Selected User Badge */}
+              {selectedUser && (
+                <div className="mt-2 flex items-center gap-2">
+                  <Badge variant="secondary" className="flex items-center gap-2">
+                    <Users className="h-3 w-3" />
+                    {selectedUser.fullName} ({selectedUser.email})
+                    {selectedUser.assessmentCompleted && (
+                      <span className="text-xs text-green-600">✓ Assessment</span>
+                    )}
+                  </Badge>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedUser(null);
+                      setNewGuest({
+                        first_name: "",
+                        last_name: "",
+                        phone: "",
+                        email: "",
+                        tags: "",
+                        dietary_notes: "",
+                        gender: "",
+                        age_range: "",
+                        friend_group: "",
+                      });
+                    }}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+
+              {/* Search Results Dropdown */}
+              {showUserDropdown && userSearchResults.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
+                  {userSearchResults.map((user) => (
+                    <div
+                      key={user.id}
+                      className="p-3 hover:bg-muted cursor-pointer border-b last:border-0"
+                      onClick={() => handleSelectUser(user)}
+                    >
+                      <div className="font-medium">{user.fullName}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {user.email}
+                        {user.phone && ` • ${user.phone}`}
+                      </div>
+                      <div className="flex gap-2 mt-1">
+                        {user.age && <Badge variant="outline" className="text-xs">{user.age}y</Badge>}
+                        {user.gender && <Badge variant="outline" className="text-xs capitalize">{user.gender}</Badge>}
+                        {user.assessmentCompleted && (
+                          <Badge variant="secondary" className="text-xs bg-green-100 text-green-700">
+                            Assessment Complete
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {showUserDropdown && userSearchResults.length === 0 && !isSearching && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-md shadow-lg z-50 p-3 text-sm text-muted-foreground">
+                  No users found matching "{userSearchQuery}"
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="first_name">First Name *</Label>
@@ -722,10 +906,12 @@ export const GuestManagement = ({ eventId, guests, onRefresh }: GuestManagementP
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+            <Button variant="outline" onClick={() => handleDialogClose(false)}>
               Cancel
             </Button>
-            <Button onClick={handleAddGuest}>Add Guest</Button>
+            <Button onClick={handleAddGuest}>
+              {selectedUser ? "Add Guest from User" : "Add Guest"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

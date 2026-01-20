@@ -35,6 +35,9 @@ interface User {
   avgPerMonth: number;
   favoriteEventType: { type: string; count: number; percentage: number } | null;
   lastBooking: string | null;
+  lastBookingEvent: { title: string; eventType: string; startTime: string } | null;
+  hasUpcomingEvent: boolean;
+  upcomingEventStatus: "confirmed" | "pending" | "none";
   personalityType: string | null;
 }
 
@@ -94,6 +97,7 @@ const AdminUsers = () => {
   const [genderFilter, setGenderFilter] = useState("all");
   const [cityFilter, setCityFilter] = useState("all");
   const [bookingsFilter, setBookingsFilter] = useState("all");
+  const [upcomingEventFilter, setUpcomingEventFilter] = useState("all");
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   // Sorting
@@ -102,7 +106,7 @@ const AdminUsers = () => {
 
   useEffect(() => {
     fetchUsers();
-  }, [timeFilter, dateRange, assessmentFilter, genderFilter, cityFilter, bookingsFilter]);
+  }, [timeFilter, dateRange, assessmentFilter, genderFilter, cityFilter, bookingsFilter, upcomingEventFilter]);
 
   const getDateRange = () => {
     const now = new Date();
@@ -148,8 +152,13 @@ const AdminUsers = () => {
 
     let users = data.users.filter(
       (user) =>
-        user.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email?.toLowerCase().includes(searchTerm.toLowerCase())
+        (user.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          user.phone?.includes(searchTerm)) &&
+        (upcomingEventFilter === "all" ||
+          (upcomingEventFilter === "yes" && user.upcomingEventStatus === "confirmed") ||
+          (upcomingEventFilter === "no" && user.upcomingEventStatus === "none") ||
+          (upcomingEventFilter === "pending" && user.upcomingEventStatus === "pending"))
     );
 
     // Sort
@@ -171,7 +180,7 @@ const AdminUsers = () => {
     });
 
     return users;
-  }, [data?.users, searchTerm, sortField, sortOrder]);
+  }, [data?.users, searchTerm, sortField, sortOrder, upcomingEventFilter]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -188,7 +197,7 @@ const AdminUsers = () => {
   };
 
   const exportToCSV = () => {
-    const headers = ["Name", "Email", "Phone", "Age", "Gender", "City", "Assessment", "Personality", "Bookings", "Credits", "Joined"];
+    const headers = ["Name", "Email", "Phone", "Age", "Gender", "City", "Assessment", "Personality", "Bookings", "Latest Event", "Upcoming Event", "Credits", "Joined"];
     const rows = filteredAndSortedUsers.map((user) => [
       user.fullName,
       user.email,
@@ -199,6 +208,8 @@ const AdminUsers = () => {
       user.assessmentCompleted ? "Completed" : "Pending",
       user.personalityType || "",
       user.bookingsCount,
+      user.lastBookingEvent ? `${user.lastBookingEvent.title} (${format(new Date(user.lastBookingEvent.startTime), "yyyy-MM-dd")})` : "",
+      user.upcomingEventStatus === "confirmed" ? "Yes" : user.upcomingEventStatus === "pending" ? "Pending" : "No",
       user.eventCredits,
       format(new Date(user.createdAt), "yyyy-MM-dd"),
     ]);
@@ -434,6 +445,18 @@ const AdminUsers = () => {
                   <SelectItem value="no">Never Booked</SelectItem>
                 </SelectContent>
               </Select>
+
+              <Select value={upcomingEventFilter} onValueChange={setUpcomingEventFilter}>
+                <SelectTrigger className="w-[150px] h-8">
+                  <SelectValue placeholder="Upcoming Event" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Events</SelectItem>
+                  <SelectItem value="yes">Has Upcoming</SelectItem>
+                  <SelectItem value="pending">Pending Confirm</SelectItem>
+                  <SelectItem value="no">No Upcoming</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Table */}
@@ -453,6 +476,7 @@ const AdminUsers = () => {
                         </div>
                       </TableHead>
                       <TableHead>Email</TableHead>
+                      <TableHead>Phone</TableHead>
                       <TableHead>Assessment</TableHead>
                       <TableHead>Personality</TableHead>
                       <TableHead
@@ -463,8 +487,8 @@ const AdminUsers = () => {
                           Bookings <SortIcon field="bookingsCount" />
                         </div>
                       </TableHead>
-                      <TableHead>Frequency</TableHead>
-                      <TableHead>Event Types</TableHead>
+                      <TableHead>Latest Booking</TableHead>
+                      <TableHead className="text-center">Upcoming Event</TableHead>
                       <TableHead
                         className="cursor-pointer hover:bg-muted"
                         onClick={() => handleSort("eventCredits")}
@@ -488,6 +512,9 @@ const AdminUsers = () => {
                       <TableRow key={user.id} className="hover:bg-muted/30">
                         <TableCell className="font-medium">{user.fullName}</TableCell>
                         <TableCell className="text-muted-foreground text-sm">{user.email}</TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {user.phone || "-"}
+                        </TableCell>
                         <TableCell>
                           {user.assessmentCompleted ? (
                             <Badge className="bg-green-100 text-green-700">
@@ -514,36 +541,24 @@ const AdminUsers = () => {
                           </span>
                         </TableCell>
                         <TableCell>
-                          {user.bookingFrequency !== 'none' ? (
+                          {user.lastBookingEvent ? (
                             <div className="flex flex-col">
-                              <Badge className={`${FREQUENCY_DISPLAY[user.bookingFrequency]?.color || ""} text-xs`}>
-                                {FREQUENCY_DISPLAY[user.bookingFrequency]?.label}
-                              </Badge>
-                              <span className="text-xs text-muted-foreground mt-0.5">
-                                ~{user.avgPerMonth}/mo
+                              <span className="text-sm font-medium">{user.lastBookingEvent.title}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {format(new Date(user.lastBookingEvent.startTime), "MMM d, yyyy")}
                               </span>
                             </div>
                           ) : (
                             <span className="text-muted-foreground">-</span>
                           )}
                         </TableCell>
-                        <TableCell>
-                          {user.favoriteEventType ? (
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-base">
-                                {EVENT_TYPE_DISPLAY[user.favoriteEventType.type]?.icon || "📅"}
-                              </span>
-                              <div className="flex flex-col">
-                                <span className="text-sm font-medium capitalize">
-                                  {EVENT_TYPE_DISPLAY[user.favoriteEventType.type]?.label || user.favoriteEventType.type}
-                                </span>
-                                <span className="text-xs text-muted-foreground">
-                                  {user.favoriteEventType.percentage}% of bookings
-                                </span>
-                              </div>
-                            </div>
+                        <TableCell className="text-center">
+                          {user.upcomingEventStatus === "confirmed" ? (
+                            <Badge className="bg-green-100 text-green-700">Yes</Badge>
+                          ) : user.upcomingEventStatus === "pending" ? (
+                            <Badge className="bg-amber-100 text-amber-700">Pending</Badge>
                           ) : (
-                            <span className="text-muted-foreground">-</span>
+                            <Badge variant="outline" className="text-muted-foreground">No</Badge>
                           )}
                         </TableCell>
                         <TableCell>

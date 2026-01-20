@@ -554,6 +554,171 @@ export class EmailService {
     }
   }
 
+  // Send restaurant assignment notification when pairing is first published
+  async sendRestaurantAssignment(data: {
+    to: string;
+    userName: string;
+    eventTitle: string;
+    eventDate: string;
+    restaurantName: string;
+    restaurantAddress: string;
+    groupName?: string;
+  }) {
+    if (!this.transporter) {
+      console.log('Email service not configured. Would send restaurant assignment to:', data.to);
+      return;
+    }
+
+    try {
+      await this.transporter.sendMail({
+        from: this.fromAddress,
+        to: data.to,
+        subject: `🍽️ Your Restaurant Assignment for ${data.eventTitle}`,
+        html: `
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+                .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+                .restaurant-card { background: white; padding: 25px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #22c55e; }
+                .restaurant-name { font-size: 24px; font-weight: bold; color: #22c55e; margin-bottom: 10px; }
+                .button { display: inline-block; padding: 15px 40px; background: #667eea; color: white; text-decoration: none; border-radius: 6px; margin-top: 20px; font-weight: bold; }
+                .footer { text-align: center; color: #999; font-size: 12px; margin-top: 30px; }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <div class="header">
+                  <h1>🍽️ Your Table is Ready!</h1>
+                </div>
+                <div class="content">
+                  <p>Hi ${data.userName},</p>
+                  <p>Great news! We've finalized the arrangements for <strong>${data.eventTitle}</strong> and you've been assigned to your dining group.</p>
+
+                  <div class="restaurant-card">
+                    ${data.groupName ? `<p style="color: #666; margin-bottom: 5px;">Your Group: <strong>${data.groupName}</strong></p>` : ''}
+                    <p class="restaurant-name">📍 ${data.restaurantName}</p>
+                    <p style="color: #666;">${data.restaurantAddress}</p>
+                    <p style="margin-top: 15px;"><strong>📅 Date:</strong> ${data.eventDate}</p>
+                  </div>
+
+                  <h3>What to Expect:</h3>
+                  <ul>
+                    <li>🎉 You'll be dining with a carefully curated group</li>
+                    <li>💬 Great conversations and new connections await</li>
+                    <li>🍽️ Enjoy the experience and have fun!</li>
+                  </ul>
+
+                  <p style="text-align: center;">
+                    <a href="${process.env.FRONTEND_URL || 'http://localhost:8080'}/dashboard" class="button">
+                      View Full Details
+                    </a>
+                  </p>
+
+                  <p>We can't wait to see you there!</p>
+                  <p>Best regards,<br>The Enqoy Team</p>
+                </div>
+                <div class="footer">
+                  <p>© ${new Date().getFullYear()} Enqoy. All rights reserved.</p>
+                  <p>Building meaningful connections through shared experiences</p>
+                </div>
+              </div>
+            </body>
+          </html>
+        `,
+      });
+
+      console.log('Restaurant assignment email sent to:', data.to);
+    } catch (error) {
+      console.error('Error sending restaurant assignment email:', error);
+    }
+  }
+
+  // Send notification when restaurant assignment is updated
+  async sendRestaurantAssignmentUpdate(data: {
+    to: string;
+    userName: string;
+    eventTitle: string;
+    eventDate: string;
+    oldRestaurantName: string;
+    newRestaurantName: string;
+    newRestaurantAddress: string;
+    groupName?: string;
+  }) {
+    if (!this.transporter) {
+      console.log('Email service not configured. Would send restaurant update to:', data.to);
+      return;
+    }
+
+    try {
+      await this.transporter.sendMail({
+        from: this.fromAddress,
+        to: data.to,
+        subject: `📍 Location Update for ${data.eventTitle}`,
+        html: `
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+                .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+                .update-card { background: white; padding: 25px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b; }
+                .old-location { color: #999; text-decoration: line-through; margin-bottom: 15px; }
+                .new-location { font-size: 24px; font-weight: bold; color: #22c55e; margin-bottom: 10px; }
+                .button { display: inline-block; padding: 15px 40px; background: #667eea; color: white; text-decoration: none; border-radius: 6px; margin-top: 20px; font-weight: bold; }
+                .footer { text-align: center; color: #999; font-size: 12px; margin-top: 30px; }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <div class="header">
+                  <h1>📍 Location Update</h1>
+                </div>
+                <div class="content">
+                  <p>Hi ${data.userName},</p>
+                  <p>We've made a change to your restaurant assignment for <strong>${data.eventTitle}</strong>. Please note your new location:</p>
+
+                  <div class="update-card">
+                    <p class="old-location">Previous: ${data.oldRestaurantName}</p>
+                    ${data.groupName ? `<p style="color: #666; margin-bottom: 5px;">Your Group: <strong>${data.groupName}</strong></p>` : ''}
+                    <p class="new-location">📍 ${data.newRestaurantName}</p>
+                    <p style="color: #666;">${data.newRestaurantAddress}</p>
+                    <p style="margin-top: 15px;"><strong>📅 Date:</strong> ${data.eventDate}</p>
+                  </div>
+
+                  <p style="background: #fef3c7; padding: 15px; border-radius: 8px; border-left: 4px solid #f59e0b;">
+                    <strong>⚠️ Important:</strong> Please update your plans to go to the new location above.
+                  </p>
+
+                  <p style="text-align: center;">
+                    <a href="${process.env.FRONTEND_URL || 'http://localhost:8080'}/dashboard" class="button">
+                      View Updated Details
+                    </a>
+                  </p>
+
+                  <p>We apologize for any inconvenience and look forward to seeing you!</p>
+                  <p>Best regards,<br>The Enqoy Team</p>
+                </div>
+                <div class="footer">
+                  <p>© ${new Date().getFullYear()} Enqoy. All rights reserved.</p>
+                </div>
+              </div>
+            </body>
+          </html>
+        `,
+      });
+
+      console.log('Restaurant update email sent to:', data.to);
+    } catch (error) {
+      console.error('Error sending restaurant update email:', error);
+    }
+  }
+
   async sendTestEmail(to: string): Promise<{ success: boolean; message: string }> {
     if (!this.transporter) {
       return {
