@@ -67,6 +67,7 @@ interface UpcomingEvent {
   startTime?: string;
   price: number;
   venue: { name: string } | null;
+  bookingCutoffHours?: number;
 }
 
 const Dashboard = () => {
@@ -135,9 +136,17 @@ const Dashboard = () => {
         setPastBookings(past);
       }
 
-      // Fetch upcoming events (next 2)
+      // Fetch upcoming events (next 2) - filter out events with closed bookings
       const eventsData = await eventsApi.getUpcoming();
-      setUpcomingEvents(eventsData.slice(0, 2) || []);
+      const now = new Date();
+      const openEvents = eventsData.filter((event: UpcomingEvent) => {
+        if (!event.startTime) return true; // Show events without dates
+        const eventStart = new Date(event.startTime);
+        const cutoffHours = event.bookingCutoffHours ?? 24;
+        const hoursUntilEvent = (eventStart.getTime() - now.getTime()) / (1000 * 60 * 60);
+        return hoursUntilEvent >= cutoffHours; // Only show events still open for booking
+      });
+      setUpcomingEvents(openEvents.slice(0, 2) || []);
 
       // Fetch announcements
       try {
@@ -158,8 +167,10 @@ const Dashboard = () => {
       // Check for pairing updates
       try {
         const pairingData = await pairingApi.hasPairingUpdates();
+        console.log('🔔 Pairing updates check:', pairingData);
         setPairingUpdates(pairingData);
       } catch (e) {
+        console.error('❌ Error checking pairing updates:', e);
         // No pairing updates or error
       }
     } catch (error: any) {
@@ -289,7 +300,7 @@ const Dashboard = () => {
                 <Users className="h-5 w-5 text-amber-600 flex-shrink-0" />
                 <div>
                   <p className="font-medium text-amber-800 dark:text-amber-200">
-                    Your Group Pairing is Ready!
+                    Venue Details Updated
                   </p>
                   <p className="text-sm text-amber-600 dark:text-amber-400">
                     {pairingUpdates.eventsWithUpdates.length === 1
@@ -525,8 +536,11 @@ const Dashboard = () => {
                         )}
                       </div>
                     )}
-                    <Badge variant="secondary" className="mt-2">
-                      {booking.status}
+                    <Badge
+                      variant={booking.status === "confirmed" ? "default" : "secondary"}
+                      className={`mt-2 ${booking.status === "confirmed" ? "bg-green-500 hover:bg-green-600" : booking.status === "pending" ? "bg-yellow-500 hover:bg-yellow-600 text-white" : ""}`}
+                    >
+                      {booking.status === "confirmed" ? "Confirmed" : booking.status === "pending" ? "Pending Payment" : booking.status}
                     </Badge>
                   </CardContent>
                 </Card>

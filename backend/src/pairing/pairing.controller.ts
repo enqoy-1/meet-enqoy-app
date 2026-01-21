@@ -191,16 +191,67 @@ export class PairingController {
   }
 
   @Post('assignments')
-  createAssignment(
+  async createAssignment(
     @Body() data: { guestId: string; tableId: string | null; restaurantId?: string; seatNumber?: number; groupName?: string },
   ) {
-    return this.pairingService.createAssignment(
+    // Check for existing assignment to detect changes
+    const existingAssignment = await this.prisma.pairingAssignment.findUnique({
+      where: { guestId: data.guestId },
+      include: {
+        guest: { include: { event: true } },
+        restaurant: true,
+      },
+    });
+
+    const result = await this.pairingService.createAssignment(
       data.guestId,
       data.tableId,
       data.restaurantId || null,
       data.seatNumber,
       data.groupName,
     );
+
+    // Check for notifications
+    if (
+      existingAssignment &&
+      existingAssignment.guest.event.pairingPublished &&
+      existingAssignment.guest.email &&
+      data.restaurantId &&
+      existingAssignment.restaurantId &&
+      data.restaurantId !== existingAssignment.restaurantId
+    ) {
+      try {
+        const newRestaurant = await this.prisma.pairingRestaurant.findUnique({
+          where: { id: data.restaurantId },
+        });
+
+        if (newRestaurant) {
+          const eventDate = format(new Date(existingAssignment.guest.event.startTime), 'EEEE, MMMM d, yyyy \'at\' h:mm a');
+
+          await this.emailService.sendRestaurantAssignmentUpdate({
+            to: existingAssignment.guest.email,
+            userName: existingAssignment.guest.name,
+            eventTitle: existingAssignment.guest.event.title,
+            eventDate: eventDate,
+            oldRestaurantName: existingAssignment.restaurant?.name || 'Unknown',
+            newRestaurantName: newRestaurant.name,
+            newRestaurantAddress: newRestaurant.address || 'Address included in map',
+            groupName: result.groupName || undefined,
+          });
+          console.log(`📧 Sent update email to ${existingAssignment.guest.email}`);
+
+          // Reset notification flag so user sees it in-app
+          await this.prisma.pairingGuest.update({
+            where: { id: existingAssignment.guest.id },
+            data: { pairingNotificationSent: false }
+          });
+        }
+      } catch (error) {
+        console.error('Failed to send update email:', error);
+      }
+    }
+
+    return result;
   }
 
   @Post('restaurants')
@@ -236,8 +287,63 @@ export class PairingController {
   }
 
   @Post('assignments/:id')
-  updateAssignment(@Param('id') id: string, @Body() data: { restaurantId?: string; tableId?: string | null; seatNumber?: number | null; status?: string }) {
-    return this.pairingService.updateAssignment(id, data);
+  async updateAssignment(@Param('id') id: string, @Body() data: { restaurantId?: string; tableId?: string | null; seatNumber?: number | null; status?: string }) {
+    // Get current assignment to check for changes
+    const currentAssignment = await this.prisma.pairingAssignment.findUnique({
+      where: { id },
+      include: {
+        guest: { include: { event: true } },
+        restaurant: true,
+      },
+    });
+
+    // Perform update
+    const updated = await this.pairingService.updateAssignment(id, data);
+
+    // Check if we need to send a notification
+    // 1. Restaurant changed
+    // 2. Event is published
+    // 3. User has email
+    if (
+      currentAssignment &&
+      data.restaurantId &&
+      currentAssignment.restaurantId &&
+      data.restaurantId !== currentAssignment.restaurantId &&
+      currentAssignment.guest.event.pairingPublished &&
+      currentAssignment.guest.email
+    ) {
+      try {
+        const newRestaurant = await this.prisma.pairingRestaurant.findUnique({
+          where: { id: data.restaurantId },
+        });
+
+        if (newRestaurant) {
+          const eventDate = format(new Date(currentAssignment.guest.event.startTime), 'EEEE, MMMM d, yyyy \'at\' h:mm a');
+
+          await this.emailService.sendRestaurantAssignmentUpdate({
+            to: currentAssignment.guest.email,
+            userName: currentAssignment.guest.name,
+            eventTitle: currentAssignment.guest.event.title,
+            eventDate: eventDate,
+            oldRestaurantName: currentAssignment.restaurant?.name || 'Unknown',
+            newRestaurantName: newRestaurant.name,
+            newRestaurantAddress: newRestaurant.address || 'Address included in map',
+            groupName: updated.groupName || undefined,
+          });
+          console.log(`📧 Sent update email to ${currentAssignment.guest.email}`);
+
+          // Reset notification flag so user sees it in-app
+          await this.prisma.pairingGuest.update({
+            where: { id: currentAssignment.guest.id },
+            data: { pairingNotificationSent: false }
+          });
+        }
+      } catch (error) {
+        console.error('Failed to send update email:', error);
+      }
+    }
+
+    return updated;
   }
 
   // Guest management
@@ -816,6 +922,17 @@ export class PairingController {
     const eventDate = format(new Date(event.startTime), 'EEEE, MMMM d, yyyy \'at\' h:mm a');
     const emailsToSend = assignments.filter(a => a.guest.email && a.restaurant).length;
 
+    // Reset notification flags for all assigned guests so they see the in-app notification
+    const assignedGuestIds = assignments.map(a => a.guestId);
+    if (assignedGuestIds.length > 0) {
+      await this.prisma.pairingGuest.updateMany({
+        where: {
+          id: { in: assignedGuestIds },
+        },
+        data: { pairingNotificationSent: false },
+      });
+    }
+
     // Fire and forget - send emails in background
     Promise.all(
       assignments
@@ -828,6 +945,7 @@ export class PairingController {
             eventDate: eventDate,
             restaurantName: assignment.restaurant.name,
             restaurantAddress: assignment.restaurant.address || 'Address TBD',
+            googleMapsUrl: assignment.restaurant.googleMapsUrl || undefined,
             groupName: assignment.groupName || undefined,
           }).catch(error => console.error(`Failed to send email to ${assignment.guest.email}:`, error))
         )
@@ -918,12 +1036,21 @@ export class PairingController {
             oldRestaurantName: oldRestaurant.name,
             newRestaurantName: newRestaurant.name,
             newRestaurantAddress: newRestaurant.address || 'Address TBD',
+            newGoogleMapsUrl: newRestaurant.googleMapsUrl || undefined,
             groupName: assignment?.groupName || undefined,
           };
         }
         return null;
       })
       .filter(Boolean);
+
+    // Reset notification flags for affected guests so they see the in-app notification
+    await this.prisma.pairingGuest.updateMany({
+      where: {
+        id: { in: changedAssignments.map(c => c.guestId) },
+      },
+      data: { pairingNotificationSent: false },
+    });
 
     // Fire and forget - send emails in background
     Promise.all(
@@ -1066,7 +1193,9 @@ export class UserPairingController {
    */
   @Get('has-pairing-updates')
   async hasPairingUpdates(@CurrentUser() user: any) {
-    // Find all upcoming events where user has a booking and pairing assignment
+    console.log(`🔔 Checking pairing updates for user: ${user.id} (${user.email})`);
+
+    // Find all upcoming events where user has a booking and pairing is published
     const upcomingBookings = await this.prisma.booking.findMany({
       where: {
         userId: user.id,
@@ -1075,6 +1204,7 @@ export class UserPairingController {
           startTime: {
             gte: new Date(),
           },
+          pairingPublished: true, // Only check events where pairing is published
         },
       },
       select: {
@@ -1083,10 +1213,13 @@ export class UserPairingController {
             id: true,
             title: true,
             startTime: true,
+            pairingPublished: true,
           },
         },
       },
     });
+
+    console.log(`📋 Found ${upcomingBookings.length} upcoming bookings with published pairings`);
 
     const eventIds = upcomingBookings.map((b) => b.event.id);
 
@@ -1115,8 +1248,21 @@ export class UserPairingController {
             startTime: true,
           },
         },
+        assignments: {
+          select: {
+            id: true,
+            restaurantId: true,
+          },
+        },
       },
     });
+
+    console.log(`📬 Found ${unseenPairings.length} unseen pairing notifications for user ${user.email}`);
+    if (unseenPairings.length > 0) {
+      unseenPairings.forEach(p => {
+        console.log(`  - Event: ${p.event.title}, Assignments: ${p.assignments.length}, NotificationSent: ${p.pairingNotificationSent}`);
+      });
+    }
 
     return {
       hasPairingUpdates: unseenPairings.length > 0,

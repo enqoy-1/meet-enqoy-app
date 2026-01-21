@@ -208,10 +208,11 @@ export class PairingService {
   }
 
   // Update assignment
-  async updateAssignment(id: string, data: { tableId?: string; seatNumber?: number; status?: string }) {
+  async updateAssignment(id: string, data: { restaurantId?: string; tableId?: string; seatNumber?: number; status?: string }) {
     return this.prisma.pairingAssignment.update({
       where: { id },
       data: {
+        restaurantId: data.restaurantId,
         tableId: data.tableId,
         seatNumber: data.seatNumber,
         status: data.status as any,

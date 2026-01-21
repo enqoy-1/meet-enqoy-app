@@ -34,6 +34,7 @@ interface Restaurant {
   id: string;
   name: string;
   address: string | null;
+  googleMapsUrl: string | null;
   contact_name: string | null;
   contact_phone: string | null;
   capacity_total: number;
@@ -53,6 +54,7 @@ export const RestaurantManager = ({ eventId, restaurants, onRefresh }: Restauran
   const [newRestaurant, setNewRestaurant] = useState({
     name: "",
     address: "",
+    googleMapsUrl: "",
     contact_name: "",
     contact_phone: "",
     notes: "",
@@ -79,6 +81,7 @@ export const RestaurantManager = ({ eventId, restaurants, onRefresh }: Restauran
       setNewRestaurant({
         name: venue.name,
         address: venue.address || "",
+        googleMapsUrl: venue.googleMapsUrl || "",
         contact_name: "",
         contact_phone: "",
         notes: "",
@@ -97,6 +100,7 @@ export const RestaurantManager = ({ eventId, restaurants, onRefresh }: Restauran
         eventId: eventId,
         name: newRestaurant.name,
         address: newRestaurant.address || null,
+        googleMapsUrl: newRestaurant.googleMapsUrl || null,
         contactInfo: newRestaurant.contact_phone || null,
         capacity: 0,
       });
@@ -106,6 +110,7 @@ export const RestaurantManager = ({ eventId, restaurants, onRefresh }: Restauran
       setNewRestaurant({
         name: "",
         address: "",
+        googleMapsUrl: "",
         contact_name: "",
         contact_phone: "",
         notes: "",
@@ -210,6 +215,15 @@ export const RestaurantManager = ({ eventId, restaurants, onRefresh }: Restauran
                   placeholder="123 Main St"
                 />
               </div>
+              <div className="col-span-2 space-y-2">
+                <Label htmlFor="google_maps">Google Maps URL</Label>
+                <Input
+                  id="google_maps"
+                  value={newRestaurant.googleMapsUrl}
+                  onChange={(e) => setNewRestaurant({ ...newRestaurant, googleMapsUrl: e.target.value })}
+                  placeholder="https://maps.google.com/..."
+                />
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="contact_name">Contact Name</Label>
                 <Input
@@ -258,6 +272,11 @@ export const RestaurantManager = ({ eventId, restaurants, onRefresh }: Restauran
                   <h3 className="font-semibold text-lg">{restaurant.name}</h3>
                   {restaurant.address && (
                     <p className="text-sm text-muted-foreground">{restaurant.address}</p>
+                  )}
+                  {restaurant.googleMapsUrl && (
+                    <a href={restaurant.googleMapsUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline">
+                      View Map
+                    </a>
                   )}
                 </div>
                 <div className="text-right">

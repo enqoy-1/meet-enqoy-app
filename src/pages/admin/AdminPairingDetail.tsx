@@ -102,6 +102,7 @@ const AdminPairingDetail = () => {
   const [isPublishing, setIsPublishing] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [changedAssignments, setChangedAssignments] = useState<{ guestId: string; oldRestaurantId: string; newRestaurantId: string }[]>([]);
+  const [groupsSearchTerm, setGroupsSearchTerm] = useState("");
 
   // Drag-and-drop sensors
   const sensors = useSensors(
@@ -1405,7 +1406,24 @@ const AdminPairingDetail = () => {
                         {assignments.length > 0 && ` • ${assignments.length} restaurant assignments`}
                       </p>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 items-center">
+                      {/* Search Input */}
+                      <div className="relative">
+                        <Input
+                          placeholder="Search by name, email, category..."
+                          value={groupsSearchTerm}
+                          onChange={(e) => setGroupsSearchTerm(e.target.value)}
+                          className="w-64"
+                        />
+                        {groupsSearchTerm && (
+                          <button
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            onClick={() => setGroupsSearchTerm("")}
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
                       {/* Clear Assignments Button */}
                       <Button
                         variant="outline"
@@ -1636,278 +1654,306 @@ const AdminPairingDetail = () => {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {generatedGroups.flatMap((group, groupIndex) => {
-                              const rows = [];
+                            {generatedGroups
+                              .map((group, groupIndex) => {
+                                // Filter participants based on search term
+                                const searchLower = groupsSearchTerm.toLowerCase();
+                                const filteredParticipants = groupsSearchTerm
+                                  ? group.participants.filter((participant: any) => {
+                                    const guest = guests.find((g: any) => g.id === participant.userId || g.userId === participant.userId);
+                                    const name = (participant.name || guest?.name || '').toLowerCase();
+                                    const email = (participant.email || guest?.email || '').toLowerCase();
+                                    const category = (participant.category || '').toLowerCase();
+                                    const personality = (guest?.personality?.personality || '').toLowerCase();
+                                    return (
+                                      name.includes(searchLower) ||
+                                      email.includes(searchLower) ||
+                                      category.includes(searchLower) ||
+                                      personality.includes(searchLower)
+                                    );
+                                  })
+                                  : group.participants;
 
-                              // Calculate statistics
-                              const totalMale = group.genderDistribution.male;
-                              const totalFemale = group.genderDistribution.female;
-                              const totalOther = group.genderDistribution.other;
-                              const totalParticipants = group.participants.length;
+                                // Skip group entirely if no participants match search
+                                if (groupsSearchTerm && filteredParticipants.length === 0) {
+                                  return null;
+                                }
 
-                              // Add comprehensive group header section
-                              rows.push(
-                                <TableRow key={`header-${groupIndex}`} className="bg-muted/50 hover:bg-muted/50">
-                                  <TableCell colSpan={15} className="p-0">
-                                    <div className="p-4 space-y-4">
-                                      {/* Group Title and Score */}
-                                      <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                          <Badge className="bg-primary text-lg px-3 py-1">
-                                            Group #{groupIndex + 1}
-                                          </Badge>
-                                          <span className="font-semibold text-lg">
-                                            {group.name || `Group ${groupIndex + 1}`}
-                                          </span>
-                                          <span className="text-sm text-muted-foreground">
-                                            • {totalParticipants} participants
-                                          </span>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                          {group.compatibilityScore && (
-                                            <Badge variant="outline" className="text-base px-3 py-1">
-                                              Compatibility Score: {group.compatibilityScore.toFixed(1)}
-                                            </Badge>
-                                          )}
-                                        </div>
-                                      </div>
+                                return { group, groupIndex, filteredParticipants };
+                              })
+                              .filter(Boolean)
+                              .flatMap(({ group, groupIndex, filteredParticipants }: any) => {
+                                const rows = [];
 
-                                      {/* Restaurant Assignment */}
-                                      <div className={`rounded-lg p-4 border ${getGroupRestaurantAssignment(groupIndex) ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800' : 'bg-muted/50 border-muted-foreground/20'}`}>
+                                // Calculate statistics
+                                const totalMale = group.genderDistribution.male;
+                                const totalFemale = group.genderDistribution.female;
+                                const totalOther = group.genderDistribution.other;
+                                const totalParticipants = group.participants.length;
+
+                                // Add comprehensive group header section
+                                rows.push(
+                                  <TableRow key={`header-${groupIndex}`} className="bg-muted/50 hover:bg-muted/50">
+                                    <TableCell colSpan={15} className="p-0">
+                                      <div className="p-4 space-y-4">
+                                        {/* Group Title and Score */}
                                         <div className="flex items-center justify-between">
-                                          <div className="flex items-center gap-2">
-                                            <MapPin className={`h-5 w-5 ${getGroupRestaurantAssignment(groupIndex) ? 'text-green-600' : 'text-muted-foreground'}`} />
-                                            <span className={`font-semibold ${getGroupRestaurantAssignment(groupIndex) ? 'text-green-900 dark:text-green-100' : 'text-foreground'}`}>Restaurant Assignment</span>
-                                            {getGroupRestaurantAssignment(groupIndex) && (
-                                              <Badge className="bg-green-600 text-white">
-                                                {restaurants.find(r => r.id === getGroupRestaurantAssignment(groupIndex))?.name}
+                                          <div className="flex items-center gap-3">
+                                            <Badge className="bg-primary text-lg px-3 py-1">
+                                              Group #{groupIndex + 1}
+                                            </Badge>
+                                            <span className="font-semibold text-lg">
+                                              {group.name || `Group ${groupIndex + 1}`}
+                                            </span>
+                                            <span className="text-sm text-muted-foreground">
+                                              • {totalParticipants} participants
+                                            </span>
+                                          </div>
+                                          <div className="flex items-center gap-3">
+                                            {group.compatibilityScore && (
+                                              <Badge variant="outline" className="text-base px-3 py-1">
+                                                Compatibility Score: {group.compatibilityScore.toFixed(1)}
                                               </Badge>
                                             )}
                                           </div>
-                                          <div className="flex items-center gap-2">
-                                            <Select
-                                              value={getGroupRestaurantAssignment(groupIndex) || "unassigned"}
-                                              onValueChange={(value) => {
-                                                if (value !== "unassigned") {
-                                                  handleAssignGroupToRestaurant(groupIndex, value);
-                                                }
-                                              }}
-                                            >
-                                              <SelectTrigger className="w-[250px] bg-white dark:bg-gray-800">
-                                                <SelectValue placeholder="Select a restaurant..." />
-                                              </SelectTrigger>
-                                              <SelectContent>
-                                                <SelectItem value="unassigned">
-                                                  <span className="text-muted-foreground">Not assigned</span>
-                                                </SelectItem>
-                                                {restaurants.map((restaurant) => (
-                                                  <SelectItem key={restaurant.id} value={restaurant.id}>
-                                                    {restaurant.name}
-                                                  </SelectItem>
-                                                ))}
-                                              </SelectContent>
-                                            </Select>
-                                            {getGroupRestaurantAssignment(groupIndex) && (
-                                              <Button
-                                                variant="outline"
-                                                size="sm"
-                                                className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  handleUnassignGroupFromRestaurant(groupIndex);
+                                        </div>
+
+                                        {/* Restaurant Assignment */}
+                                        <div className={`rounded-lg p-4 border ${getGroupRestaurantAssignment(groupIndex) ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800' : 'bg-muted/50 border-muted-foreground/20'}`}>
+                                          <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                              <MapPin className={`h-5 w-5 ${getGroupRestaurantAssignment(groupIndex) ? 'text-green-600' : 'text-muted-foreground'}`} />
+                                              <span className={`font-semibold ${getGroupRestaurantAssignment(groupIndex) ? 'text-green-900 dark:text-green-100' : 'text-foreground'}`}>Restaurant Assignment</span>
+                                              {getGroupRestaurantAssignment(groupIndex) && (
+                                                <Badge className="bg-green-600 text-white">
+                                                  {restaurants.find(r => r.id === getGroupRestaurantAssignment(groupIndex))?.name}
+                                                </Badge>
+                                              )}
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                              <Select
+                                                value={getGroupRestaurantAssignment(groupIndex) || "unassigned"}
+                                                onValueChange={(value) => {
+                                                  if (value !== "unassigned") {
+                                                    handleAssignGroupToRestaurant(groupIndex, value);
+                                                  }
                                                 }}
                                               >
-                                                <Trash2 className="h-4 w-4 mr-1" />
-                                                Unassign
-                                              </Button>
-                                            )}
-                                          </div>
-                                        </div>
-                                      </div>
-
-                                      {/* Statistics Grid */}
-                                      <div className="grid grid-cols-4 gap-4">
-                                        {/* Average Age */}
-                                        <div className="bg-background rounded-lg p-3 border">
-                                          <div className="text-xs text-muted-foreground mb-1">Average Age</div>
-                                          <div className="text-2xl font-bold">
-                                            {group.averageAge > 0 ? `${group.averageAge} yrs` : 'N/A'}
-                                          </div>
-                                        </div>
-
-                                        {/* Budget */}
-                                        <div className="bg-background rounded-lg p-3 border">
-                                          <div className="text-xs text-muted-foreground mb-1">Budget Range</div>
-                                          <div className="text-2xl font-bold">
-                                            {group.budget ? formatBudget(group.budget) : 'Mixed'}
-                                          </div>
-                                        </div>
-
-                                        {/* Gender Distribution */}
-                                        <div className="bg-background rounded-lg p-3 border">
-                                          <div className="text-xs text-muted-foreground mb-1">Gender Distribution</div>
-                                          <div className="flex gap-2 mt-1">
-                                            {totalMale > 0 && (
-                                              <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                                                {totalMale}M
-                                              </Badge>
-                                            )}
-                                            {totalFemale > 0 && (
-                                              <Badge variant="secondary" className="bg-pink-100 text-pink-800">
-                                                {totalFemale}F
-                                              </Badge>
-                                            )}
-                                            {totalOther > 0 && (
-                                              <Badge variant="secondary">
-                                                {totalOther} Other
-                                              </Badge>
-                                            )}
-                                            {totalMale === 0 && totalFemale === 0 && totalOther === 0 && (
-                                              <span className="text-sm text-muted-foreground">N/A</span>
-                                            )}
-                                          </div>
-                                        </div>
-
-                                        {/* Personality Distribution */}
-                                        <div className="bg-background rounded-lg p-3 border">
-                                          <div className="text-xs text-muted-foreground mb-1">Personality Types</div>
-                                          <div className="flex flex-wrap gap-1 mt-1">
-                                            {Object.entries(group.categoryDistribution).map(([type, count]) => (
-                                              <Badge key={type} variant="outline" className="text-xs capitalize">
-                                                {type}: {count}
-                                              </Badge>
-                                            ))}
-                                            {Object.keys(group.categoryDistribution).length === 0 && (
-                                              <span className="text-sm text-muted-foreground">N/A</span>
-                                            )}
-                                          </div>
-                                        </div>
-                                      </div>
-
-                                      {/* AI Analysis */}
-                                      {group.aiAnalysis && (
-                                        <div className="bg-amber-50 dark:bg-amber-950/20 rounded-lg p-4 border border-amber-200 dark:border-amber-800">
-                                          <div className="flex items-start gap-2">
-                                            <div className="font-semibold text-amber-900 dark:text-amber-100 text-sm mb-1">
-                                              🤖 AI Analysis
+                                                <SelectTrigger className="w-[250px] bg-white dark:bg-gray-800">
+                                                  <SelectValue placeholder="Select a restaurant..." />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                  <SelectItem value="unassigned">
+                                                    <span className="text-muted-foreground">Not assigned</span>
+                                                  </SelectItem>
+                                                  {restaurants.map((restaurant) => (
+                                                    <SelectItem key={restaurant.id} value={restaurant.id}>
+                                                      {restaurant.name}
+                                                    </SelectItem>
+                                                  ))}
+                                                </SelectContent>
+                                              </Select>
+                                              {getGroupRestaurantAssignment(groupIndex) && (
+                                                <Button
+                                                  variant="outline"
+                                                  size="sm"
+                                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleUnassignGroupFromRestaurant(groupIndex);
+                                                  }}
+                                                >
+                                                  <Trash2 className="h-4 w-4 mr-1" />
+                                                  Unassign
+                                                </Button>
+                                              )}
                                             </div>
                                           </div>
-                                          <p className="text-sm text-amber-800 dark:text-amber-200 mt-2 leading-relaxed">
-                                            {group.aiAnalysis}
-                                          </p>
                                         </div>
-                                      )}
 
-                                      {/* Conversation Starters */}
-                                      {group.conversationStarters && group.conversationStarters.length > 0 && (
-                                        <div className="bg-blue-50 dark:bg-blue-950/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
-                                          <div className="font-semibold text-blue-900 dark:text-blue-100 text-sm mb-2">
-                                            💬 Conversation Starters
+                                        {/* Statistics Grid */}
+                                        <div className="grid grid-cols-4 gap-4">
+                                          {/* Average Age */}
+                                          <div className="bg-background rounded-lg p-3 border">
+                                            <div className="text-xs text-muted-foreground mb-1">Average Age</div>
+                                            <div className="text-2xl font-bold">
+                                              {group.averageAge > 0 ? `${group.averageAge} yrs` : 'N/A'}
+                                            </div>
                                           </div>
-                                          <ul className="space-y-2 mt-2">
-                                            {group.conversationStarters.map((starter, idx) => (
-                                              <li key={idx} className="text-sm text-blue-800 dark:text-blue-200 flex items-start gap-2">
-                                                <span className="text-blue-500 mt-0.5">•</span>
-                                                <span className="flex-1">{starter}</span>
-                                              </li>
-                                            ))}
-                                          </ul>
+
+                                          {/* Budget */}
+                                          <div className="bg-background rounded-lg p-3 border">
+                                            <div className="text-xs text-muted-foreground mb-1">Budget Range</div>
+                                            <div className="text-2xl font-bold">
+                                              {group.budget ? formatBudget(group.budget) : 'Mixed'}
+                                            </div>
+                                          </div>
+
+                                          {/* Gender Distribution */}
+                                          <div className="bg-background rounded-lg p-3 border">
+                                            <div className="text-xs text-muted-foreground mb-1">Gender Distribution</div>
+                                            <div className="flex gap-2 mt-1">
+                                              {totalMale > 0 && (
+                                                <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                                                  {totalMale}M
+                                                </Badge>
+                                              )}
+                                              {totalFemale > 0 && (
+                                                <Badge variant="secondary" className="bg-pink-100 text-pink-800">
+                                                  {totalFemale}F
+                                                </Badge>
+                                              )}
+                                              {totalOther > 0 && (
+                                                <Badge variant="secondary">
+                                                  {totalOther} Other
+                                                </Badge>
+                                              )}
+                                              {totalMale === 0 && totalFemale === 0 && totalOther === 0 && (
+                                                <span className="text-sm text-muted-foreground">N/A</span>
+                                              )}
+                                            </div>
+                                          </div>
+
+                                          {/* Personality Distribution */}
+                                          <div className="bg-background rounded-lg p-3 border">
+                                            <div className="text-xs text-muted-foreground mb-1">Personality Types</div>
+                                            <div className="flex flex-wrap gap-1 mt-1">
+                                              {Object.entries(group.categoryDistribution).map(([type, count]) => (
+                                                <Badge key={type} variant="outline" className="text-xs capitalize">
+                                                  {type}: {count}
+                                                </Badge>
+                                              ))}
+                                              {Object.keys(group.categoryDistribution).length === 0 && (
+                                                <span className="text-sm text-muted-foreground">N/A</span>
+                                              )}
+                                            </div>
+                                          </div>
                                         </div>
-                                      )}
-                                    </div>
-                                  </TableCell>
-                                </TableRow>
-                              );
 
-                              // Add participant rows
-                              group.participants.forEach((participant: any, pIndex: number) => {
-                                const guest = guests.find((g: any) => g.id === participant.userId || g.userId === participant.userId);
-                                const personality = guest?.personality || {};
+                                        {/* AI Analysis */}
+                                        {group.aiAnalysis && (
+                                          <div className="bg-amber-50 dark:bg-amber-950/20 rounded-lg p-4 border border-amber-200 dark:border-amber-800">
+                                            <div className="flex items-start gap-2">
+                                              <div className="font-semibold text-amber-900 dark:text-amber-100 text-sm mb-1">
+                                                🤖 AI Analysis
+                                              </div>
+                                            </div>
+                                            <p className="text-sm text-amber-800 dark:text-amber-200 mt-2 leading-relaxed">
+                                              {group.aiAnalysis}
+                                            </p>
+                                          </div>
+                                        )}
 
-                                rows.push(
-                                  <TableRow key={`${groupIndex}-${pIndex}`}>
-                                    <TableCell>
-                                      <Select
-                                        value={groupIndex.toString()}
-                                        onValueChange={(value) => {
-                                          const newGroupIndex = parseInt(value);
-                                          if (newGroupIndex !== groupIndex) {
-                                            const newGroups = moveParticipantBetweenGroups(
-                                              groupIndex,
-                                              newGroupIndex,
-                                              pIndex,
-                                              generatedGroups
-                                            );
-                                            setGeneratedGroups(newGroups);
-                                            toast.success(`Moved ${guest?.name || 'participant'} to ${generatedGroups[newGroupIndex].name}`);
-                                          }
-                                        }}
-                                      >
-                                        <SelectTrigger className="w-[140px] h-8">
-                                          <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          {generatedGroups.map((g, idx) => (
-                                            <SelectItem key={g.id} value={idx.toString()}>
-                                              {g.name || `Group ${idx + 1}`}
-                                            </SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
-                                    </TableCell>
-                                    <TableCell className="font-medium">
-                                      {guest?.name || 'N/A'}
-                                    </TableCell>
-                                    <TableCell className="text-sm text-muted-foreground">
-                                      {guest?.email || 'N/A'}
-                                    </TableCell>
-                                    <TableCell>
-                                      {personality.age || guest?.age || '-'}
-                                    </TableCell>
-                                    <TableCell>
-                                      <Badge variant="secondary" className="capitalize">
-                                        {personality.gender || guest?.gender || '-'}
-                                      </Badge>
-                                    </TableCell>
-                                    <TableCell className="capitalize">
-                                      {personality.relationship?.replace(/_/g, ' ') || '-'}
-                                    </TableCell>
-                                    <TableCell className="capitalize">
-                                      {personality.children || '-'}
-                                    </TableCell>
-                                    <TableCell>
-                                      {personality.city || '-'}
-                                    </TableCell>
-                                    <TableCell>
-                                      <Badge className="capitalize">
-                                        {personality.personality || participant.category || '-'}
-                                      </Badge>
-                                    </TableCell>
-                                    <TableCell className="capitalize">
-                                      {personality.humor || '-'}
-                                    </TableCell>
-                                    <TableCell>
-                                      {formatBudget(personality.spending || participant.budget)}
-                                    </TableCell>
-                                    <TableCell>
-                                      {Array.isArray(personality.diet)
-                                        ? personality.diet.map(d => d.replace(/_/g, ' ')).join(', ')
-                                        : (personality.diet?.replace(/_/g, ' ') || '-')}
-                                    </TableCell>
-                                    <TableCell className="max-w-[200px] truncate" title={personality.hobbies || '-'}>
-                                      {personality.hobbies || '-'}
-                                    </TableCell>
-                                    <TableCell>
-                                      <Badge variant="outline">
-                                        {group.compatibilityScore?.toFixed(1) || 'N/A'}
-                                      </Badge>
+                                        {/* Conversation Starters */}
+                                        {group.conversationStarters && group.conversationStarters.length > 0 && (
+                                          <div className="bg-blue-50 dark:bg-blue-950/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
+                                            <div className="font-semibold text-blue-900 dark:text-blue-100 text-sm mb-2">
+                                              💬 Conversation Starters
+                                            </div>
+                                            <ul className="space-y-2 mt-2">
+                                              {group.conversationStarters.map((starter, idx) => (
+                                                <li key={idx} className="text-sm text-blue-800 dark:text-blue-200 flex items-start gap-2">
+                                                  <span className="text-blue-500 mt-0.5">•</span>
+                                                  <span className="flex-1">{starter}</span>
+                                                </li>
+                                              ))}
+                                            </ul>
+                                          </div>
+                                        )}
+                                      </div>
                                     </TableCell>
                                   </TableRow>
                                 );
-                              });
 
-                              return rows;
-                            })}
+                                // Add participant rows - use filteredParticipants for search
+                                filteredParticipants.forEach((participant: any, pIndex: number) => {
+                                  const guest = guests.find((g: any) => g.id === participant.userId || g.userId === participant.userId);
+                                  const personality = guest?.personality || {};
+
+                                  rows.push(
+                                    <TableRow key={`${groupIndex}-${pIndex}`}>
+                                      <TableCell>
+                                        <Select
+                                          value={groupIndex.toString()}
+                                          onValueChange={(value) => {
+                                            const newGroupIndex = parseInt(value);
+                                            if (newGroupIndex !== groupIndex) {
+                                              const newGroups = moveParticipantBetweenGroups(
+                                                groupIndex,
+                                                newGroupIndex,
+                                                pIndex,
+                                                generatedGroups
+                                              );
+                                              setGeneratedGroups(newGroups);
+                                              toast.success(`Moved ${guest?.name || 'participant'} to ${generatedGroups[newGroupIndex].name}`);
+                                            }
+                                          }}
+                                        >
+                                          <SelectTrigger className="w-[140px] h-8">
+                                            <SelectValue />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {generatedGroups.map((g, idx) => (
+                                              <SelectItem key={g.id} value={idx.toString()}>
+                                                {g.name || `Group ${idx + 1}`}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      </TableCell>
+                                      <TableCell className="font-medium">
+                                        {guest?.name || 'N/A'}
+                                      </TableCell>
+                                      <TableCell className="text-sm text-muted-foreground">
+                                        {guest?.email || 'N/A'}
+                                      </TableCell>
+                                      <TableCell>
+                                        {personality.age || guest?.age || '-'}
+                                      </TableCell>
+                                      <TableCell>
+                                        <Badge variant="secondary" className="capitalize">
+                                          {personality.gender || guest?.gender || '-'}
+                                        </Badge>
+                                      </TableCell>
+                                      <TableCell className="capitalize">
+                                        {personality.relationship?.replace(/_/g, ' ') || '-'}
+                                      </TableCell>
+                                      <TableCell className="capitalize">
+                                        {personality.children || '-'}
+                                      </TableCell>
+                                      <TableCell>
+                                        {personality.city || '-'}
+                                      </TableCell>
+                                      <TableCell>
+                                        <Badge className="capitalize">
+                                          {personality.personality || participant.category || '-'}
+                                        </Badge>
+                                      </TableCell>
+                                      <TableCell className="capitalize">
+                                        {personality.humor || '-'}
+                                      </TableCell>
+                                      <TableCell>
+                                        {formatBudget(personality.spending || participant.budget)}
+                                      </TableCell>
+                                      <TableCell>
+                                        {Array.isArray(personality.diet)
+                                          ? personality.diet.map(d => d.replace(/_/g, ' ')).join(', ')
+                                          : (personality.diet?.replace(/_/g, ' ') || '-')}
+                                      </TableCell>
+                                      <TableCell className="max-w-[200px] truncate" title={personality.hobbies || '-'}>
+                                        {personality.hobbies || '-'}
+                                      </TableCell>
+                                      <TableCell>
+                                        <Badge variant="outline">
+                                          {group.compatibilityScore?.toFixed(1) || 'N/A'}
+                                        </Badge>
+                                      </TableCell>
+                                    </TableRow>
+                                  );
+                                });
+
+                                return rows;
+                              })}
                           </TableBody>
                         </Table>
                       </div>

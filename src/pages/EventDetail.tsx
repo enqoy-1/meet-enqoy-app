@@ -292,26 +292,26 @@ const EventDetail = () => {
   // 2. createdAt and updatedAt are very close (within 10 minutes), indicating minimal edits
   const isVenueSetAtCreation = (): boolean => {
     if (!event.venueId) return false;
-    
+
     // If we don't have timestamps, we can't determine, so return false to use default behavior
     if (!event.createdAt) return false;
-    
+
     const createdAt = new Date(event.createdAt);
     const now = new Date();
     const hoursSinceCreation = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
-    
+
     // If event was created within 48 hours and has a venue, assume venue was set at creation
     if (hoursSinceCreation <= 48) {
       return true;
     }
-    
+
     // Otherwise, check if updatedAt is close to createdAt (within 10 minutes)
     if (event.updatedAt) {
       const updatedAt = new Date(event.updatedAt);
       const diffMinutes = Math.abs((updatedAt.getTime() - createdAt.getTime()) / (1000 * 60));
       return diffMinutes <= 10;
     }
-    
+
     return false;
   };
 
@@ -384,11 +384,13 @@ const EventDetail = () => {
                 </div>
               </div>
 
-              <div className="bg-muted/50 p-3 rounded-md">
-                <p className="text-sm text-muted-foreground">
-                  Location details shared {cutoffHours} hours before the event
-                </p>
-              </div>
+              {(!booking || !restaurantAssignment || !restaurantAssignment.restaurant) && (
+                <div className="bg-muted/50 p-3 rounded-md">
+                  <p className="text-sm text-muted-foreground">
+                    Location details shared {cutoffHours} hours before the event
+                  </p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -403,7 +405,7 @@ const EventDetail = () => {
                 {restaurantAssignment.restaurant.address && (
                   <p className="text-sm text-muted-foreground">{restaurantAssignment.restaurant.address}</p>
                 )}
-                {showVenue && restaurantAssignment.restaurant.googleMapsUrl && (
+                {restaurantAssignment.restaurant.googleMapsUrl && (
                   <>
                     <a
                       href={restaurantAssignment.restaurant.googleMapsUrl}
@@ -514,7 +516,7 @@ const EventDetail = () => {
           </Card>
         )}
 
-        {/* Booking Status Card */}
+        {/* Booking Status Card - Confirmed */}
         {booking && booking.status === "confirmed" && (
           <Card className="bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900 shadow-sm">
             <CardContent className="p-6">
@@ -523,6 +525,38 @@ const EventDetail = () => {
                   <Check className="h-5 w-5 text-white" />
                 </div>
                 <h3 className="font-semibold text-lg">Booking Confirmed</h3>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Booking Status Card - Pending Payment */}
+        {booking && booking.status === "pending" && (
+          <Card className="bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-900 shadow-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="bg-yellow-500 rounded-full p-2">
+                    <Banknote className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg">Pending Payment Verification</h3>
+                    <p className="text-sm text-muted-foreground">Your booking is reserved. Awaiting payment confirmation.</p>
+                  </div>
+                </div>
+                {!isWithinCutoff() && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setPendingBookingId(booking.id);
+                      setPendingAmount(Number(booking.amountPaid) || Number(event?.price) || 500);
+                      setIsPaymentModalOpen(true);
+                    }}
+                  >
+                    Upload Payment
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -708,8 +742,8 @@ const EventDetail = () => {
                 A confirmation email has been sent to your inbox with all the event details.
               </p>
               <p className="text-sm text-muted-foreground">
-                {venueSetAtCreation 
-                  ? "The venue location is available now." 
+                {venueSetAtCreation
+                  ? "The venue location is available now."
                   : `The venue location will be revealed ${cutoffHours} hours before the event.`}
               </p>
             </DialogDescription>

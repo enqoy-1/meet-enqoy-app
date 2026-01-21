@@ -562,6 +562,7 @@ export class EmailService {
     eventDate: string;
     restaurantName: string;
     restaurantAddress: string;
+    googleMapsUrl?: string;
     groupName?: string;
   }) {
     if (!this.transporter) {
@@ -573,7 +574,7 @@ export class EmailService {
       await this.transporter.sendMail({
         from: this.fromAddress,
         to: data.to,
-        subject: `🍽️ Your Restaurant Assignment for ${data.eventTitle}`,
+        subject: `🍽️ Your Table and Restaurant for ${data.eventTitle}`,
         html: `
           <!DOCTYPE html>
           <html>
@@ -586,23 +587,32 @@ export class EmailService {
                 .restaurant-card { background: white; padding: 25px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #22c55e; }
                 .restaurant-name { font-size: 24px; font-weight: bold; color: #22c55e; margin-bottom: 10px; }
                 .button { display: inline-block; padding: 15px 40px; background: #667eea; color: white; text-decoration: none; border-radius: 6px; margin-top: 20px; font-weight: bold; }
+                .important-note { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; border-radius: 0 8px 8px 0; margin: 20px 0; }
                 .footer { text-align: center; color: #999; font-size: 12px; margin-top: 30px; }
               </style>
             </head>
             <body>
               <div class="container">
                 <div class="header">
-                  <h1>🍽️ Your Table is Ready!</h1>
+                  <h1>🍽️ Your Table and Restaurant</h1>
                 </div>
                 <div class="content">
                   <p>Hi ${data.userName},</p>
-                  <p>Great news! We've finalized the arrangements for <strong>${data.eventTitle}</strong> and you've been assigned to your dining group.</p>
+                  <p>Great news! We've finalized the arrangements for <strong>${data.eventTitle}</strong>.</p>
+                  
+                  <p style="font-size: 18px; margin-top: 20px;"><strong>You've been matched with a table at:</strong></p>
 
                   <div class="restaurant-card">
                     ${data.groupName ? `<p style="color: #666; margin-bottom: 5px;">Your Group: <strong>${data.groupName}</strong></p>` : ''}
                     <p class="restaurant-name">📍 ${data.restaurantName}</p>
                     <p style="color: #666;">${data.restaurantAddress}</p>
                     <p style="margin-top: 15px;"><strong>📅 Date:</strong> ${data.eventDate}</p>
+                    ${data.googleMapsUrl ? `
+                    <p style="margin-top: 15px;">
+                      <a href="${data.googleMapsUrl}" style="display: inline-block; padding: 10px 20px; background: #4285f4; color: white; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                        🗺️ Get Directions
+                      </a>
+                    </p>` : ''}
                   </div>
 
                   <h3>What to Expect:</h3>
@@ -611,6 +621,11 @@ export class EmailService {
                     <li>💬 Great conversations and new connections await</li>
                     <li>🍽️ Enjoy the experience and have fun!</li>
                   </ul>
+
+                  <div class="important-note">
+                    <p style="margin: 0;"><strong>⏰ Important Note</strong></p>
+                    <p style="margin: 5px 0 0 0;">Please arrive on time so everyone has the best experience. Arriving late can disrupt the table and the flow of conversation.</p>
+                  </div>
 
                   <p style="text-align: center;">
                     <a href="${process.env.FRONTEND_URL || 'http://localhost:8080'}/dashboard" class="button">
@@ -646,6 +661,7 @@ export class EmailService {
     oldRestaurantName: string;
     newRestaurantName: string;
     newRestaurantAddress: string;
+    newGoogleMapsUrl?: string;
     groupName?: string;
   }) {
     if (!this.transporter) {
@@ -657,7 +673,7 @@ export class EmailService {
       await this.transporter.sendMail({
         from: this.fromAddress,
         to: data.to,
-        subject: `📍 Location Update for ${data.eventTitle}`,
+        subject: `📍 Table and Restaurant Update for ${data.eventTitle}`,
         html: `
           <!DOCTYPE html>
           <html>
@@ -671,17 +687,20 @@ export class EmailService {
                 .old-location { color: #999; text-decoration: line-through; margin-bottom: 15px; }
                 .new-location { font-size: 24px; font-weight: bold; color: #22c55e; margin-bottom: 10px; }
                 .button { display: inline-block; padding: 15px 40px; background: #667eea; color: white; text-decoration: none; border-radius: 6px; margin-top: 20px; font-weight: bold; }
+                .important-note { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; border-radius: 0 8px 8px 0; margin: 20px 0; }
                 .footer { text-align: center; color: #999; font-size: 12px; margin-top: 30px; }
               </style>
             </head>
             <body>
               <div class="container">
                 <div class="header">
-                  <h1>📍 Location Update</h1>
+                  <h1>📍 Table and Restaurant Update</h1>
                 </div>
                 <div class="content">
                   <p>Hi ${data.userName},</p>
-                  <p>We've made a change to your restaurant assignment for <strong>${data.eventTitle}</strong>. Please note your new location:</p>
+                  <p>We've made a change to your assignment for <strong>${data.eventTitle}</strong>.</p>
+                  
+                  <p style="font-size: 18px; margin-top: 20px;"><strong>You've been matched with a new table at:</strong></p>
 
                   <div class="update-card">
                     <p class="old-location">Previous: ${data.oldRestaurantName}</p>
@@ -689,11 +708,22 @@ export class EmailService {
                     <p class="new-location">📍 ${data.newRestaurantName}</p>
                     <p style="color: #666;">${data.newRestaurantAddress}</p>
                     <p style="margin-top: 15px;"><strong>📅 Date:</strong> ${data.eventDate}</p>
+                    ${data.newGoogleMapsUrl ? `
+                    <p style="margin-top: 15px;">
+                      <a href="${data.newGoogleMapsUrl}" style="display: inline-block; padding: 10px 20px; background: #4285f4; color: white; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                        🗺️ Get Directions to New Location
+                      </a>
+                    </p>` : ''}
                   </div>
 
-                  <p style="background: #fef3c7; padding: 15px; border-radius: 8px; border-left: 4px solid #f59e0b;">
-                    <strong>⚠️ Important:</strong> Please update your plans to go to the new location above.
-                  </p>
+                  <div class="important-note">
+                    <p style="margin: 0;"><strong>⚠️ Important:</strong> Please update your plans to go to the new location above.</p>
+                  </div>
+
+                  <div class="important-note">
+                    <p style="margin: 0;"><strong>⏰ Important Note</strong></p>
+                    <p style="margin: 5px 0 0 0;">Please arrive on time so everyone has the best experience. Arriving late can disrupt the table and the flow of conversation.</p>
+                  </div>
 
                   <p style="text-align: center;">
                     <a href="${process.env.FRONTEND_URL || 'http://localhost:8080'}/dashboard" class="button">
