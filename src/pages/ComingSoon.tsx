@@ -49,15 +49,15 @@ const ComingSoon = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <header className="bg-card/80 backdrop-blur-md border-b sticky top-0 z-50">
+      <header className="bg-black/40 backdrop-blur-md border-b border-white/10 sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-orange-500 bg-clip-text text-transparent">
+          <h1 className="text-2xl font-bold text-white">
             Enqoy
           </h1>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="flex items-center gap-3 h-auto py-2 px-3 hover:bg-muted">
+              <Button variant="ghost" className="flex items-center gap-3 h-auto py-2 px-3 hover:bg-white/10 text-white">
                 <Avatar className="h-9 w-9">
                   <AvatarFallback className="bg-gradient-to-br from-primary to-orange-500 text-white font-semibold">
                     {user?.profile?.firstName?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "U"}
@@ -65,14 +65,14 @@ const ComingSoon = () => {
                   </AvatarFallback>
                 </Avatar>
                 <div className="hidden md:flex flex-col items-start">
-                  <span className="text-sm font-medium">
+                  <span className="text-sm font-medium text-white">
                     {user?.profile?.firstName && user?.profile?.lastName
                       ? `${user.profile.firstName} ${user.profile.lastName}`
                       : user?.profile?.firstName || user?.email?.split("@")[0] || "User"}
                   </span>
-                  <span className="text-xs text-muted-foreground">{user?.email}</span>
+                  <span className="text-xs text-white/70">{user?.email}</span>
                 </div>
-                <ChevronDown className="h-4 w-4 text-muted-foreground hidden md:block" />
+                <ChevronDown className="h-4 w-4 text-white/70 hidden md:block" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
@@ -122,7 +122,7 @@ const ComingSoon = () => {
             <h1 className="text-4xl md:text-5xl font-bold mb-4 leading-tight">
               Something Special is
               <span className="block bg-gradient-to-r from-orange-400 to-primary bg-clip-text text-transparent">
-                Coming to {mainCity}
+                Coming to {countryName}
               </span>
             </h1>
 
@@ -228,7 +228,7 @@ const ComingSoon = () => {
               Stay Tuned, {user?.profile?.firstName || "Friend"}!
             </h3>
             <p className="text-muted-foreground max-w-md mx-auto">
-              We're working hard to bring unforgettable experiences to {mainCity}.
+              We're working hard to bring unforgettable experiences to {countryName}.
               You'll be the first to know when we're ready!
             </p>
           </div>
@@ -236,7 +236,7 @@ const ComingSoon = () => {
       </main>
 
       {/* Footer */}
-      <footer className="bg-card border-t mt-auto">
+      <footer className="bg-gradient-to-b from-background to-muted/50 border-t mt-auto">
         <div className="container mx-auto px-4 py-6">
           <div className="text-center text-sm text-muted-foreground">
             <p>© {new Date().getFullYear()} Enqoy. Bringing people together, one dinner at a time.</p>
