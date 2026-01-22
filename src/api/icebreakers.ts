@@ -12,8 +12,8 @@ export const icebreakersApi = {
     return response.data;
   },
 
-  create: async (question: string) => {
-    const response = await apiClient.post('/icebreakers', { question });
+  create: async (question: string, isActive: boolean = false, category: string = "Icebreakers") => {
+    const response = await apiClient.post('/icebreakers', { question, isActive, category });
     return response.data;
   },
 

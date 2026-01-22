@@ -53,8 +53,14 @@ export const bookingsApi = {
     return response.data;
   },
 
+
   cancel: async (id: string) => {
     const response = await apiClient.patch(`/bookings/${id}/cancel`, {});
+    return response.data;
+  },
+
+  reschedule: async (id: string, newEventId: string) => {
+    const response = await apiClient.post(`/bookings/${id}/reschedule`, { newEventId });
     return response.data;
   },
 

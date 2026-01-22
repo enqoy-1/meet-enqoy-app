@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class IcebreakersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async getActiveQuestions() {
     return this.prisma.icebreakerQuestion.findMany({
@@ -19,11 +19,12 @@ export class IcebreakersService {
     });
   }
 
-  async createQuestion(question: string) {
+  async createQuestion(question: string, isActive: boolean = false, category: string = "Icebreakers") {
     return this.prisma.icebreakerQuestion.create({
       data: {
         question,
-        isActive: true,
+        isActive,
+        category,
       },
     });
   }
@@ -48,7 +49,7 @@ export class IcebreakersService {
     const created = await this.prisma.icebreakerQuestion.createMany({
       data: newQuestions.map(question => ({
         question,
-        isActive: true,
+        isActive: false,
         isAIGenerated: true,
         eventId,
         groupName,

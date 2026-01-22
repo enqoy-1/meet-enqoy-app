@@ -1,13 +1,16 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { authApi } from '@/api';
 import { toast } from 'sonner';
+import CountrySelectionModal from '@/components/CountrySelectionModal';
 
 const AuthCallback = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { refreshUser } = useAuth();
+  const [showCountryModal, setShowCountryModal] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(true);
 
   useEffect(() => {
     const handleCallback = async () => {
@@ -30,6 +33,13 @@ const AuthCallback = () => {
         // Refresh auth context
         await refreshUser();
 
+        // Check if user needs to select a country
+        if (!userData.profile?.countryId) {
+          setIsProcessing(false);
+          setShowCountryModal(true);
+          return;
+        }
+
         toast.success('Successfully signed in with Google!');
 
         // Check if user needs to complete assessment
@@ -44,6 +54,22 @@ const AuthCallback = () => {
 
     handleCallback();
   }, [searchParams, navigate, refreshUser]);
+
+  const handleCountryModalClose = () => {
+    setShowCountryModal(false);
+    toast.success('Successfully signed in with Google!');
+  };
+
+  if (!isProcessing && showCountryModal) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <CountrySelectionModal
+          open={showCountryModal}
+          onClose={handleCountryModalClose}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center">

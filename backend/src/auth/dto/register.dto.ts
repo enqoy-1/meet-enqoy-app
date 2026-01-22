@@ -76,4 +76,8 @@ export class RegisterDto {
   @IsOptional()
   @IsString()
   mealPreference?: string;
+
+  @IsOptional()
+  @IsString()
+  countryId?: string;  // Reference to Country model
 }

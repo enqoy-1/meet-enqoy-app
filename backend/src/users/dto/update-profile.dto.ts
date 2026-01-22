@@ -37,4 +37,8 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsBoolean()
   assessmentCompleted?: boolean;
+
+  @IsOptional()
+  @IsString()
+  countryId?: string;
 }

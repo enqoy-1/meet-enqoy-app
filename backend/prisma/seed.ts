@@ -6,6 +6,40 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Starting seed...');
 
+  // Create countries
+  const ethiopia = await prisma.country.upsert({
+    where: { code: 'ET' },
+    update: {
+      phoneCode: '+251',
+      mainCity: 'Addis Ababa',
+    },
+    create: {
+      name: 'Ethiopia',
+      code: 'ET',
+      isActive: true,
+      currency: 'Birr',
+      phoneCode: '+251',
+      mainCity: 'Addis Ababa',
+    },
+  });
+
+  const rwanda = await prisma.country.upsert({
+    where: { code: 'RW' },
+    update: {
+      phoneCode: '+250',
+      mainCity: 'Kigali',
+    },
+    create: {
+      name: 'Rwanda',
+      code: 'RW',
+      isActive: false,
+      currency: 'RWF',
+      phoneCode: '+250',
+      mainCity: 'Kigali',
+    },
+  });
+  console.log('✅ Created countries: Ethiopia (active), Rwanda (coming soon)');
+
   // Create admin user
   const adminPassword = await bcrypt.hash('admin123', 10);
   const admin = await prisma.user.upsert({
@@ -19,6 +53,7 @@ async function main() {
           firstName: 'Admin',
           lastName: 'User',
           assessmentCompleted: true,
+          countryId: ethiopia.id,
         },
       },
       roles: {
@@ -48,6 +83,7 @@ async function main() {
             gender: i % 2 === 0 ? 'male' : 'female',
             city: 'San Francisco',
             assessmentCompleted: true,
+            countryId: ethiopia.id,
           },
         },
         roles: {

@@ -196,7 +196,11 @@ const Profile = () => {
                                 )}
                             </div>
                             {(user?.profile?.eventCredits || 0) > 0 && (
-                                <Badge variant="secondary" className="flex-shrink-0">
+                                <Badge
+                                    variant="secondary"
+                                    className="flex-shrink-0 cursor-pointer hover:bg-secondary/80"
+                                    onClick={() => navigate("/my-credits")}
+                                >
                                     <Ticket className="h-3 w-3 mr-1" />
                                     {user?.profile?.eventCredits}
                                 </Badge>

@@ -47,28 +47,32 @@ model AttendeeSnapshot {
 }
 
 model Booking {
-  id                 String        @id @default(cuid())
-  userId             String
-  eventId            String
-  status             BookingStatus @default(pending)
-  paymentStatus      String?
-  amountPaid         Decimal?      @db.Decimal(10, 2)
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
-  bookedForFriend    Boolean       @default(false)
-  friendEmail        String?
-  friendName         String?
-  friendPhone        String?
-  invitedById        String?
-  assessmentOptional Boolean       @default(false)
-  paidByInviter      Boolean       @default(false)
-  usedCredit         Boolean       @default(false)
-  purchasedTwoEvents Boolean       @default(false)
-  creditGranted      Boolean       @default(false)
-  event              Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  invitedBy          User?         @relation("bookings_invitedByIdTousers", fields: [invitedById], references: [id])
-  user               User          @relation("bookings_userIdTousers", fields: [userId], references: [id], onDelete: Cascade)
-  payment            Payment?
+  id                   String        @id @default(cuid())
+  userId               String
+  eventId              String
+  status               BookingStatus @default(pending)
+  paymentStatus        String?
+  amountPaid           Decimal?      @db.Decimal(10, 2)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+  bookedForFriend      Boolean       @default(false)
+  friendEmail          String?
+  friendName           String?
+  friendPhone          String?
+  invitedById          String?
+  assessmentOptional   Boolean       @default(false)
+  paidByInviter        Boolean       @default(false)
+  usedCredit           Boolean       @default(false)
+  purchasedTwoEvents   Boolean       @default(false)
+  creditGranted        Boolean       @default(false)
+  sourceEventId        String?       // For rescheduled bookings: original event ID
+  creditUsedFromEventId String?      // Event ID where credit was earned (prevents using on same event)
+  event                Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  invitedBy            User?         @relation("bookings_invitedByIdTousers", fields: [invitedById], references: [id])
+  user                 User          @relation("bookings_userIdTousers", fields: [userId], references: [id], onDelete: Cascade)
+  payment              Payment?
+  creditsEarned        CreditTransaction[] @relation("CreditEarned")
+  creditsUsed          CreditTransaction[] @relation("CreditUsed")
 
   @@unique([userId, eventId])
   @@map("bookings")
@@ -135,7 +139,8 @@ model FriendInvitation {
 model IcebreakerQuestion {
   id            String   @id @default(cuid())
   question      String
-  isActive      Boolean  @default(true)
+  category      String   @default("Icebreakers")
+  isActive      Boolean  @default(false)
   isAIGenerated Boolean  @default(false)
   eventId       String?
   groupName     String?
@@ -302,9 +307,47 @@ model Profile {
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt
   eventCredits        Int         @default(0)
+  countryId           String?
   user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  country             Country?    @relation(fields: [countryId], references: [id])
 
   @@map("profiles")
+}
+
+model Country {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  code      String    @unique  // e.g., "ET", "RW"
+  isActive  Boolean   @default(false)  // false = "coming soon"
+  currency  String?   // e.g., "Birr", "RWF"
+  phoneCode String?   // e.g., "+251", "+250"
+  mainCity  String?   // e.g., "Addis Ababa", "Kigali"
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  profiles  Profile[]
+
+  @@map("countries")
+}
+
+model CreditTransaction {
+  id                String   @id @default(cuid())
+  userId            String
+  type              String   // 'earned' | 'used' | 'expired' | 'admin_grant' | 'admin_revoke'
+  amount            Int      // positive for earned, negative for used
+  balance           Int      // balance after this transaction
+  sourceBookingId   String?  // booking where credit was earned (for 'earned' type)
+  usedForBookingId  String?  // booking where credit was used (for 'used' type)
+  sourceEventId     String?  // event where credit was earned
+  usedForEventId    String?  // event where credit was used
+  description       String?
+  createdAt         DateTime @default(now())
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceBooking     Booking? @relation("CreditEarned", fields: [sourceBookingId], references: [id], onDelete: SetNull)
+  usedForBooking    Booking? @relation("CreditUsed", fields: [usedForBookingId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("credit_transactions")
 }
 
 model SandboxNotification {
@@ -356,6 +399,7 @@ model User {
   roles                  RoleAssignment[]
   resetToken             String?                @unique
   resetTokenExpiry       DateTime?
+  creditTransactions     CreditTransaction[]
 
   @@map("users")
 }

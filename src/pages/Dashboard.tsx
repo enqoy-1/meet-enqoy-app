@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, MapPin, Users, LogOut, Settings, User, ChevronDown, Ticket, ClipboardList } from "lucide-react";
+import { Calendar, MapPin, Users, LogOut, Settings, User, ChevronDown, Ticket, ClipboardList, ArrowRight } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import heroDining from "@/assets/hero-dining.jpg";
 import { getCurrentTime } from "@/utils/time";
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, useCarousel } from "@/components/ui/carousel";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/contexts/AuthContext";
 import { eventsApi, bookingsApi, settingsApi, announcementsApi, pairingApi } from "@/api";
@@ -90,6 +90,15 @@ const Dashboard = () => {
     hasPairingUpdates: boolean;
     eventsWithUpdates: Array<{ eventId: string; eventTitle: string; eventStartTime: string }>;
   }>({ hasPairingUpdates: false, eventsWithUpdates: [] });
+  const [carouselApi, setCarouselApi] = useState<any>(null);
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  // Redirect to ComingSoon page if user's country is not active
+  useEffect(() => {
+    if (user?.profile?.country && !user.profile.country.isActive) {
+      navigate("/coming-soon", { replace: true });
+    }
+  }, [user, navigate]);
 
   // Auto-cycle announcements
   useEffect(() => {
@@ -101,6 +110,23 @@ const Dashboard = () => {
     }, 5000);
     return () => clearInterval(interval);
   }, [announcements.length]);
+
+  // Track carousel changes and handle navigation to events page
+  useEffect(() => {
+    if (!carouselApi) return;
+
+    const onSelect = () => {
+      const selectedIndex = carouselApi.selectedScrollSnap();
+      setCurrentSlide(selectedIndex);
+    };
+
+    carouselApi.on("select", onSelect);
+    onSelect();
+
+    return () => {
+      carouselApi.off("select", onSelect);
+    };
+  }, [carouselApi, upcomingEvents.length]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -136,17 +162,29 @@ const Dashboard = () => {
         setPastBookings(past);
       }
 
-      // Fetch upcoming events (next 2) - filter out events with closed bookings
+      // Fetch upcoming events (next 2) - filter out events with closed bookings AND events user has already booked
       const eventsData = await eventsApi.getUpcoming();
       const now = new Date();
+
+      // Get IDs of events the user has already booked (confirmed or pending)
+      const usersBookedEventIds = (bookings || []).map((b: any) => b.event.id || b.eventId);
+
       const openEvents = eventsData.filter((event: UpcomingEvent) => {
-        if (!event.startTime) return true; // Show events without dates
+        // 1. Don't show if user already booked it
+        if (usersBookedEventIds.includes(event.id)) return false;
+
+        // 2. Don't show if missing start time
+        if (!event.startTime) return true;
+
+        // 3. Don't show if booking window is closed
         const eventStart = new Date(event.startTime);
         const cutoffHours = event.bookingCutoffHours ?? 24;
         const hoursUntilEvent = (eventStart.getTime() - now.getTime()) / (1000 * 60 * 60);
+
         return hoursUntilEvent >= cutoffHours; // Only show events still open for booking
       });
-      setUpcomingEvents(openEvents.slice(0, 2) || []);
+      // Fetch top 3 events (allows for 3rd click navigation to full list)
+      setUpcomingEvents(openEvents.slice(0, 3) || []);
 
       // Fetch announcements
       try {
@@ -240,7 +278,10 @@ const Dashboard = () => {
                 My Profile
               </DropdownMenuItem>
               {(user?.profile?.eventCredits || 0) > 0 && (
-                <DropdownMenuItem className="bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 focus:bg-green-100 dark:focus:bg-green-900/30">
+                <DropdownMenuItem
+                  className="bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 focus:bg-green-100 dark:focus:bg-green-900/30 cursor-pointer"
+                  onClick={() => navigate("/my-credits")}
+                >
                   <Ticket className="mr-2 h-4 w-4" />
                   {user?.profile?.eventCredits} Event Credit{user?.profile?.eventCredits > 1 ? 's' : ''}
                 </DropdownMenuItem>
@@ -392,87 +433,77 @@ const Dashboard = () => {
             </Card>
           ) : (
             <>
-              {isMobile && upcomingEvents.length > 1 ? (
-                <Carousel className="w-full mb-4">
-                  <CarouselContent>
-                    {upcomingEvents.map((event) => (
-                      <CarouselItem key={event.id}>
-                        <Card
-                          className="shadow-card hover:shadow-elevated transition-shadow cursor-pointer"
-                          onClick={() => navigate(`/events/${event.id}`)}
-                        >
-                          <CardHeader>
-                            <div className="flex justify-between items-start">
-                              <CardTitle>{event.title}</CardTitle>
-                              <Badge>{event.eventType || event.type}</Badge>
-                            </div>
-                          </CardHeader>
-                          <CardContent className="space-y-2">
-                            <div className="flex items-center gap-2 text-sm">
-                              <Calendar className="h-4 w-4 text-primary" />
-                              <span>{event.startTime ? format(new Date(event.startTime), "PPP 'at' p") : 'Date TBA'}</span>
-                            </div>
-                            {event.venue && (
-                              <div className="flex items-center gap-2 text-sm">
-                                <MapPin className="h-4 w-4 text-primary" />
-                                <span>{event.venue.name}</span>
-                              </div>
-                            )}
-                            <div className="flex items-center justify-between mt-4">
-                              <span className="text-lg font-semibold text-primary">
-                                {event.price} Birr
-                              </span>
-                              <Button size="sm" variant="secondary">
-                                View Details
-                              </Button>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </CarouselItem>
-                    ))}
-                  </CarouselContent>
-                  <CarouselPrevious className="left-2" />
-                  <CarouselNext className="right-2" />
-                </Carousel>
-              ) : (
-                <div className="grid gap-4 md:grid-cols-2 mb-4">
+              <Carousel
+                className="w-full mb-4"
+                setApi={setCarouselApi}
+                opts={{
+                  align: "start",
+                  slidesToScroll: 1,
+                }}
+              >
+                <CarouselContent className="-ml-4">
                   {upcomingEvents.map((event) => (
-                    <Card
-                      key={event.id}
-                      className="shadow-card hover:shadow-elevated transition-shadow cursor-pointer"
-                      onClick={() => navigate(`/events/${event.id}`)}
-                    >
-                      <CardHeader>
-                        <div className="flex justify-between items-start">
-                          <CardTitle>{event.title}</CardTitle>
-                          <Badge>{event.eventType || event.type}</Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm">
-                          <Calendar className="h-4 w-4 text-primary" />
-                          <span>{event.startTime ? format(new Date(event.startTime), "PPP 'at' p") : 'Date TBA'}</span>
-                        </div>
-                        {event.venue && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <MapPin className="h-4 w-4 text-primary" />
-                            <span>{event.venue.name}</span>
+                    <CarouselItem key={event.id} className="pl-4 basis-full">
+                      <Card
+                        className="shadow-card hover:shadow-elevated transition-shadow cursor-pointer"
+                        onClick={() => navigate(`/events/${event.id}`)}
+                      >
+                        <CardHeader>
+                          <div className="flex justify-between items-start">
+                            <CardTitle>{event.title}</CardTitle>
+                            <Badge>{event.eventType || event.type}</Badge>
                           </div>
-                        )}
-                        <div className="flex items-center justify-between mt-4">
-                          <span className="text-lg font-semibold text-primary">
-                            {event.price} Birr
-                          </span>
-                          <Button size="sm" variant="secondary">
-                            View Details
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                          <div className="flex items-center gap-2 text-sm">
+                            <Calendar className="h-4 w-4 text-primary" />
+                            <span>{event.startTime ? format(new Date(event.startTime), "PPP 'at' p") : 'Date TBA'}</span>
+                          </div>
+                          {event.venue && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <MapPin className="h-4 w-4 text-primary" />
+                              <span>{event.venue.name}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between mt-4">
+                            <span className="text-lg font-semibold text-primary">
+                              {event.price} Birr
+                            </span>
+                            <Button size="sm" variant="secondary">
+                              View Details
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </CarouselItem>
                   ))}
-                </div>
-              )}
-              <div className="flex justify-center">
+                </CarouselContent>
+                <CarouselPrevious className="left-2" />
+                {carouselApi && (() => {
+                  // With 1 card per slide, we have 2 slides total (2 events)
+                  // After seeing the second card (currentSlide >= 1), next click should navigate
+                  const isAtLastSlide = currentSlide >= upcomingEvents.length - 1;
+
+                  if (isAtLastSlide) {
+                    return (
+                      <Button
+                        className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => navigate("/events")}
+                      >
+                        <ArrowRight className="h-4 w-4" />
+                        <span className="sr-only">View all events</span>
+                      </Button>
+                    );
+                  }
+
+                  return <CarouselNext className="right-2" />;
+                })()}
+                {!carouselApi && <CarouselNext className="right-2" />}
+              </Carousel>
+
+              <div className="flex justify-center mt-4">
                 <Button onClick={() => navigate("/events")} variant="outline" size="lg">
                   <Users className="h-4 w-4 mr-2" />
                   Browse All Events

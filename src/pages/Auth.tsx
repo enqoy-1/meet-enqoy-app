@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -6,8 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { authSchemas, validateData } from "@/lib/validation";
+import { countriesApi, Country } from "@/api";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -17,11 +19,25 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [countryId, setCountryId] = useState("");
+  const [countries, setCountries] = useState<Country[]>([]);
   const [activeTab, setActiveTab] = useState("signin");
+
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const data = await countriesApi.getAll();
+        setCountries(data);
+      } catch (error) {
+        console.error("Failed to fetch countries:", error);
+      }
+    };
+    fetchCountries();
+  }, []);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password || !firstName) {
+    if (!email || !password || !firstName || !countryId) {
       toast.error("Please fill in all required fields");
       return;
     }
@@ -41,7 +57,7 @@ const Auth = () => {
 
     setIsLoading(true);
     try {
-      const response = await register(email, password, firstName, lastName || undefined);
+      const response = await register(email, password, firstName, lastName || undefined, countryId);
 
       // Check if this was a legacy user setting their password
       const isPasswordSet = response?.message?.includes('Password set successfully');
@@ -228,6 +244,21 @@ const Auth = () => {
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-country">Country <span className="text-destructive">*</span></Label>
+                  <Select value={countryId} onValueChange={setCountryId}>
+                    <SelectTrigger id="signup-country">
+                      <SelectValue placeholder="Select your country" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {countries.map((country) => (
+                        <SelectItem key={country.id} value={country.id}>
+                          {country.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-password">Password</Label>

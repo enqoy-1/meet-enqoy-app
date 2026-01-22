@@ -17,3 +17,5 @@ export { sandboxApi } from './sandbox';
 export { friendInvitationsApi } from './friendInvitations';
 export { paymentsApi } from './payments';
 export { settingsApi } from './settings';
+export { countriesApi } from './countries';
+export type { Country, CreateCountryDto, UpdateCountryDto } from './countries';

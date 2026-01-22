@@ -18,6 +18,9 @@ import { SandboxModule } from './sandbox/sandbox.module';
 import { FriendInvitationsModule } from './friend-invitations/friend-invitations.module';
 import { PaymentModule } from './payment/payment.module';
 import { SettingsModule } from './settings/settings.module';
+import { CreditsModule } from './credits/credits.module';
+import { CountriesModule } from './countries/countries.module';
+
 
 @Module({
   imports: [
@@ -42,6 +45,8 @@ import { SettingsModule } from './settings/settings.module';
     FriendInvitationsModule,
     PaymentModule,
     SettingsModule,
+    CreditsModule,
+    CountriesModule,
   ],
 })
 export class AppModule { }

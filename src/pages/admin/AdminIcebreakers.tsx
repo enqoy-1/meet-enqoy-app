@@ -11,18 +11,28 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { IceBreakerGame } from "@/components/IceBreakerGame";
 
 interface IcebreakerQuestion {
   id: string;
   question: string;
+  category: string;
   isActive: boolean;
   isAIGenerated: boolean;
   eventId?: string;
   groupName?: string;
   createdAt: string;
 }
+
+const CATEGORIES = [
+  { name: "Icebreakers", color: "bg-blue-200" },
+  { name: "Getting Personal", color: "bg-rose-400" },
+  { name: "Deep Dive", color: "bg-purple-300" },
+  { name: "Fun & Light", color: "bg-amber-400" },
+  { name: "Quirky", color: "bg-green-300" },
+];
 
 export default function AdminIcebreakers() {
   const [questions, setQuestions] = useState<IcebreakerQuestion[]>([]);
@@ -34,7 +44,8 @@ export default function AdminIcebreakers() {
   const [editingQuestion, setEditingQuestion] = useState<IcebreakerQuestion | null>(null);
   const [formData, setFormData] = useState({
     questionText: "",
-    isActive: true
+    category: "Table Talk",
+    isActive: false
   });
   const [bulkQuestions, setBulkQuestions] = useState("");
 
@@ -85,7 +96,7 @@ export default function AdminIcebreakers() {
         await icebreakersApi.update(editingQuestion.id, formData);
         toast.success("Question updated successfully");
       } else {
-        await icebreakersApi.create(formData.questionText);
+        await icebreakersApi.create(formData.questionText, formData.isActive, formData.category);
         toast.success("Question created successfully");
       }
       setIsDialogOpen(false);
@@ -121,6 +132,7 @@ export default function AdminIcebreakers() {
     setEditingQuestion(question);
     setFormData({
       questionText: question.question,
+      category: question.category || "Table Talk",
       isActive: question.isActive
     });
     setIsDialogOpen(true);
@@ -128,7 +140,7 @@ export default function AdminIcebreakers() {
 
   const resetForm = () => {
     setEditingQuestion(null);
-    setFormData({ questionText: "", isActive: true });
+    setFormData({ questionText: "", category: "Table Talk", isActive: false });
   };
 
   const handleBulkUpload = async (e: React.FormEvent) => {
@@ -276,6 +288,24 @@ export default function AdminIcebreakers() {
                       required
                     />
                   </div>
+                  <div>
+                    <Label htmlFor="category">Category</Label>
+                    <Select
+                      value={formData.category}
+                      onValueChange={(value) => setFormData({ ...formData, category: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CATEGORIES.map((cat) => (
+                          <SelectItem key={cat.name} value={cat.name}>
+                            {cat.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="flex items-center justify-between">
                     <Label htmlFor="isActive">Active</Label>
                     <Switch
@@ -309,8 +339,8 @@ export default function AdminIcebreakers() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Question</TableHead>
+                    <TableHead>Category</TableHead>
                     <TableHead>Source</TableHead>
-                    <TableHead>Group</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Created</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -321,6 +351,14 @@ export default function AdminIcebreakers() {
                     <TableRow key={question.id}>
                       <TableCell className="font-medium">{question.question}</TableCell>
                       <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={CATEGORIES.find(c => c.name === question.category)?.color || "bg-gray-200"}
+                        >
+                          {question.category || "Uncategorized"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
                         {question.isAIGenerated ? (
                           <Badge variant="secondary" className="flex items-center gap-1 w-fit">
                             <Sparkles className="h-3 w-3" />
@@ -328,11 +366,6 @@ export default function AdminIcebreakers() {
                           </Badge>
                         ) : (
                           <Badge variant="outline">Manual</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {question.groupName && (
-                          <span className="text-sm text-muted-foreground">{question.groupName}</span>
                         )}
                       </TableCell>
                       <TableCell>
@@ -367,6 +400,7 @@ export default function AdminIcebreakers() {
         isOpen={isGameOpen}
         onClose={() => setIsGameOpen(false)}
         eventId="preview"
+        previewAll={true}
       />
     </AdminLayout>
   );

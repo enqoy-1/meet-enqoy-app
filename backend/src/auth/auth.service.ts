@@ -88,7 +88,11 @@ export class AuthService {
             } : {}),
           },
           include: {
-            profile: true,
+            profile: {
+              include: {
+                country: true,
+              },
+            },
             roles: true,
             personalityAssessment: true,
           },
@@ -161,6 +165,7 @@ export class AuthService {
           hasChildren: dto.hasChildren,
           city: dto.city,
           assessmentCompleted: hasPersonality || !!enhancedPersonality,
+          countryId: dto.countryId,
         },
       },
       roles: {
@@ -185,7 +190,11 @@ export class AuthService {
     const user = await this.prisma.user.create({
       data: userData,
       include: {
-        profile: true,
+        profile: {
+          include: {
+            country: true,
+          },
+        },
         roles: true,
         personalityAssessment: true,
       },
@@ -205,7 +214,11 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
       include: {
-        profile: true,
+        profile: {
+          include: {
+            country: true,
+          },
+        },
         roles: true,
       },
     });
@@ -242,7 +255,11 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: {
-        profile: true,
+        profile: {
+          include: {
+            country: true,
+          },
+        },
         roles: true,
       },
     });
@@ -265,12 +282,18 @@ export class AuthService {
     let user = await this.prisma.user.findUnique({
       where: { email },
       include: {
-        profile: true,
+        profile: {
+          include: {
+            country: true,
+          },
+        },
         roles: true,
       },
     });
 
+    let isNewUser = false;
     if (!user) {
+      isNewUser = true;
       // Create new user if doesn't exist
       user = await this.prisma.user.create({
         data: {
@@ -289,7 +312,11 @@ export class AuthService {
           },
         },
         include: {
-          profile: true,
+          profile: {
+            include: {
+              country: true,
+            },
+          },
           roles: true,
         },
       });
@@ -298,9 +325,14 @@ export class AuthService {
     // Generate JWT token
     const token = this.generateToken(user.id, user.email);
 
+    // Check if user needs to select a country
+    const needsCountrySelection = !user.profile?.countryId;
+
     return {
       user: this.sanitizeUser(user),
       token,
+      needsCountrySelection,
+      isNewUser,
     };
   }
 

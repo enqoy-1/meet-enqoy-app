@@ -12,8 +12,10 @@ import ResetPassword from "./pages/ResetPassword";
 import Assessment from "./pages/Assessment";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
+import { MyCredits } from "./pages/MyCredits";
 import Events from "./pages/Events";
 import EventDetail from "./pages/EventDetail";
+import ConversationStarters from "./pages/ConversationStarters";
 import Terms from "./pages/Terms";
 import FAQ from "./pages/FAQ";
 import CommunityGuidelines from "./pages/CommunityGuidelines";
@@ -34,8 +36,10 @@ import AdminSettings from "./pages/admin/AdminSettings";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminUserMigration from "./pages/admin/AdminUserMigration";
 import AdminBookings from "./pages/admin/AdminBookings";
+import AdminCountries from "./pages/admin/AdminCountries";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
+import ComingSoon from "./pages/ComingSoon";
 
 const queryClient = new QueryClient();
 
@@ -56,8 +60,10 @@ const App = () => (
             <Route path="/assessment" element={<ProtectedRoute><Assessment /></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route path="/my-credits" element={<ProtectedRoute><MyCredits /></ProtectedRoute>} />
             <Route path="/events" element={<ProtectedRoute><Events /></ProtectedRoute>} />
             <Route path="/events/:id" element={<ProtectedRoute><EventDetail /></ProtectedRoute>} />
+            <Route path="/events/:id/conversation-starters" element={<ProtectedRoute><ConversationStarters /></ProtectedRoute>} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/faq" element={<FAQ />} />
             <Route path="/community-guidelines" element={<CommunityGuidelines />} />
@@ -77,6 +83,8 @@ const App = () => (
             <Route path="/admin/outside-city-interests" element={<ProtectedRoute requireAdmin><AdminOutsideCityInterests /></ProtectedRoute>} />
             <Route path="/admin/sandbox" element={<ProtectedRoute requireAdmin><AdminSandbox /></ProtectedRoute>} />
             <Route path="/admin/settings" element={<ProtectedRoute requireAdmin><AdminSettings /></ProtectedRoute>} />
+            <Route path="/admin/countries" element={<ProtectedRoute requireAdmin><AdminCountries /></ProtectedRoute>} />
+            <Route path="/coming-soon" element={<ProtectedRoute><ComingSoon /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

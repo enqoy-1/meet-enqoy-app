@@ -89,6 +89,15 @@ export class BookingsController {
     return this.bookingsService.cancel(id, userId);
   }
 
+  @Post(':id/reschedule')
+  reschedule(
+    @Param('id') id: string,
+    @Body('newEventId') newEventId: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.bookingsService.reschedule(id, newEventId, user.id);
+  }
+
   @Delete(':id')
   @UseGuards(RolesGuard)
   @Roles(UserRole.admin, UserRole.super_admin)

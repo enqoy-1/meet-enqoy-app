@@ -280,6 +280,13 @@ const Assessment = () => {
     };
   }, [showUnderageMessage, showOutsideCityMessage]);
 
+  // Set default phone country code based on user's country
+  useEffect(() => {
+    if (user?.profile?.country?.phoneCode && !phone) {
+      setCountryCode(user.profile.country.phoneCode);
+    }
+  }, [user?.profile?.country?.phoneCode]);
+
   // Auto-save progress whenever form values change
   useEffect(() => {
     // Don't auto-save until we've loaded initial data
@@ -540,8 +547,9 @@ const Assessment = () => {
 
       const age = birthday ? new Date().getFullYear() - birthday.getFullYear() : null;
 
-      // Determine the city to save - use specifiedCity for outside users
-      const cityToSave = city === "outside" ? specifiedCity : city === "addis" ? "Addis Ababa" : city;
+      // Determine the city to save - use specifiedCity for outside users, otherwise use the main city
+      const userMainCity = user?.profile?.country?.mainCity || "Addis Ababa";
+      const cityToSave = city === "outside" ? specifiedCity : city === "main" ? userMainCity : city;
 
       await usersApi.updateProfile({
         assessmentCompleted: true,
@@ -603,14 +611,45 @@ const Assessment = () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="+251">🇪🇹 +251</SelectItem>
-                    <SelectItem value="+1">🇺🇸 +1</SelectItem>
-                    <SelectItem value="+44">🇬🇧 +44</SelectItem>
-                    <SelectItem value="+254">🇰🇪 +254</SelectItem>
-                    <SelectItem value="+234">🇳🇬 +234</SelectItem>
-                    <SelectItem value="+27">🇿🇦 +27</SelectItem>
-                    <SelectItem value="+91">🇮🇳 +91</SelectItem>
-                    <SelectItem value="+86">🇨🇳 +86</SelectItem>
+                    {/* Africa */}
+                    <SelectItem value="+251">🇪🇹 +251 Ethiopia</SelectItem>
+                    <SelectItem value="+250">🇷🇼 +250 Rwanda</SelectItem>
+                    <SelectItem value="+254">🇰🇪 +254 Kenya</SelectItem>
+                    <SelectItem value="+255">🇹🇿 +255 Tanzania</SelectItem>
+                    <SelectItem value="+256">🇺🇬 +256 Uganda</SelectItem>
+                    <SelectItem value="+234">🇳🇬 +234 Nigeria</SelectItem>
+                    <SelectItem value="+233">🇬🇭 +233 Ghana</SelectItem>
+                    <SelectItem value="+27">🇿🇦 +27 South Africa</SelectItem>
+                    <SelectItem value="+20">🇪🇬 +20 Egypt</SelectItem>
+                    <SelectItem value="+212">🇲🇦 +212 Morocco</SelectItem>
+                    <SelectItem value="+253">🇩🇯 +253 Djibouti</SelectItem>
+                    <SelectItem value="+252">🇸🇴 +252 Somalia</SelectItem>
+                    <SelectItem value="+249">🇸🇩 +249 Sudan</SelectItem>
+                    <SelectItem value="+291">🇪🇷 +291 Eritrea</SelectItem>
+                    {/* Middle East */}
+                    <SelectItem value="+971">🇦🇪 +971 UAE</SelectItem>
+                    <SelectItem value="+966">🇸🇦 +966 Saudi Arabia</SelectItem>
+                    <SelectItem value="+974">🇶🇦 +974 Qatar</SelectItem>
+                    <SelectItem value="+972">🇮🇱 +972 Israel</SelectItem>
+                    <SelectItem value="+90">🇹🇷 +90 Turkey</SelectItem>
+                    {/* Europe */}
+                    <SelectItem value="+44">🇬🇧 +44 UK</SelectItem>
+                    <SelectItem value="+49">🇩🇪 +49 Germany</SelectItem>
+                    <SelectItem value="+33">🇫🇷 +33 France</SelectItem>
+                    <SelectItem value="+39">🇮🇹 +39 Italy</SelectItem>
+                    <SelectItem value="+31">🇳🇱 +31 Netherlands</SelectItem>
+                    <SelectItem value="+46">🇸🇪 +46 Sweden</SelectItem>
+                    {/* Americas */}
+                    <SelectItem value="+1">🇺🇸 +1 USA/Canada</SelectItem>
+                    <SelectItem value="+55">🇧🇷 +55 Brazil</SelectItem>
+                    {/* Asia */}
+                    <SelectItem value="+91">🇮🇳 +91 India</SelectItem>
+                    <SelectItem value="+86">🇨🇳 +86 China</SelectItem>
+                    <SelectItem value="+81">🇯🇵 +81 Japan</SelectItem>
+                    <SelectItem value="+82">🇰🇷 +82 South Korea</SelectItem>
+                    <SelectItem value="+65">🇸🇬 +65 Singapore</SelectItem>
+                    {/* Oceania */}
+                    <SelectItem value="+61">🇦🇺 +61 Australia</SelectItem>
                   </SelectContent>
                 </Select>
                 <Input
@@ -649,23 +688,24 @@ const Assessment = () => {
         );
 
       case 2:
+        const userMainCity = user?.profile?.country?.mainCity || "Addis Ababa";
         return (
           <div className="space-y-4">
             <Label className="text-base">Which city would you like to attend Enqoy from?</Label>
             <RadioGroup value={city} onValueChange={setCity}>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="addis" id="addis" />
-                <Label htmlFor="addis">Addis Ababa</Label>
+                <RadioGroupItem value="main" id="main" />
+                <Label htmlFor="main">{userMainCity}</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="outside" id="outside" />
-                <Label htmlFor="outside">Outside Addis Ababa</Label>
+                <Label htmlFor="outside">Outside {userMainCity}</Label>
               </div>
             </RadioGroup>
 
             {city === "outside" && (
               <div className="space-y-2 mt-4">
-                <Label htmlFor="specifiedCity">If you select outside of Addis Ababa, can you please specify which city? *</Label>
+                <Label htmlFor="specifiedCity">If you select outside of {userMainCity}, can you please specify which city? *</Label>
                 <Input
                   id="specifiedCity"
                   value={specifiedCity}

@@ -9,14 +9,17 @@ interface IceBreakerGameProps {
   isOpen: boolean;
   onClose: () => void;
   eventId: string;
+  previewAll?: boolean; // If true, show all questions (for admin preview)
 }
 
 interface Question {
   id: string;
   questionText: string;
+  question?: string; // Backend returns 'question' field
+  isActive?: boolean;
 }
 
-export const IceBreakerGame = ({ isOpen, onClose, eventId }: IceBreakerGameProps) => {
+export const IceBreakerGame = ({ isOpen, onClose, eventId, previewAll = false }: IceBreakerGameProps) => {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [api, setApi] = useState<CarouselApi>();
@@ -41,10 +44,18 @@ export const IceBreakerGame = ({ isOpen, onClose, eventId }: IceBreakerGameProps
   const fetchQuestions = async () => {
     setIsLoading(true);
     try {
-      const data = await icebreakersApi.getActive();
+      // Use getAll for admin preview, getActive for user-facing view
+      const data = previewAll
+        ? await icebreakersApi.getAll()
+        : await icebreakersApi.getActive();
 
       if (data && data.length > 0) {
-        const shuffled = [...data].sort(() => Math.random() - 0.5);
+        // Normalize question text field (backend uses 'question', we use 'questionText')
+        const normalized = data.map((q: any) => ({
+          ...q,
+          questionText: q.questionText || q.question
+        }));
+        const shuffled = [...normalized].sort(() => Math.random() - 0.5);
         setQuestions(shuffled);
       } else {
         setQuestions([]);
@@ -117,24 +128,22 @@ export const IceBreakerGame = ({ isOpen, onClose, eventId }: IceBreakerGameProps
             <CarouselContent className="-ml-2 md:-ml-4">
               {questions.map((question, index) => (
                 <CarouselItem key={question.id} className="pl-2 md:pl-4 basis-[85%] md:basis-[70%]">
-                  <div 
-                    className={`transition-all duration-500 ease-out ${
-                      index === current 
-                        ? 'scale-100 opacity-100' 
-                        : 'scale-[0.85] opacity-40 blur-[2px]'
-                    }`}
+                  <div
+                    className={`transition-all duration-500 ease-out ${index === current
+                      ? 'scale-100 opacity-100'
+                      : 'scale-[0.85] opacity-40 blur-[2px]'
+                      }`}
                     style={{
-                      transform: index === current 
-                        ? 'translateZ(0) scale(1)' 
+                      transform: index === current
+                        ? 'translateZ(0) scale(1)'
                         : 'translateZ(-50px) scale(0.85)'
                     }}
                   >
-                    <Card 
-                      className={`relative overflow-hidden border-0 rounded-2xl transition-all duration-500 ${
-                        index === current 
-                          ? 'shadow-premium-active' 
-                          : 'shadow-premium'
-                      }`}
+                    <Card
+                      className={`relative overflow-hidden border-0 rounded-2xl transition-all duration-500 ${index === current
+                        ? 'shadow-premium-active'
+                        : 'shadow-premium'
+                        }`}
                     >
                       <div className="absolute inset-0 bg-gradient-card" />
                       <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent" />
@@ -163,11 +172,10 @@ export const IceBreakerGame = ({ isOpen, onClose, eventId }: IceBreakerGameProps
               <button
                 key={index}
                 onClick={() => api?.scrollTo(index)}
-                className={`h-2 rounded-full transition-all ${
-                  index === current
-                    ? "w-8 bg-primary"
-                    : "w-2 bg-muted-foreground/30"
-                }`}
+                className={`h-2 rounded-full transition-all ${index === current
+                  ? "w-8 bg-primary"
+                  : "w-2 bg-muted-foreground/30"
+                  }`}
               />
             ))}
           </div>

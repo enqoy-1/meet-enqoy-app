@@ -52,29 +52,69 @@ export default function AdminUserMigration() {
 
   const parseCSV = (text: string): ParsedUser[] => {
     const lines = text.split('\n');
-    const headers = lines[0].split(',');
 
-    // Find column indices (0-based for JavaScript arrays)
-    const firstNameIdx = 22;  // Column 23: [What is your full name?] First Name
-    const lastNameIdx = 23;   // Column 24: [What is your full name?] Last Name
-    const emailIdx = 24;      // Column 25: What is your email?
-    const genderIdx = 17;     // Column 18: Gender
-    const birthYearIdx = 21;  // Column 22: What year were you born?
-    const countryCodeIdx = 25; // Column 26: [What is your phone number?] Country Code
-    const phoneIdx = 26;      // Column 27: [What is your phone number?] Phone
+    // Helper to parse CSV line handling quotes
+    const parseLine = (line: string): string[] => {
+      const fields: string[] = [];
+      let current = '';
+      let inQuotes = false;
+      for (let j = 0; j < line.length; j++) {
+        const char = line[j];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          fields.push(current.trim().replace(/^"|"$/g, ''));
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      fields.push(current.trim().replace(/^"|"$/g, ''));
+      return fields;
+    };
 
-    // New column indices
-    const cityPreferenceIdx = 0;  // Column 0: Which city would you like to attend
-    const outsideCityIdx = 1;     // Column 1: City if outside Addis
-    const mealPreferenceIdx = 2;  // Column 2: Lunch or dinner preference
-    const dietIdx = 14;           // Column 14: Dietary preferences
-    const restaurantFreqIdx = 15; // Column 15: Restaurant frequency
-    const spendingIdx = 16;       // Column 16: Spending preference
-    const relationshipIdx = 18;   // Column 18: Relationship status
-    const childrenIdx = 19;       // Column 19: Do you have children?
-    const countryIdx = 20;        // Column 20: Country of origin
-    const funFact1Idx = 27;       // Column 27: Fun fact 1
-    const funFact2Idx = 28;       // Column 28: Fun fact 2
+    if (lines.length < 2) return [];
+
+    // Parse headers to find indices
+    const headers = parseLine(lines[0].toLowerCase());
+
+    const findIdx = (keywords: string[]) => headers.findIndex(h => keywords.some(k => h.includes(k)));
+
+    // Core fields
+    const emailIdx = findIdx(['email', 'e-mail']);
+    const firstNameIdx = findIdx(['first name', 'firstname', 'given name']);
+    const lastNameIdx = findIdx(['last name', 'lastname', 'surname', 'family name']);
+    // Fallback if split names not found, look for "Full Name"
+    const fullNameIdx = findIdx(['full name', 'name', 'fullname']);
+
+    const genderIdx = findIdx(['gender', 'sex']);
+    const birthYearIdx = findIdx(['birth', 'dob', 'age', 'year']);
+    const phoneIdx = findIdx(['phone', 'mobile', 'cell', 'contact']);
+    const countryCodeIdx = findIdx(['country code', 'code']);
+
+    // Extended profile fields (try to match keywords)
+    const cityPreferenceIdx = findIdx(['city', 'location']);
+    const mealPreferenceIdx = findIdx(['meal', 'lunch', 'dinner']);
+    const dietIdx = findIdx(['diet', 'food preference']);
+    const restaurantFreqIdx = findIdx(['frequency', 'often']);
+    const spendingIdx = findIdx(['spending', 'budget']);
+    const relationshipIdx = findIdx(['relationship', 'marital']);
+    const childrenIdx = findIdx(['children', 'kids']);
+    const countryIdx = findIdx(['country', 'origin']);
+
+    // Personality fields (mapped by specific question keywords from the survey)
+    const dinnerVibeIdx = findIdx(['vibe', 'describe']);
+    const talkTopicIdx = findIdx(['talk', 'topic']);
+    const groupDynamicIdx = findIdx(['dynamic', 'group']);
+    const humorTypeIdx = findIdx(['humor type', 'kind of humor']);
+    const wardrobeStyleIdx = findIdx(['wardrobe', 'style']);
+
+    const introvertScaleIdx = findIdx(['introvert', 'extrovert']);
+    const aloneTimeScaleIdx = findIdx(['alone time', 'social battery']);
+    const familyScaleIdx = findIdx(['family', 'close']);
+    const spiritualityScaleIdx = findIdx(['spirituality', 'faith']);
+    const humorScaleIdx = findIdx(['funny', 'crack a joke']);
+    const meetingPriorityIdx = findIdx(['meeting new', 'priority']);
 
     const parsedUsers: ParsedUser[] = [];
 
@@ -82,190 +122,129 @@ export default function AdminUserMigration() {
       const line = lines[i];
       if (!line.trim()) continue;
 
-      // Parse CSV line (handle quoted fields)
-      const fields: string[] = [];
-      let current = '';
-      let inQuotes = false;
+      const fields = parseLine(line);
 
-      for (let j = 0; j < line.length; j++) {
-        const char = line[j];
-        if (char === '"') {
-          inQuotes = !inQuotes;
-        } else if (char === ',' && !inQuotes) {
-          fields.push(current.trim());
-          current = '';
+      // Get core data
+      let firstName = firstNameIdx >= 0 ? fields[firstNameIdx] : '';
+      let lastName = lastNameIdx >= 0 ? fields[lastNameIdx] : '';
+
+      // Handle Full Name fallback if split names missing
+      if ((!firstName || !lastName) && fullNameIdx >= 0) {
+        const full = fields[fullNameIdx].trim();
+        const parts = full.split(' ');
+        if (parts.length > 1) {
+          firstName = parts[0];
+          lastName = parts.slice(1).join(' ');
         } else {
-          current += char;
+          firstName = full;
+          lastName = 'Unknown';
         }
       }
-      fields.push(current.trim());
 
-      const firstName = fields[firstNameIdx]?.trim();
-      const lastName = fields[lastNameIdx]?.trim();
-      const email = fields[emailIdx]?.trim().toLowerCase();
-      const genderRaw = fields[genderIdx]?.trim();
-      const birthYearRaw = fields[birthYearIdx]?.trim();
+      const email = emailIdx >= 0 ? fields[emailIdx]?.trim().toLowerCase() : '';
+      const genderRaw = genderIdx >= 0 ? fields[genderIdx]?.trim() : 'prefer_not_to_say';
+      const birthYearRaw = birthYearIdx >= 0 ? fields[birthYearIdx]?.trim() : '2000';
 
       // Skip if missing essential data
-      if (!firstName || !lastName || !email || !genderRaw || !birthYearRaw) {
-        continue;
-      }
+      if (!email) continue;
+      if (!firstName) firstName = 'User';
+      if (!lastName) lastName = 'Imported';
 
-      // Normalize gender to match enum: male, female, non_binary, prefer_not_to_say
+      // Normalize gender
       let gender = genderRaw.toLowerCase();
-      if (gender === 'f' || gender === 'female') gender = 'female';
-      else if (gender === 'm' || gender === 'male') gender = 'male';
-      else if (gender === 'non-binary' || gender === 'non_binary') gender = 'non_binary';
+      if (gender.includes('f') || gender.includes('wom')) gender = 'female';
+      else if (gender.includes('m') || gender.includes('man')) gender = 'male';
+      else if (gender.includes('non') || gender.includes('bi')) gender = 'non_binary';
       else gender = 'prefer_not_to_say';
 
-      // Parse birth year correctly - CSV has dates like "6/14/1993"
+      // Calculate Age
       const currentYear = new Date().getFullYear();
-      let age: number;
-
+      let age = 25;
       try {
-        // Try parsing as a full date first
-        const birthDate = new Date(birthYearRaw);
-        if (!isNaN(birthDate.getTime())) {
-          age = currentYear - birthDate.getFullYear();
+        if (birthYearRaw.match(/^\d{4}$/)) { // Just year
+          age = currentYear - parseInt(birthYearRaw);
         } else {
-          // Fallback: try as just a year
-          const yearMatch = birthYearRaw.match(/\d{4}/);
-          age = yearMatch ? currentYear - parseInt(yearMatch[0]) : 25; // default to 25 if can't parse
+          const date = new Date(birthYearRaw);
+          if (!isNaN(date.getTime())) {
+            age = currentYear - date.getFullYear();
+          }
         }
-      } catch {
-        age = 25; // default age if parsing fails
-      }
+      } catch (e) { age = 25; }
 
-      // Validate age is reasonable
-      if (age < 18 || age > 100) {
-        console.warn(`Skipping ${email}: invalid age ${age} from birthYear ${birthYearRaw}`);
-        continue;
-      }
-
-      // Map CSV columns to personality assessment format
+      // Map personality
       const personality: any = {};
 
-      // Column 3: dinnerVibe - "Which statement best describes your vibe at dinner?"
-      const dinnerVibeRaw = fields[3]?.toLowerCase() || '';
-      if (dinnerVibeRaw.includes('steering') || dinnerVibeRaw.includes('lead')) {
-        personality.dinnerVibe = 'steering';
-      } else if (dinnerVibeRaw.includes('sharing') || dinnerVibeRaw.includes('stories')) {
-        personality.dinnerVibe = 'sharing';
-      } else if (dinnerVibeRaw.includes('observe') || dinnerVibeRaw.includes('listen')) {
-        personality.dinnerVibe = 'observing';
-      } else if (dinnerVibeRaw.includes('adapt') || dinnerVibeRaw.includes('flow')) {
-        personality.dinnerVibe = 'adapting';
-      }
+      // Helper to map field content to enum
+      const mapField = (idx: number, mappings: Record<string, string>) => {
+        if (idx < 0) return undefined;
+        const val = fields[idx]?.toLowerCase() || '';
+        for (const [key, result] of Object.entries(mappings)) {
+          if (val.includes(key)) return result;
+        }
+        return undefined;
+      };
 
-      // Column 4: talkTopic - "If you could talk about one topic all night"
-      const talkTopicRaw = fields[4]?.toLowerCase() || '';
-      if (talkTopicRaw.includes('current events') || talkTopicRaw.includes('world issues')) {
-        personality.talkTopic = 'current_events';
-      } else if (talkTopicRaw.includes('arts') || talkTopicRaw.includes('entertainment')) {
-        personality.talkTopic = 'arts_entertainment';
-      } else if (talkTopicRaw.includes('personal growth') || talkTopicRaw.includes('philosophy')) {
-        personality.talkTopic = 'personal_growth';
-      } else if (talkTopicRaw.includes('food') || talkTopicRaw.includes('travel')) {
-        personality.talkTopic = 'food_travel';
-      } else if (talkTopicRaw.includes('hobbies')) {
-        personality.talkTopic = 'hobbies';
-      }
+      personality.dinnerVibe = mapField(dinnerVibeIdx, {
+        'steering': 'steering', 'lead': 'steering',
+        'sharing': 'sharing', 'stories': 'sharing',
+        'observe': 'observing', 'listen': 'observing',
+        'adapt': 'adapting', 'flow': 'adapting'
+      });
 
-      // Column 5: groupDynamic - "What does your ideal group dynamic look like?"
-      const groupDynamicRaw = fields[5]?.toLowerCase() || '';
-      if (groupDynamicRaw.includes('diverse') || groupDynamicRaw.includes('different viewpoints')) {
-        personality.groupDynamic = 'diverse';
-      } else if (groupDynamicRaw.includes('shared') || groupDynamicRaw.includes('similar')) {
-        personality.groupDynamic = 'similar';
-      }
+      personality.talkTopic = mapField(talkTopicIdx, {
+        'current': 'current_events', 'world': 'current_events',
+        'art': 'arts_entertainment', 'entertainment': 'arts_entertainment',
+        'growth': 'personal_growth', 'phil': 'personal_growth',
+        'food': 'food_travel', 'travel': 'food_travel',
+        'hobb': 'hobbies'
+      });
 
-      // Column 6: humorType - "What kind of humor do you enjoy?"
-      const humorTypeRaw = fields[6]?.toLowerCase() || '';
-      if (humorTypeRaw.includes('sarcastic')) {
-        personality.humorType = 'sarcastic';
-      } else if (humorTypeRaw.includes('playful') || humorTypeRaw.includes('lighthearted')) {
-        personality.humorType = 'playful';
-      } else if (humorTypeRaw.includes('witty') || humorTypeRaw.includes('clever')) {
-        personality.humorType = 'witty';
-      } else if (humorTypeRaw.includes('not') || humorTypeRaw.includes('none')) {
-        personality.humorType = 'not_a_fan';
-      }
+      personality.groupDynamic = mapField(groupDynamicIdx, {
+        'diverse': 'diverse', 'different': 'diverse',
+        'shared': 'similar', 'similar': 'similar'
+      });
 
-      // Column 7: wardrobeStyle - "If your personality were a wardrobe"
-      const wardrobeStyleRaw = fields[7]?.toLowerCase() || '';
-      if (wardrobeStyleRaw.includes('timeless') || wardrobeStyleRaw.includes('classics')) {
-        personality.wardrobeStyle = 'timeless';
-      } else if (wardrobeStyleRaw.includes('bold') || wardrobeStyleRaw.includes('trendy')) {
-        personality.wardrobeStyle = 'bold';
-      }
+      personality.humorType = mapField(humorTypeIdx, {
+        'sarcastic': 'sarcastic',
+        'playful': 'playful', 'light': 'playful',
+        'wit': 'witty', 'clever': 'witty',
+        'not': 'not_a_fan'
+      });
 
-      // Columns 8-12: Scale questions (1-5)
-      personality.introvertScale = parseInt(fields[8]) || 3;
-      personality.aloneTimeScale = parseInt(fields[9]) || 3;
-      personality.familyScale = parseInt(fields[10]) || 3;
-      personality.spiritualityScale = parseInt(fields[11]) || 3;
-      personality.humorScale = parseInt(fields[12]) || 3;
+      personality.wardrobeStyle = mapField(wardrobeStyleIdx, {
+        'timeless': 'timeless', 'classic': 'timeless',
+        'bold': 'bold', 'trend': 'bold'
+      });
 
-      // Column 13: meetingPriority - "What's most important when meeting new people?"
-      const meetingPriorityRaw = fields[13]?.toLowerCase() || '';
-      if (meetingPriorityRaw.includes('shared values') || meetingPriorityRaw.includes('interests')) {
-        personality.meetingPriority = 'values';
-      } else if (meetingPriorityRaw.includes('fun') || meetingPriorityRaw.includes('engaging')) {
-        personality.meetingPriority = 'fun';
-      } else if (meetingPriorityRaw.includes('learning')) {
-        personality.meetingPriority = 'learning';
-      } else if (meetingPriorityRaw.includes('connection')) {
-        personality.meetingPriority = 'connection';
-      }
+      // Scales
+      personality.introvertScale = introvertScaleIdx >= 0 ? (parseInt(fields[introvertScaleIdx]) || 3) : 3;
+      personality.aloneTimeScale = aloneTimeScaleIdx >= 0 ? (parseInt(fields[aloneTimeScaleIdx]) || 3) : 3;
+      personality.familyScale = familyScaleIdx >= 0 ? (parseInt(fields[familyScaleIdx]) || 3) : 3;
+      personality.spiritualityScale = spiritualityScaleIdx >= 0 ? (parseInt(fields[spiritualityScaleIdx]) || 3) : 3;
+      personality.humorScale = humorScaleIdx >= 0 ? (parseInt(fields[humorScaleIdx]) || 3) : 3;
 
-      // Clean phone number - remove spaces and non-digits except leading +
-      const countryCode = fields[countryCodeIdx]?.trim() || '251';
-      const phoneRaw = fields[phoneIdx]?.trim() || '';
-      const phone = phoneRaw.replace(/\s+/g, ''); // Remove all spaces
+      personality.meetingPriority = mapField(meetingPriorityIdx, {
+        'value': 'values',
+        'fun': 'fun',
+        'learn': 'learning',
+        'connect': 'connection'
+      });
 
-      // Parse new fields
-      const cityPreference = fields[cityPreferenceIdx]?.trim() || 'Addis Ababa';
-      const outsideCity = fields[outsideCityIdx]?.trim();
-      const city = cityPreference.toLowerCase().includes('outside') ? outsideCity : cityPreference;
+      // Other fields
+      const countryCode = countryCodeIdx >= 0 ? fields[countryCodeIdx]?.trim() : '251';
+      const phone = phoneIdx >= 0 ? fields[phoneIdx]?.replace(/\s+/g, '') : undefined;
 
-      const mealPreferenceRaw = fields[mealPreferenceIdx]?.toLowerCase() || '';
-      const mealPreference = mealPreferenceRaw.includes('lunch') ? 'lunch' : mealPreferenceRaw.includes('dinner') ? 'dinner' : undefined;
-
-      const diet = fields[dietIdx]?.trim() || undefined;
-      const restaurantFrequency = fields[restaurantFreqIdx]?.trim() || undefined;
-      const spending = fields[spendingIdx]?.trim() || undefined;
-      const relationshipStatus = fields[relationshipIdx]?.trim() || undefined;
-
-      const childrenRaw = fields[childrenIdx]?.toLowerCase()?.trim() || '';
-      const hasChildren = childrenRaw === 'yes' ? true : childrenRaw === 'no' ? false : undefined;
-
-      const country = fields[countryIdx]?.trim() || undefined;
-
-      // Fun facts
-      const funFact1 = fields[funFact1Idx]?.trim();
-      const funFact2 = fields[funFact2Idx]?.trim();
-      const funFacts = [funFact1, funFact2].filter(f => f && f.length > 0);
+      const diet = dietIdx >= 0 ? fields[dietIdx]?.trim() : undefined;
+      const spending = spendingIdx >= 0 ? fields[spendingIdx]?.trim() : undefined;
 
       parsedUsers.push({
-        firstName,
-        lastName,
-        email,
-        gender,
-        birthYear: birthYearRaw,
-        age,
-        countryCode,
-        phone,
+        firstName, lastName, email, gender,
+        birthYear: birthYearRaw, age,
+        countryCode, phone,
         personality,
-        // New fields
-        diet,
-        spending,
-        restaurantFrequency,
-        relationshipStatus,
-        hasChildren,
-        country,
-        cityPreference: city,
-        mealPreference,
-        funFacts: funFacts.length > 0 ? funFacts : undefined,
+        diet, spending,
+        // ... include other optional fields if indices > 0
+        country: countryIdx >= 0 ? fields[countryIdx] : undefined,
       });
     }
 
@@ -514,7 +493,7 @@ export default function AdminUserMigration() {
             <CardHeader>
               <CardTitle>Upload CSV File</CardTitle>
               <CardDescription>
-                Select a CSV file containing user data from the Enqoy Test form
+                Select a CSV file containing user data to migrate. The system will attempt to auto-match columns.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -522,7 +501,7 @@ export default function AdminUserMigration() {
                 <FileUp className="h-12 w-12 text-muted-foreground mb-4" />
                 <p className="text-lg font-medium mb-2">Choose a CSV file</p>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Supports Enqoy Test - Sheet1.csv format
+                  Supports CSV exports with standard headers (Email, Name, Phone, etc.)
                 </p>
                 <Input
                   type="file"

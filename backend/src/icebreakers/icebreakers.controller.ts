@@ -16,7 +16,7 @@ import { UserRole } from '@prisma/client';
 
 @Controller('icebreakers')
 export class IcebreakersController {
-  constructor(private icebreakersService: IcebreakersService) {}
+  constructor(private icebreakersService: IcebreakersService) { }
 
   @Get('active')
   getActiveQuestions() {
@@ -33,8 +33,8 @@ export class IcebreakersController {
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.admin, UserRole.super_admin)
-  createQuestion(@Body() data: { question: string }) {
-    return this.icebreakersService.createQuestion(data.question);
+  createQuestion(@Body() data: { question: string; isActive?: boolean; category?: string }) {
+    return this.icebreakersService.createQuestion(data.question, data.isActive, data.category);
   }
 
   @Patch(':id')

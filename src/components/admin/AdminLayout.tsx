@@ -13,7 +13,8 @@ import {
   Home,
   Menu,
   TestTube,
-  Settings
+  Settings,
+  Globe
 } from "lucide-react";
 import {
   Sidebar,
@@ -27,7 +28,15 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { AdminCountryProvider, useAdminCountry } from "@/contexts/AdminCountryContext";
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -90,13 +99,48 @@ const adminSections = [
     icon: TestTube,
   },
   {
+    title: "Countries",
+    path: "/admin/countries",
+    icon: Globe,
+  },
+  {
     title: "Settings",
     path: "/admin/settings",
     icon: Settings,
   },
 ];
 
-export function AdminLayout({ children }: AdminLayoutProps) {
+function CountrySwitcher() {
+  const { countries, selectedCountryId, setSelectedCountryId, isLoading } = useAdminCountry();
+
+  if (isLoading || countries.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="flex items-center gap-2 ml-4">
+      <Globe className="h-4 w-4 text-muted-foreground" />
+      <Select
+        value={selectedCountryId || "all"}
+        onValueChange={(value) => setSelectedCountryId(value === "all" ? null : value)}
+      >
+        <SelectTrigger className="w-[160px] h-8">
+          <SelectValue placeholder="Select country" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All Countries</SelectItem>
+          {countries.map((country) => (
+            <SelectItem key={country.id} value={country.id}>
+              {country.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+function AdminLayoutContent({ children }: AdminLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -157,6 +201,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         <div className="flex-1 flex flex-col">
           <header className="h-14 border-b flex items-center px-4 bg-card">
             <SidebarTrigger />
+            <CountrySwitcher />
           </header>
 
           <main className="flex-1 overflow-auto">
@@ -165,5 +210,13 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         </div>
       </div>
     </SidebarProvider>
+  );
+}
+
+export function AdminLayout({ children }: AdminLayoutProps) {
+  return (
+    <AdminCountryProvider>
+      <AdminLayoutContent>{children}</AdminLayoutContent>
+    </AdminCountryProvider>
   );
 }

@@ -107,7 +107,22 @@ const EventDetail = () => {
 
       // Check if user has booked this event
       const myBookings = await bookingsApi.getMy();
-      const bookingData = myBookings.find((b: any) => b.eventId === id && (b.status === "confirmed" || b.status === "pending"));
+      console.log('🔍 Checking bookings for event', id, myBookings);
+
+      const bookingData = myBookings.find((b: any) => {
+        const matchesEvent = (b.eventId === id) || (b.event && b.event.id === id);
+        // Include pending, confirmed, and rescheduled. Treat 'pending' as a valid booking state to show details.
+        // Also check if payment status indicates an active booking attempt
+        const isActiveStatus = ["confirmed", "pending", "rescheduled"].includes(b.status);
+        return matchesEvent && isActiveStatus;
+      });
+
+      if (bookingData) {
+        console.log('✅ Found active booking:', bookingData.status, bookingData.id);
+      } else {
+        console.log('❌ No active booking found for this event. User bookings count:', myBookings?.length);
+      }
+
       setBooking(bookingData);
 
       if (bookingData) {
@@ -256,20 +271,14 @@ const EventDetail = () => {
     if (!booking || !selectedNewEventId) return;
 
     try {
-      const newEventData = await eventsApi.getById(selectedNewEventId);
-
-      // Update the booking
-      await bookingsApi.update(booking.id, {
-        eventId: selectedNewEventId,
-        status: "rescheduled",
-        amountPaid: newEventData.price
-      });
+      // Use the dedicated reschedule endpoint which cancels old + creates new
+      await bookingsApi.reschedule(booking.id, selectedNewEventId);
 
       toast.success("Booking rescheduled successfully!");
       setIsRescheduleDialogOpen(false);
       navigate(`/events/${selectedNewEventId}`);
     } catch (error: any) {
-      toast.error("Failed to reschedule booking");
+      toast.error(error.response?.data?.message || "Failed to reschedule booking");
     }
   };
 
@@ -327,32 +336,37 @@ const EventDetail = () => {
   const isEventToday = booking && isSameDay(new Date(event.startTime), now);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted">
-      <header className="bg-card border-b sticky top-0 z-10 shadow-sm">
-        <div className="container mx-auto px-4 py-4">
-          <Button variant="ghost" onClick={() => navigate("/events")}>
+    <div className="min-h-screen bg-[#f5f0e8] text-slate-900">
+      <header className="bg-[#f5f0e8] sticky top-0 z-10">
+        <div className="container mx-auto px-4 py-5">
+          <Button variant="ghost" className="text-slate-700 hover:bg-white/60" onClick={() => navigate("/events")}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Events
           </Button>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-3xl space-y-4">
+      <main className="container mx-auto px-4 pb-10 max-w-3xl space-y-4">
         {/* Main Event Card */}
-        <Card className="shadow-sm">
-          <CardContent className="p-6">
+        <Card className="shadow-lg rounded-2xl border border-[#ede5d5] bg-white">
+          <CardContent className="p-6 md:p-7">
             <div className="flex justify-between items-start mb-6">
-              <h1 className="text-3xl font-bold capitalize">{event.eventType}</h1>
+              <div>
+                <p className="text-base text-muted-foreground capitalize">Dinner</p>
+                <h1 className="text-3xl font-semibold capitalize tracking-tight">{event.eventType}</h1>
+              </div>
               <div className="flex items-center gap-2">
-                <Badge className="bg-teal-600 hover:bg-teal-700 text-white capitalize">{event.eventType}</Badge>
+                <Badge className="bg-emerald-700 hover:bg-emerald-800 text-white capitalize px-3 py-1 rounded-full">
+                  {event.eventType}
+                </Badge>
                 {booking && hoursUntilEvent >= cutoffHours && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon">
+                      <Button variant="ghost" size="icon" className="text-slate-600 hover:bg-slate-100">
                         <MoreVertical className="h-5 w-5" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="bg-popover z-50">
+                    <DropdownMenuContent align="end" className="bg-white border shadow-lg">
                       <DropdownMenuItem onClick={handleOpenReschedule}>
                         Reschedule Booking
                       </DropdownMenuItem>
@@ -367,26 +381,28 @@ const EventDetail = () => {
 
             <div className="space-y-4">
               <div className="flex items-start gap-3">
-                <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <Calendar className="h-5 w-5 text-emerald-700 mt-0.5" />
                 <div>
-                  <p className="font-medium">{event.startTime ? format(new Date(event.startTime), "EEEE, MMMM do, yyyy") : 'Date TBA'}</p>
+                  <p className="font-medium text-lg">
+                    {event.startTime ? format(new Date(event.startTime), "EEEE, MMMM do, yyyy") : "Date TBA"}
+                  </p>
                   <p className="text-sm text-muted-foreground">
-                    {event.startTime ? format(new Date(event.startTime), "h:mm a") : ''}
+                    {event.startTime ? format(new Date(event.startTime), "h:mm a") : ""}
                   </p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3">
-                <Banknote className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <Banknote className="h-5 w-5 text-emerald-700 mt-0.5" />
                 <div>
-                  <p className="font-medium">{event.price} Birr</p>
+                  <p className="font-semibold text-lg">{event.price} Birr</p>
                   <p className="text-sm text-muted-foreground">Per person</p>
                 </div>
               </div>
 
               {(!booking || !restaurantAssignment || !restaurantAssignment.restaurant) && (
-                <div className="bg-muted/50 p-3 rounded-md">
-                  <p className="text-sm text-muted-foreground">
+                <div className="bg-[#f3ecda] text-slate-700 p-3 rounded-lg border border-[#e8dec6]">
+                  <p className="text-sm">
                     Location details shared {cutoffHours} hours before the event
                   </p>
                 </div>
@@ -397,39 +413,37 @@ const EventDetail = () => {
 
         {/* Restaurant Assignment Card */}
         {booking && restaurantAssignment && restaurantAssignment.restaurant && (
-          <Card className="bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900 shadow-sm">
-            <CardContent className="p-6">
-              <div className="space-y-3">
-                <p className="text-sm font-medium text-muted-foreground">Your Table & Restaurant</p>
-                <h3 className="text-xl font-bold">{restaurantAssignment.restaurant.name}</h3>
-                {restaurantAssignment.restaurant.address && (
-                  <p className="text-sm text-muted-foreground">{restaurantAssignment.restaurant.address}</p>
-                )}
-                {restaurantAssignment.restaurant.googleMapsUrl && (
-                  <>
-                    <a
-                      href={restaurantAssignment.restaurant.googleMapsUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-primary hover:underline inline-flex items-center gap-1"
-                    >
-                      <MapPin className="h-3.5 w-3.5" />
-                      View on Google Maps
-                    </a>
-                    <div className="mt-4 rounded-lg overflow-hidden border">
-                      <iframe
-                        src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=${encodeURIComponent(restaurantAssignment.restaurant.address || restaurantAssignment.restaurant.name)}`}
-                        width="100%"
-                        height="300"
-                        style={{ border: 0 }}
-                        allowFullScreen
-                        loading="lazy"
-                        referrerPolicy="no-referrer-when-downgrade"
-                      ></iframe>
-                    </div>
-                  </>
-                )}
-              </div>
+          <Card className="bg-[#f3e8c9] border-none shadow-md rounded-2xl">
+            <CardContent className="p-6 md:p-7 space-y-3">
+              <p className="text-sm font-medium text-slate-700">Your Table & Restaurant</p>
+              <h3 className="text-2xl font-semibold text-slate-900">{restaurantAssignment.restaurant.name}</h3>
+              {restaurantAssignment.restaurant.address && (
+                <p className="text-sm text-slate-700">{restaurantAssignment.restaurant.address}</p>
+              )}
+              {restaurantAssignment.restaurant.googleMapsUrl && (
+                <>
+                  <a
+                    href={restaurantAssignment.restaurant.googleMapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-emerald-800 hover:underline inline-flex items-center gap-1 font-medium"
+                  >
+                    <MapPin className="h-3.5 w-3.5" />
+                    View on Google Maps
+                  </a>
+                  <div className="mt-4 rounded-xl overflow-hidden border border-[#e3d4ac]">
+                    <iframe
+                      src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=${encodeURIComponent(restaurantAssignment.restaurant.address || restaurantAssignment.restaurant.name)}`}
+                      width="100%"
+                      height="300"
+                      style={{ border: 0 }}
+                      allowFullScreen
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                    ></iframe>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         )}
@@ -437,12 +451,12 @@ const EventDetail = () => {
         {/* Conversation Starters Card */}
         {booking && (
           <Card
-            className="shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+            className="shadow-md rounded-2xl cursor-pointer hover:shadow-lg transition-shadow bg-white"
             onClick={() => navigate(`/events/${event.id}/conversation-starters`)}
           >
-            <CardContent className="p-6">
+            <CardContent className="p-5">
               <div className="flex items-start gap-4">
-                <MessageCircle className="h-6 w-6 text-muted-foreground shrink-0 mt-1" />
+                <MessageCircle className="h-6 w-6 text-emerald-700 shrink-0 mt-1" />
                 <div>
                   <h3 className="font-semibold text-lg mb-1">Conversation Starters</h3>
                   <p className="text-sm text-muted-foreground">Simple prompts to get the table talking.</p>
@@ -455,12 +469,12 @@ const EventDetail = () => {
         {/* House Welcome & Guidelines Card */}
         {booking && (
           <Card
-            className="shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+            className="shadow-md rounded-2xl cursor-pointer hover:shadow-lg transition-shadow bg-white"
             onClick={() => navigate(`/events/${event.id}/guidelines`)}
           >
-            <CardContent className="p-6">
+            <CardContent className="p-5">
               <div className="flex items-start gap-4">
-                <Home className="h-6 w-6 text-muted-foreground shrink-0 mt-1" />
+                <Home className="h-6 w-6 text-emerald-700 shrink-0 mt-1" />
                 <div>
                   <h3 className="font-semibold text-lg mb-1">House Welcome & Guidelines</h3>
                   <p className="text-sm text-muted-foreground">How we show up to make the experience great for everyone.</p>
@@ -518,13 +532,13 @@ const EventDetail = () => {
 
         {/* Booking Status Card - Confirmed */}
         {booking && booking.status === "confirmed" && (
-          <Card className="bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900 shadow-sm">
-            <CardContent className="p-6">
+          <Card className="bg-[#f3e8c9] border border-[#e8d8ac] shadow-md rounded-2xl">
+            <CardContent className="p-5">
               <div className="flex items-center gap-3">
                 <div className="bg-green-500 rounded-full p-2">
                   <Check className="h-5 w-5 text-white" />
                 </div>
-                <h3 className="font-semibold text-lg">Booking Confirmed</h3>
+                <h3 className="font-semibold text-lg text-slate-900">Booking Confirmed</h3>
               </div>
             </CardContent>
           </Card>
@@ -584,7 +598,7 @@ const EventDetail = () => {
             onClick={() => setIsBringFriendDialogOpen(true)}
             variant="outline"
             size="lg"
-            className="w-full"
+            className="w-full bg-white/80 hover:bg-white shadow-sm border border-[#e5dcc7] text-slate-800"
           >
             <Users className="h-4 w-4 mr-2" />
             Bring a Friend

@@ -9,12 +9,14 @@ import { EmailService } from '../email/email.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 import { format } from 'date-fns';
+import { CreditsService } from '../credits/credits.service';
 
 @Injectable()
 export class BookingsService {
   constructor(
     private prisma: PrismaService,
     private emailService: EmailService,
+    private creditsService: CreditsService,
   ) { }
 
   async create(userId: string, dto: CreateBookingDto) {
@@ -50,8 +52,10 @@ export class BookingsService {
 
     // Check if using credit
     if (dto.useCredit) {
-      if (!user?.profile || user.profile.eventCredits < 1) {
-        throw new BadRequestException('No event credits available');
+      // Use creditsService for validation
+      const canUse = await this.creditsService.canUseCreditForEvent(userId, dto.eventId);
+      if (!canUse) {
+        throw new BadRequestException('No eligible event credits available');
       }
     } else {
       // Only require assessment for non-credit bookings
@@ -73,7 +77,15 @@ export class BookingsService {
     });
 
     if (existingBooking) {
-      throw new ConflictException('You already have a booking for this event');
+      // If it's a cancelled booking, we can allow re-booking
+      if (existingBooking.status === 'cancelled') {
+        // We'll delete the cancelled booking so we can create a new one
+        await this.prisma.booking.delete({
+          where: { id: existingBooking.id },
+        });
+      } else {
+        throw new ConflictException('You already have a booking for this event');
+      }
     }
 
     // Check if event is full (only if capacity is set)
@@ -103,16 +115,13 @@ export class BookingsService {
         const discountPercent = Number(event.twoEventsDiscountValue);
         const discountAmount = twoEventsTotal * (discountPercent / 100);
         totalPrice = twoEventsTotal - discountAmount;
-        console.log(`Two-events: ${twoEventsTotal} ETB - ${discountPercent}% (${discountAmount} ETB) = ${totalPrice} ETB`);
       } else if (event.twoEventsDiscountType === 'fixed' && event.twoEventsDiscountValue) {
         // Fixed amount discount (e.g., 200 ETB off)
         const discountAmount = Number(event.twoEventsDiscountValue);
         totalPrice = Math.max(0, twoEventsTotal - discountAmount); // Don't go below 0
-        console.log(`Two-events: ${twoEventsTotal} ETB - ${discountAmount} ETB = ${totalPrice} ETB`);
       } else {
         // No discount configured
         totalPrice = twoEventsTotal;
-        console.log(`Two-events: ${twoEventsTotal} ETB (no discount)`);
       }
     }
 
@@ -120,7 +129,6 @@ export class BookingsService {
     if (dto.bringFriend && dto.payForFriend) {
       const friendPrice = Number(event.price);
       totalPrice += friendPrice;
-      console.log(`Bring friend (paid by inviter): +${friendPrice} ETB, Total: ${totalPrice} ETB`);
     }
 
     // Create the main booking
@@ -149,14 +157,14 @@ export class BookingsService {
     // Credit will be added when the booking is confirmed (payment verified)
     // See the confirmBooking method below
 
-    // Handle using a credit - decrement credits
+    // Handle using a credit - decrement credits using service
     if (dto.useCredit) {
-      await this.prisma.profile.update({
-        where: { userId },
-        data: {
-          eventCredits: { decrement: 1 },
-        },
-      });
+      await this.creditsService.useCredit(
+        userId,
+        booking.id,
+        booking.eventId,
+        `Used for event booking: ${event.title}`
+      );
     }
 
     // Handle bringing a friend
@@ -333,6 +341,7 @@ export class BookingsService {
             id: true,
             email: true,
             profile: true,
+
           },
         },
         event: {
@@ -454,6 +463,18 @@ export class BookingsService {
       throw new BadRequestException('Booking is already cancelled');
     }
 
+    // Check cutoff hours
+    const now = new Date();
+    const eventStartTime = new Date(booking.event.startTime);
+    const hoursUntilEvent = (eventStartTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+    const cutoffHours = booking.event.bookingCutoffHours ?? 24;
+
+    // Allow cancelling only up to 48h before event if policy requires (for reschedule/cancel)
+    // Or stick to bookingCurtoffHours. Let's use 48h for now as it's the venue reveal time
+    if (hoursUntilEvent < 48) {
+      throw new BadRequestException('Cannot cancel bookings within 48 hours of the event');
+    }
+
     return this.prisma.booking.update({
       where: { id },
       data: {
@@ -512,14 +533,15 @@ export class BookingsService {
 
     // Grant credit if this was a two-events purchase and credit hasn't been granted yet
     if (booking.purchasedTwoEvents && !booking.creditGranted) {
-      await this.prisma.profile.update({
-        where: { userId: booking.userId },
-        data: {
-          eventCredits: { increment: 1 },
-        },
-      });
+      // Use creditsService to grant credit
+      await this.creditsService.earnCredit(
+        booking.userId,
+        booking.id,
+        booking.eventId,
+        `Credit earned from booking: ${booking.event.title}`
+      );
 
-      // Mark credit as granted
+      // Mark credit as granted on booking
       await this.prisma.booking.update({
         where: { id },
         data: {
@@ -570,9 +592,6 @@ export class BookingsService {
       },
     });
 
-    // TODO: Send rejection email notification to user
-    // await this.emailService.sendPaymentRejectionEmail(booking.user.email, booking.event.title, reason);
-
     return {
       message: 'Payment rejected and booking cancelled',
       bookingId: id,
@@ -615,10 +634,87 @@ export class BookingsService {
 
   // Get user's event credits
   async getUserCredits(userId: string) {
-    const profile = await this.prisma.profile.findUnique({
-      where: { userId },
-      select: { eventCredits: true },
+    return this.creditsService.getUserCredits(userId);
+  }
+
+  async reschedule(bookingId: string, newEventId: string, userId: string) {
+    // 1. Get original booking
+    const booking = await this.findOne(bookingId, userId);
+
+    if (booking.status === 'cancelled') {
+      throw new BadRequestException('Cannot reschedule a cancelled booking');
+    }
+
+    // 2. Validate timing (must be > 48h before event)
+    const now = new Date();
+    const eventStartTime = new Date(booking.event.startTime);
+    const hoursUntilEvent = (eventStartTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+    if (hoursUntilEvent < 48) {
+      throw new BadRequestException('Rescheduling is only allowed up to 48 hours before the event');
+    }
+
+    // 3. Get new event
+    const newEvent = await this.prisma.event.findUnique({
+      where: { id: newEventId }
     });
-    return { credits: profile?.eventCredits || 0 };
+
+    if (!newEvent) {
+      throw new NotFoundException('New event not found');
+    }
+
+    // 4. Validate same price
+    // Note: We compare as numbers to be safe, assuming price is stored as string
+    if (Number(booking.event.price) !== Number(newEvent.price)) {
+      throw new BadRequestException('Can only reschedule to an event with the same price');
+    }
+
+    // 5. Check capacity of new event
+    if (newEvent.capacity) {
+      const bookingsCount = await this.prisma.booking.count({
+        where: {
+          eventId: newEventId,
+          status: 'confirmed'
+        }
+      });
+
+      if (bookingsCount >= newEvent.capacity) {
+        throw new BadRequestException('New event is fully booked');
+      }
+    }
+
+    // 6. Execute reschedule transaction: Cancel old -> Create new
+    return this.prisma.$transaction(async (prisma) => {
+      // Cancel old booking
+      await prisma.booking.update({
+        where: { id: bookingId },
+        data: {
+          status: 'cancelled',
+          // Keep payment status but maybe mark as "transferred"? 
+          // Currently system keeps 'verified' which is fine as we don't refund
+        }
+      });
+
+      // Create new booking
+      const newBooking = await prisma.booking.create({
+        data: {
+          userId,
+          eventId: newEventId,
+          status: 'confirmed', // Auto-confirm since it's a reschedule of a paid booking
+          paymentStatus: booking.paymentStatus, // Inherit payment status
+          amountPaid: booking.amountPaid,
+          sourceEventId: booking.eventId, // Track origin
+          // Copy other relevant fields
+          assessmentOptional: booking.assessmentOptional,
+        },
+        include: {
+          event: {
+            include: { venue: true }
+          }
+        }
+      });
+
+      return newBooking;
+    });
   }
 }
