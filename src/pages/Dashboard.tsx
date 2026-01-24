@@ -93,10 +93,16 @@ const Dashboard = () => {
   const [carouselApi, setCarouselApi] = useState<any>(null);
   const [currentSlide, setCurrentSlide] = useState(0);
 
-  // Redirect to ComingSoon page if user's country is not active
+  // Redirect based on user's country status
   useEffect(() => {
-    if (user?.profile?.country && !user.profile.country.isActive) {
-      navigate("/coming-soon", { replace: true });
+    if (user?.profile?.country) {
+      if (!user.profile.country.isActive) {
+        // Inactive countries go to Coming Soon page
+        navigate("/coming-soon", { replace: true });
+      } else {
+        // Active countries (like Ethiopia) redirect to Framer website
+        window.location.href = "https://enqoy.com/";
+      }
     }
   }, [user, navigate]);
 
@@ -205,10 +211,8 @@ const Dashboard = () => {
       // Check for pairing updates
       try {
         const pairingData = await pairingApi.hasPairingUpdates();
-        console.log('🔔 Pairing updates check:', pairingData);
         setPairingUpdates(pairingData);
       } catch (e) {
-        console.error('❌ Error checking pairing updates:', e);
         // No pairing updates or error
       }
     } catch (error: any) {

@@ -6,17 +6,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
-import { toast } from "sonner";
-import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { CalendarIcon, Check, ChevronsUpDown } from "lucide-react";
-import { format } from "date-fns";
-import { cn } from "@/lib/utils";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { assessmentsApi, usersApi, outsideCityInterestsApi } from "@/api";
+import { ChevronsUpDown, Check } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+// Import from QuestionRenderer to use shared types
+import { QuestionRenderer, AssessmentQuestion } from "@/components/assessment/QuestionRenderer";
 
 const TOTAL_STEPS = 23;
 
@@ -25,7 +26,9 @@ const Assessment = () => {
   const { user, refreshUser } = useAuth();
   const [searchParams] = useSearchParams();
   const isRetake = searchParams.get("retake") === "true";
+
   const [loading, setLoading] = useState(false);
+  const [loadingQuestions, setLoadingQuestions] = useState(true);
   const [loadingSavedProgress, setLoadingSavedProgress] = useState(true);
   const [hasSavedProgress, setHasSavedProgress] = useState(false);
   const [step, setStep] = useState(1);
