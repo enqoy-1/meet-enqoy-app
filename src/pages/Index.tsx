@@ -1,58 +1,21 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { eventsApi } from "@/api";
+// unused import removed
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+// unused import removed
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Sparkles, Calendar, Users, ArrowRight, Heart, MessageCircle, MapPin, ChevronLeft, ChevronRight } from "lucide-react";
-import { format } from "date-fns";
+// unused import removed
 import useEmblaCarousel from "embla-carousel-react";
 import heroDinnerTable from "@/assets/hero-dinner-group.jpg";
 import heroDining from "@/assets/hero-dining.jpg";
 
-interface Event {
-  id: string;
-  title: string;
-  eventType: string;
-  startTime: string;
-  price: string;
-}
+// Event interface removed
 
 const Index = () => {
   const navigate = useNavigate();
-  const [upcomingEvents, setUpcomingEvents] = useState<Event[]>([]);
-
-  useEffect(() => {
-    fetchUpcomingEvents();
-  }, []);
-
-  const fetchUpcomingEvents = async () => {
-    try {
-      const data = await eventsApi.getUpcoming();
-      // Filter events 48 hours away and limit to 4
-      const cutoffTime = new Date();
-      cutoffTime.setHours(cutoffTime.getHours() + 48);
-
-      const filtered = data
-        .filter((e: any) => new Date(e.startTime) >= cutoffTime)
-        .slice(0, 4);
-
-      setUpcomingEvents(filtered);
-    } catch (error) {
-      console.error("Error fetching events:", error);
-    }
-  };
-
-  const getEventEmoji = (type: string) => {
-    switch (type.toLowerCase()) {
-      case "dinner": return "🍽️";
-      case "lunch": return "🥗";
-      case "scavenger_hunt": return "🔍";
-      case "mixer": return "🎉";
-      default: return "✨";
-    }
-  };
+  // upcomingEvents state and logic removed
 
   const [emblaRefHowItWorks, emblaApiHowItWorks] = useEmblaCarousel({
     align: "start",
@@ -277,65 +240,7 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Upcoming Events Preview */}
-      {upcomingEvents.length > 0 && (
-        <section className="py-20 px-4">
-          <div className="container mx-auto max-w-6xl">
-            <div className="text-center mb-12">
-              <h2 className="text-4xl md:text-5xl font-bold mb-4 text-primary">Upcoming Events</h2>
-              <p className="text-xl text-muted-foreground">Join us for one of these experiences</p>
-            </div>
-
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              {upcomingEvents.map((event) => (
-                <Card
-                  key={event.id}
-                  className="shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-elevated)] transition-all cursor-pointer group rounded-2xl border-2 border-border/50"
-                  onClick={() => navigate(`/events/${event.id}`)}
-                >
-                  <CardHeader className="pb-4">
-                    <div className="text-4xl mb-3">{getEventEmoji(event.eventType)}</div>
-                    <Badge className="w-fit mb-2 rounded-full">{event.eventType}</Badge>
-                    <CardTitle className="text-lg group-hover:text-primary transition-colors leading-tight">
-                      {event.title}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <Calendar className="h-4 w-4 mr-2" />
-                      {format(new Date(event.startTime), "MMM d, h:mm a")}
-                    </div>
-                    <div className="flex items-center text-sm font-semibold text-primary">
-                      {event.price} Birr
-                    </div>
-                    <Button
-                      size="sm"
-                      className="w-full mt-3 rounded-full"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/events/${event.id}`);
-                      }}
-                    >
-                      View Event
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-
-            <div className="text-center">
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={() => navigate("/events")}
-                className="rounded-full border-2 border-primary hover:bg-primary/5"
-              >
-                View All Events
-              </Button>
-            </div>
-          </div>
-        </section>
-      )}
+      {/* Upcoming Events Preview Removed */}
 
       {/* Testimonials */}
       <section className="py-20 px-4 bg-muted/30">

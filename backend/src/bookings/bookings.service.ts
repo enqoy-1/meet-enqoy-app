@@ -103,26 +103,16 @@ export class BookingsService {
       }
     }
 
-    // Calculate price based on options (admin-controlled)
+    // Calculate price based on options
+    // Two events always get 20% off (e.g., 500 * 2 = 1000, with 20% off = 800)
+    const TWO_EVENTS_DISCOUNT_PERCENT = 20;
     let totalPrice = Number(event.price);
 
-    // Two events package with admin-controlled discount
+    // Two events package with 20% discount
     if (dto.twoEvents) {
       const twoEventsTotal = Number(event.price) * 2;
-
-      if (event.twoEventsDiscountType === 'percentage' && event.twoEventsDiscountValue) {
-        // Percentage discount (e.g., 20% off)
-        const discountPercent = Number(event.twoEventsDiscountValue);
-        const discountAmount = twoEventsTotal * (discountPercent / 100);
-        totalPrice = twoEventsTotal - discountAmount;
-      } else if (event.twoEventsDiscountType === 'fixed' && event.twoEventsDiscountValue) {
-        // Fixed amount discount (e.g., 200 ETB off)
-        const discountAmount = Number(event.twoEventsDiscountValue);
-        totalPrice = Math.max(0, twoEventsTotal - discountAmount); // Don't go below 0
-      } else {
-        // No discount configured
-        totalPrice = twoEventsTotal;
-      }
+      const discountAmount = twoEventsTotal * (TWO_EVENTS_DISCOUNT_PERCENT / 100);
+      totalPrice = twoEventsTotal - discountAmount;
     }
 
     // Bring a friend - friend pays same price as event
@@ -504,6 +494,7 @@ export class BookingsService {
             venue: true,
           },
         },
+        payment: true,
       },
     });
 
@@ -512,7 +503,9 @@ export class BookingsService {
     }
 
     if (booking.status === 'confirmed') {
-      throw new BadRequestException('Booking is already confirmed');
+      // Already confirmed - just return the booking
+      console.log('Booking already confirmed:', id);
+      return booking;
     }
 
     // Update booking to confirmed
@@ -550,6 +543,19 @@ export class BookingsService {
       });
 
       console.log(`✓ Credit granted to user ${booking.userId} for two-events purchase (booking ${id})`);
+    }
+
+    // Send confirmation email
+    if (booking.user?.email) {
+      const userName = booking.user.profile?.firstName || booking.user.email.split('@')[0];
+      await this.emailService.sendPaymentVerified({
+        to: booking.user.email,
+        userName,
+        eventTitle: booking.event.title,
+        eventDate: format(new Date(booking.event.startTime), "PPPP 'at' p"),
+        amount: booking.payment ? parseFloat(booking.payment.amount.toString()) : 0,
+        autoVerified: false,
+      });
     }
 
     return updatedBooking;
@@ -591,6 +597,20 @@ export class BookingsService {
         status: 'cancelled',
       },
     });
+
+    // Send rejection email
+    if (booking.user?.email) {
+      const userName = booking.user.profile?.firstName || booking.user.email.split('@')[0];
+      const rejectionReason = reason || 'Payment verification failed';
+
+      await this.emailService.sendPaymentRejected({
+        to: booking.user.email,
+        userName,
+        eventTitle: booking.event.title,
+        amount: booking.payment ? parseFloat(booking.payment.amount.toString()) : 0,
+        reason: rejectionReason,
+      });
+    }
 
     return {
       message: 'Payment rejected and booking cancelled',

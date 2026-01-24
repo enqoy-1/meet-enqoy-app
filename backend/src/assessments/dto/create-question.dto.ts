@@ -36,6 +36,10 @@ export class CreateQuestionDto {
     @IsString()
     @IsOptional()
     placeholder?: string;
+
+    @IsString()
+    @IsOptional()
+    countryId?: string;
 }
 
 export class UpdateQuestionDto extends CreateQuestionDto {

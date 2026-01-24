@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { assessmentsApi } from "@/api";
+import { assessmentsApi, countriesApi, Country } from "@/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,30 +23,17 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { AssessmentQuestion, QuestionOption } from "@/components/assessment/QuestionRenderer";
 
-interface QuestionOption {
-  value: string;
-  label: string;
-  scores?: Record<string, number>;
-}
 
-interface AssessmentQuestion {
-  id: string;
-  key: string;
-  label: string;
-  type: string;
-  section: string;
-  order: number;
-  options: QuestionOption[];
-  isActive: boolean;
-  placeholder?: string;
-}
 
 const PERSONALITY_TYPES = ["Trailblazers", "Storytellers", "Philosophers", "Planners", "Free Spirits"];
 
 const AdminAssessmentQuestions = () => {
   const navigate = useNavigate();
   const [questions, setQuestions] = useState<AssessmentQuestion[]>([]);
+  const [countries, setCountries] = useState<Country[]>([]);
+  const [selectedCountryId, setSelectedCountryId] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -69,12 +56,34 @@ const AdminAssessmentQuestions = () => {
   const [showOptionForm, setShowOptionForm] = useState(false);
 
   useEffect(() => {
-    fetchQuestions();
+    fetchCountries();
   }, []);
 
-  const fetchQuestions = async () => {
+  useEffect(() => {
+    if (selectedCountryId) {
+      fetchQuestions();
+    }
+  }, [selectedCountryId]);
+
+  const fetchCountries = async () => {
     try {
-      const data = await assessmentsApi.getQuestions();
+      const data = await countriesApi.getAll();
+      setCountries(data || []);
+      // Default to first active country (Ethiopia)
+      const activeCountries = data.filter((c: Country) => c.isActive);
+      if (activeCountries.length > 0) {
+        setSelectedCountryId(activeCountries[0].id);
+      }
+    } catch (error) {
+      console.error("Error fetching countries:", error);
+      toast.error("Failed to load countries");
+    }
+  };
+
+  const fetchQuestions = async () => {
+    if (!selectedCountryId) return;
+    try {
+      const data = await assessmentsApi.getQuestions(selectedCountryId);
       setQuestions(data || []);
     } catch (error) {
       console.error("Error fetching questions:", error);
@@ -129,7 +138,8 @@ const AdminAssessmentQuestions = () => {
         order,
         isActive,
         placeholder: placeholder || undefined,
-        options
+        options,
+        countryId: selectedCountryId,
       };
 
       if (editingId) {
@@ -235,7 +245,20 @@ const AdminAssessmentQuestions = () => {
               <p className="text-muted-foreground">Manage dynamic assessment questions & scoring</p>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-4">
+            {/* Country Selector */}
+            <Select value={selectedCountryId} onValueChange={setSelectedCountryId}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Select Country" />
+              </SelectTrigger>
+              <SelectContent>
+                {countries.filter(c => c.isActive).map((country) => (
+                  <SelectItem key={country.id} value={country.id}>
+                    {country.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Dialog open={isDialogOpen} onOpenChange={(open) => {
               setIsDialogOpen(open);
               if (!open) resetForm();

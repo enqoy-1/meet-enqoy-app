@@ -30,6 +30,8 @@ model AssessmentQuestion {
   options     Json
   isActive    Boolean  @default(true)
   placeholder String?
+  countryId   String?
+  country     Country? @relation(fields: [countryId], references: [id])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -315,16 +317,17 @@ model Profile {
 }
 
 model Country {
-  id        String    @id @default(cuid())
-  name      String    @unique
-  code      String    @unique  // e.g., "ET", "RW"
-  isActive  Boolean   @default(false)  // false = "coming soon"
-  currency  String?   // e.g., "Birr", "RWF"
-  phoneCode String?   // e.g., "+251", "+250"
-  mainCity  String?   // e.g., "Addis Ababa", "Kigali"
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  profiles  Profile[]
+  id                  String               @id @default(cuid())
+  name                String               @unique
+  code                String               @unique  // e.g., "ET", "RW"
+  isActive            Boolean              @default(false)  // false = "coming soon"
+  currency            String?              // e.g., "Birr", "RWF"
+  phoneCode           String?              // e.g., "+251", "+250"
+  mainCity            String?              // e.g., "Addis Ababa", "Kigali"
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  profiles            Profile[]
+  assessmentQuestions AssessmentQuestion[]
 
   @@map("countries")
 }

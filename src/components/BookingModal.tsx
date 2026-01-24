@@ -75,6 +75,9 @@ export const BookingModal = ({
     }, [isOpen]);
 
     // Calculate total price
+    // Two events always get 20% off (e.g., 500 * 2 = 1000, with 20% off = 800)
+    const TWO_EVENTS_DISCOUNT_PERCENT = 20;
+
     const calculateTotal = () => {
         if (useCredit) return 0;
 
@@ -82,19 +85,10 @@ export const BookingModal = ({
         let total = basePrice;
 
         if (eventCount === "two") {
-            // Calculate total for two events with discount
+            // Two events with 20% discount
             const twoEventsTotal = basePrice * 2;
-
-            if (event.twoEventsDiscountType === 'percentage' && event.twoEventsDiscountValue) {
-                const discountPercent = Number(event.twoEventsDiscountValue);
-                const discount = (twoEventsTotal * discountPercent) / 100;
-                total = twoEventsTotal - discount;
-            } else if (event.twoEventsDiscountType === 'fixed' && event.twoEventsDiscountValue) {
-                const discountAmount = Number(event.twoEventsDiscountValue);
-                total = twoEventsTotal - discountAmount;
-            } else {
-                total = twoEventsTotal;
-            }
+            const discount = (twoEventsTotal * TWO_EVENTS_DISCOUNT_PERCENT) / 100;
+            total = twoEventsTotal - discount;
         }
 
         if (bringFriend && payForFriend) {
@@ -151,20 +145,12 @@ export const BookingModal = ({
 
     const total = calculateTotal();
 
-    // Calculate two events price and savings
+    // Calculate two events price and savings (20% off for booking two events)
     const getTwoEventsPrice = () => {
         const basePrice = Number(event.price);
         const twoEventsTotal = basePrice * 2;
-
-        if (event.twoEventsDiscountType === 'percentage' && event.twoEventsDiscountValue) {
-            const discountPercent = Number(event.twoEventsDiscountValue);
-            const discount = (twoEventsTotal * discountPercent) / 100;
-            return twoEventsTotal - discount;
-        } else if (event.twoEventsDiscountType === 'fixed' && event.twoEventsDiscountValue) {
-            const discountAmount = Number(event.twoEventsDiscountValue);
-            return twoEventsTotal - discountAmount;
-        }
-        return twoEventsTotal;
+        const discount = (twoEventsTotal * TWO_EVENTS_DISCOUNT_PERCENT) / 100;
+        return twoEventsTotal - discount;
     };
 
     const getTwoEventsSavings = () => {

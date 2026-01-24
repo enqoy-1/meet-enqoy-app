@@ -7,6 +7,7 @@ import {
   Put,
   Param,
   Body,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { AssessmentsService } from './assessments.service';
@@ -22,8 +23,8 @@ export class AssessmentsController {
   constructor(private assessmentsService: AssessmentsService) { }
 
   @Get('questions')
-  getQuestions() {
-    return this.assessmentsService.getQuestions();
+  getQuestions(@Query('countryId') countryId?: string) {
+    return this.assessmentsService.getQuestions(countryId);
   }
 
   @Get('my')

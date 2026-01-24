@@ -1605,20 +1605,66 @@ const AdminPairingDetail = () => {
                           Unassigned Participants ({unassignedParticipants.length})
                         </CardTitle>
                         <p className="text-sm text-muted-foreground">
-                          Drag participants into groups below
+                          Select a group from the dropdown to assign participants
                         </p>
                       </CardHeader>
                       <CardContent>
-                        <div className="grid gap-2 md:grid-cols-2">
-                          {unassignedParticipants.map((participant, index) => (
-                            <DraggableParticipant
-                              key={`unassigned-${index}`}
-                              participant={participant}
-                              groupId="pool"
-                              participantIndex={index}
-                              isUnassigned={true}
-                            />
-                          ))}
+                        <div className="rounded-md border bg-white dark:bg-card">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="w-[200px]">Assign to Group</TableHead>
+                                <TableHead>Name</TableHead>
+                                <TableHead>Email</TableHead>
+                                <TableHead>Age</TableHead>
+                                <TableHead>Gender</TableHead>
+                                <TableHead>Category</TableHead>
+                                <TableHead>Budget</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {unassignedParticipants.map((participant, index) => (
+                                <TableRow key={`unassigned-${index}`}>
+                                  <TableCell>
+                                    <Select
+                                      value="unassigned"
+                                      onValueChange={(value) => {
+                                        if (value !== "unassigned") {
+                                          const groupIndex = parseInt(value);
+                                          const updatedGroups = [...generatedGroups];
+                                          updatedGroups[groupIndex] = addParticipantToGroup(participant, updatedGroups[groupIndex]);
+                                          setGeneratedGroups(updatedGroups);
+                                          toast.success(`Assigned ${participant.name || 'participant'} to ${updatedGroups[groupIndex].name || `Group ${groupIndex + 1}`}`);
+                                        }
+                                      }}
+                                    >
+                                      <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Select group..." />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="unassigned" disabled>
+                                          Unassigned
+                                        </SelectItem>
+                                        {generatedGroups.map((g, idx) => (
+                                          <SelectItem key={g.id} value={idx.toString()}>
+                                            {g.name || `Group ${idx + 1}`} ({g.participants.length} members)
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </TableCell>
+                                  <TableCell className="font-medium">{participant.name || 'N/A'}</TableCell>
+                                  <TableCell className="text-muted-foreground">{participant.email || 'N/A'}</TableCell>
+                                  <TableCell>{participant.age || '-'}</TableCell>
+                                  <TableCell className="capitalize">{participant.gender || '-'}</TableCell>
+                                  <TableCell>
+                                    <Badge variant="outline">{participant.category || 'Unknown'}</Badge>
+                                  </TableCell>
+                                  <TableCell>{formatBudget(participant.budget)}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
                         </div>
                       </CardContent>
                     </Card>

@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     Dialog,
@@ -35,7 +33,6 @@ export const PaymentModal = ({
     const [step, setStep] = useState<"info" | "submit">("info");
     const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
     const [paymentMethod, setPaymentMethod] = useState<"telebirr" | "cbe">("telebirr");
-    const [transactionId, setTransactionId] = useState("");
     const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
     const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -45,7 +42,6 @@ export const PaymentModal = ({
     useEffect(() => {
         if (isOpen) {
             setStep("info");
-            setTransactionId("");
             setScreenshotFile(null);
             setScreenshotPreview(null);
             fetchPaymentInfo();
@@ -89,8 +85,8 @@ export const PaymentModal = ({
     };
 
     const handleSubmit = async () => {
-        if (!transactionId && !screenshotFile) {
-            toast.error("Please enter transaction ID or upload a screenshot");
+        if (!screenshotFile) {
+            toast.error("Please upload a screenshot of your payment");
             return;
         }
 
@@ -106,27 +102,48 @@ export const PaymentModal = ({
                 bookingId,
                 amount,
                 paymentMethod,
-                transactionId: transactionId || undefined,
                 screenshotUrl,
             });
 
-            if (result.autoVerified) {
-                toast.success("Payment Verified!", {
-                    description: "Your booking is now confirmed.",
-                });
-            } else {
-                toast.success("Payment Submitted!", {
-                    description: result.message || "We'll verify your payment and notify you shortly.",
-                });
-            }
+            // If we get here, payment was verified successfully
+            toast.success("Payment Verified!", {
+                description: "Your booking is now confirmed!",
+                duration: 5000,
+            });
 
             onSuccess(result);
             onClose();
         } catch (error: any) {
             console.error("Payment submission error:", error);
-            toast.error("Failed to submit payment", {
-                description: error.response?.data?.message || "Please try again.",
-            });
+            const errorMsg = error.response?.data?.message || "Please try again.";
+
+            if (errorMsg.includes("already submitted") || errorMsg.includes("already exists")) {
+                toast.error("Payment Already Submitted", {
+                    description: "You've already submitted a payment for this booking.",
+                    duration: 8000,
+                });
+            } else if (errorMsg.includes("already been used") || errorMsg.includes("Transaction ID")) {
+                toast.error("Receipt Already Used", {
+                    description: "This payment receipt has already been used. Please make a new payment and upload that receipt.",
+                    duration: 10000,
+                });
+            } else if (errorMsg.includes("Amount mismatch")) {
+                toast.error("Wrong Amount", {
+                    description: errorMsg,
+                    duration: 10000,
+                });
+            } else if (errorMsg.includes("Could not find") || errorMsg.includes("Could not read")) {
+                toast.error("Could Not Read Screenshot", {
+                    description: "Please upload a clearer screenshot showing the payment amount and receiver.",
+                    duration: 10000,
+                });
+            } else {
+                toast.error("Verification Failed", {
+                    description: errorMsg,
+                    duration: 10000,
+                });
+            }
+            // Don't close modal - let user try again
         } finally {
             setIsLoading(false);
         }
@@ -218,8 +235,8 @@ export const PaymentModal = ({
                                 {/* Instructions */}
                                 <div className="text-sm text-muted-foreground space-y-2">
                                     <p>📱 Open your {paymentMethod === "telebirr" ? "TeleBirr" : "CBE Mobile"} app</p>
-                                    <p>💸 Send {amount} ETB to the account above</p>
-                                    <p>📝 Keep your transaction ID/receipt ready</p>
+                                    <p>💸 Send exactly <strong>{amount} ETB</strong> to the account above</p>
+                                    <p>📸 Take a screenshot of the payment confirmation</p>
                                 </div>
 
                                 <Button className="w-full" onClick={() => setStep("submit")}>
@@ -232,45 +249,12 @@ export const PaymentModal = ({
 
                 {step === "submit" && (
                     <div className="space-y-6 py-4">
-                        {/* Transaction ID Input */}
-                        <div className="space-y-3">
-                            <Label htmlFor="transactionId">
-                                {paymentMethod === "telebirr"
-                                    ? "TeleBirr Receipt Number"
-                                    : "CBE Transaction ID"}
-                            </Label>
-                            <Input
-                                id="transactionId"
-                                value={transactionId}
-                                onChange={(e) => setTransactionId(e.target.value)}
-                                placeholder={
-                                    paymentMethod === "telebirr"
-                                        ? "e.g., ADQ123456789"
-                                        : "e.g., FT24123456789"
-                                }
-                            />
-                            <p className="text-xs text-muted-foreground">
-                                {paymentMethod === "telebirr"
-                                    ? "Find this in your TeleBirr SMS or app transaction history"
-                                    : "Find this in your CBE transaction confirmation"}
-                            </p>
-                        </div>
-
-                        {/* OR Divider */}
-                        <div className="relative">
-                            <div className="absolute inset-0 flex items-center">
-                                <span className="w-full border-t" />
-                            </div>
-                            <div className="relative flex justify-center text-xs uppercase">
-                                <span className="bg-background px-2 text-muted-foreground">
-                                    Or upload screenshot
-                                </span>
-                            </div>
-                        </div>
-
                         {/* Screenshot Upload */}
                         <div className="space-y-3">
-                            <Label htmlFor="screenshot">Payment Screenshot</Label>
+                            <Label htmlFor="screenshot">Upload Payment Screenshot</Label>
+                            <p className="text-sm text-muted-foreground">
+                                Take a screenshot of your {paymentMethod === "telebirr" ? "TeleBirr" : "CBE"} payment confirmation showing the amount and receiver.
+                            </p>
                             <div className="border-2 border-dashed rounded-lg p-4 text-center">
                                 {screenshotPreview ? (
                                     <div className="space-y-2">
@@ -322,7 +306,7 @@ export const PaymentModal = ({
                             </Button>
                             <Button
                                 onClick={handleSubmit}
-                                disabled={isLoading || (!transactionId && !screenshotFile)}
+                                disabled={isLoading || !screenshotFile}
                                 className="flex-1"
                             >
                                 {isLoading ? (

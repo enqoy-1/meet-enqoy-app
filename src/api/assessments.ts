@@ -1,8 +1,9 @@
 import { apiClient } from './client';
 
 export const assessmentsApi = {
-  getQuestions: async () => {
-    const response = await apiClient.get('/assessments/questions');
+  getQuestions: async (countryId?: string) => {
+    const params = countryId ? { countryId } : {};
+    const response = await apiClient.get('/assessments/questions', { params });
     return response.data;
   },
 
@@ -47,6 +48,11 @@ export const assessmentsApi = {
 
   deleteQuestion: async (id: string) => {
     const response = await apiClient.delete(`/assessments/questions/${id}`);
+    return response.data;
+  },
+
+  reorderQuestions: async (orders: { id: string; order: number }[]) => {
+    const response = await apiClient.put('/assessments/questions/reorder', orders);
     return response.data;
   },
 };

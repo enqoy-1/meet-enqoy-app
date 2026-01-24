@@ -40,7 +40,10 @@ export class PaymentService {
         // Check booking exists and belongs to user
         const booking = await this.prisma.booking.findUnique({
             where: { id: dto.bookingId },
-            include: { payment: true },
+            include: {
+                payment: true,
+                event: true, // Include event to get actual price
+            },
         });
 
         if (!booking) {
@@ -56,150 +59,185 @@ export class PaymentService {
             throw new ConflictException('Payment already submitted for this booking');
         }
 
-        // Validate: must have either transactionId or screenshot
-        if (!dto.transactionId && !dto.screenshotUrl) {
+        // Validate: must have screenshot
+        if (!dto.screenshotUrl) {
             throw new BadRequestException(
-                'Please provide either a transaction ID or upload a screenshot',
+                'Please upload a screenshot of your payment receipt',
             );
         }
 
-        // Try to verify automatically
+        // IMPORTANT: Use the actual booking amount from database, not from frontend
+        // The booking.amountPaid is set when booking is created and is the authoritative price
+        const expectedAmount = booking.amountPaid
+            ? Number(booking.amountPaid)
+            : Number(booking.event.price);
+
+        console.log('🎫 Booking details:', {
+            bookingId: booking.id,
+            bookingAmountPaid: booking.amountPaid,
+            eventPrice: booking.event.price,
+            frontendAmount: dto.amount,
+            actualExpectedAmount: expectedAmount,
+        });
+
+        // Warn if frontend amount doesn't match database
+        if (dto.amount !== expectedAmount) {
+            console.log('⚠️ WARNING: Frontend amount differs from database!');
+            console.log(`   Frontend sent: ${dto.amount} ETB`);
+            console.log(`   Database expects: ${expectedAmount} ETB`);
+            console.log('   Using database amount for verification.');
+        }
+
+        // Try to verify automatically using OCR
         let status = 'pending';
         let verifiedAt = null;
         let verificationReason: string | undefined;
 
-        // OPTION 1: Try OCR verification if screenshot is provided
-        if (dto.screenshotUrl && !dto.transactionId) {
-            console.log('📸 Screenshot provided, attempting OCR verification...');
+        console.log('📸 Screenshot provided, attempting OCR verification...');
+        console.log('💳 Payment method:', dto.paymentMethod);
+        console.log('💰 Expected amount (from database):', expectedAmount, 'ETB');
 
-            try {
-                // Decode base64 screenshot
-                const base64Data = dto.screenshotUrl.replace(/^data:image\/\w+;base64,/, '');
-                const imageBuffer = Buffer.from(base64Data, 'base64');
+        try {
+            // Decode base64 screenshot
+            const base64Data = dto.screenshotUrl.replace(/^data:image\/\w+;base64,/, '');
+            const imageBuffer = Buffer.from(base64Data, 'base64');
 
-                console.log('📷 Decoded screenshot, size:', imageBuffer.length, 'bytes');
+            console.log('📷 Decoded screenshot, size:', imageBuffer.length, 'bytes');
 
-                // Extract text using OCR
-                const ocrText = await this.ocrService.extractTextFromImage(imageBuffer);
+            // Extract text using OCR
+            const ocrText = await this.ocrService.extractTextFromImage(imageBuffer);
 
-                // Parse receipt data
-                const extractedData = this.ocrService.parseTelebirrReceipt(ocrText);
+            // Parse receipt data (works for both TeleBirr and CBE)
+            const extractedData = this.ocrService.parseTelebirrReceipt(ocrText);
 
-                // Get expected payment details
-                const accounts = this.getPaymentAccounts();
-                const expectedReceiver = dto.paymentMethod === PaymentMethod.TELEBIRR
-                    ? accounts.telebirr.number
-                    : accounts.cbe.number;
-                const expectedReceiverName = dto.paymentMethod === PaymentMethod.TELEBIRR
-                    ? accounts.telebirr.name
-                    : accounts.cbe.name;
+            // Get expected payment details based on payment method
+            const accounts = this.getPaymentAccounts();
+            const expectedReceiver = dto.paymentMethod === PaymentMethod.TELEBIRR
+                ? accounts.telebirr.number
+                : accounts.cbe.number;
+            const expectedReceiverName = dto.paymentMethod === PaymentMethod.TELEBIRR
+                ? accounts.telebirr.name
+                : accounts.cbe.name;
 
-                // Verify extracted data
-                const verificationResult = this.ocrService.verifyReceiptData(
-                    extractedData,
-                    {
-                        amount: dto.amount,
-                        receiverAccount: expectedReceiver,
-                        receiverName: expectedReceiverName,
-                    }
-                );
+            console.log('🎯 Expecting payment to:', expectedReceiver, '-', expectedReceiverName);
 
-                if (verificationResult.verified) {
-                    status = 'verified';
-                    verifiedAt = new Date();
-                    console.log('✅ Screenshot OCR verification successful!');
-                } else {
-                    verificationReason = verificationResult.reason;
-                    console.log('❌ Screenshot OCR verification failed:', verificationReason);
+            console.log('📊 Extracted data from OCR:', {
+                amount: extractedData.amount,
+                receiverPhone: extractedData.receiverPhone,
+                receiver: extractedData.receiver,
+                transactionNumber: extractedData.transactionNumber,
+                paymentType: extractedData.paymentType,
+            });
+
+            // Verify extracted data - USE DATABASE AMOUNT, NOT FRONTEND
+            console.log('🔍 Verifying with expected values:', {
+                expectedAmount: expectedAmount,  // From database
+                expectedReceiver: expectedReceiver,
+                expectedReceiverName: expectedReceiverName,
+            });
+
+            const verificationResult = this.ocrService.verifyReceiptData(
+                extractedData,
+                {
+                    amount: expectedAmount,  // Use database amount, not dto.amount
+                    receiverAccount: expectedReceiver,
+                    receiverName: expectedReceiverName,
                 }
-
-                // Store extracted transaction number if found
-                if (extractedData.transactionNumber && !dto.transactionId) {
-                    dto.transactionId = extractedData.transactionNumber;
-                    console.log('📝 Extracted transaction number from screenshot:', dto.transactionId);
-                }
-            } catch (error) {
-                console.error('OCR verification error:', error);
-                verificationReason = 'Could not read screenshot. Please ensure image is clear or try entering transaction ID manually.';
-            }
-        }
-
-        // OPTION 2: Try transaction ID verification
-        if (dto.transactionId && status !== 'verified') {
-            const result = await this.verifyTransactionId(
-                dto.paymentMethod,
-                dto.transactionId,
-                dto.amount,
             );
 
-            if (result.verified) {
-                status = 'verified';
-                verifiedAt = new Date();
+            console.log('📋 Verification result:', {
+                verified: verificationResult.verified,
+                reason: verificationResult.reason,
+                matchDetails: verificationResult.matchDetails,
+            });
+
+            if (verificationResult.verified) {
+                // OCR passed - but still keep as pending for admin review
+                // Set a flag to indicate OCR pre-validated this payment
+                status = 'pending';
+                console.log('✅✅ OCR verification passed - submitted for admin approval');
             } else {
-                verificationReason = result.reason;
+                verificationReason = verificationResult.reason;
+                console.log('❌ OCR verification failed:', verificationReason);
+
+                // Add extracted info to help user understand what was found
+                if (extractedData.amount) {
+                    verificationReason += ` (Found amount: ${extractedData.amount} ETB)`;
+                }
             }
+
+            // Store extracted transaction number if found
+            if (extractedData.transactionNumber) {
+                dto.transactionId = extractedData.transactionNumber;
+                console.log('📝 Extracted transaction number:', dto.transactionId);
+
+                // Check for duplicate transaction number (fraud prevention)
+                const existingPayment = await this.prisma.payment.findFirst({
+                    where: {
+                        transactionId: dto.transactionId,
+                        status: 'verified',
+                    },
+                });
+
+                if (existingPayment) {
+                    console.log('🚨 FRAUD ALERT: Transaction number already used:', dto.transactionId);
+                    throw new BadRequestException(
+                        `This receipt has already been used for another payment. Transaction ID: ${dto.transactionId}. Please use a different receipt.`
+                    );
+                }
+            }
+        } catch (error: any) {
+            // Re-throw BadRequestException as-is
+            if (error instanceof BadRequestException) {
+                throw error;
+            }
+            console.error('OCR verification error:', error);
+            throw new BadRequestException(`Could not read the screenshot: ${error.message}. Please upload a clearer image.`);
         }
 
-        // Create payment record
-        const payment = await this.prisma.payment.create({
-            data: {
-                bookingId: dto.bookingId,
-                amount: dto.amount.toString(),
-                paymentMethod: dto.paymentMethod,
-                transactionId: dto.transactionId,
-                screenshotUrl: dto.screenshotUrl,
-                status,
-                verifiedAt,
-            },
-        });
+        // If OCR verification failed with a clear error, return it - don't create pending payment
+        if (verificationReason) {
+            throw new BadRequestException(verificationReason || 'Payment verification failed. Please try again with a clearer screenshot.');
+        }
 
-        // If auto-verified, update booking status and send email
-        if (status === 'verified') {
-            const updatedBooking = await this.prisma.booking.update({
-                where: { id: dto.bookingId },
-                data: {
-                    status: 'confirmed',
-                    paymentStatus: 'paid',
-                },
-                include: {
-                    user: {
-                        select: {
-                            email: true,
-                            profile: true,
-                        },
-                    },
-                    event: true,
+        // Check for duplicate transaction number one more time (in case it wasn't extracted from OCR but provided)
+        if (dto.transactionId) {
+            const existingPayment = await this.prisma.payment.findFirst({
+                where: {
+                    transactionId: dto.transactionId,
+                    status: 'verified',
                 },
             });
 
-            // Send payment verification email
-            if (updatedBooking.user?.email) {
-                const userName = updatedBooking.user.profile?.firstName ||
-                                updatedBooking.user.email.split('@')[0];
-
-                await this.emailService.sendPaymentVerified({
-                    to: updatedBooking.user.email,
-                    userName,
-                    eventTitle: updatedBooking.event.title,
-                    eventDate: format(new Date(updatedBooking.event.startTime), "PPPP 'at' p"),
-                    amount: dto.amount,
-                    autoVerified: true,
-                });
+            if (existingPayment) {
+                console.log('🚨 FRAUD ALERT: Transaction number already used:', dto.transactionId);
+                throw new BadRequestException(
+                    `This receipt has already been used. Please use a different payment receipt.`
+                );
             }
         }
 
-        let message = status === 'verified'
-            ? 'Payment verified successfully! Check your email for confirmation.'
-            : 'Payment submitted for review. You will be notified by email once verified.';
+        // Create payment record as pending - admin will confirm/deny
+        const payment = await this.prisma.payment.create({
+            data: {
+                bookingId: dto.bookingId,
+                amount: expectedAmount.toString(), // Use database amount, not frontend
+                paymentMethod: dto.paymentMethod,
+                transactionId: dto.transactionId,
+                screenshotUrl: dto.screenshotUrl,
+                status: 'pending', // Always pending - admin will review
+                // Note: verifiedAt will be set when admin approves
+            },
+        });
 
-        if (status !== 'verified' && verificationReason) {
-            message = `Verification failed: ${verificationReason}. Payment submitted for manual review.`;
-        }
+        // Keep booking as pending - do NOT auto-confirm
+        // Admin will confirm the booking when they approve the payment
+        console.log('📝 Payment submitted for admin review, booking:', dto.bookingId);
 
         return {
             payment,
-            autoVerified: status === 'verified',
-            message,
+            autoVerified: false, // Never auto-verified - always needs admin
+            message: 'Payment submitted! An admin will verify your payment shortly.',
         };
     }
 
@@ -209,9 +247,38 @@ export class PaymentService {
         amount: number,
     ): Promise<{ verified: boolean; reason?: string }> {
         try {
+            // First check if this transaction ID has already been used
+            const existingPayment = await this.prisma.payment.findFirst({
+                where: {
+                    transactionId: transactionId,
+                    status: { in: ['verified', 'pending'] },
+                },
+            });
+
+            if (existingPayment) {
+                console.log('❌ Transaction ID already used:', transactionId);
+                return {
+                    verified: false,
+                    reason: `This transaction ID has already been used for another payment. Please use a different receipt.`
+                };
+            }
+
             if (method === PaymentMethod.TELEBIRR) {
+                // Validate TeleBirr transaction number format
+                const formatCheck = this.validateTelebirrFormat(transactionId);
+                if (!formatCheck.valid) {
+                    return { verified: false, reason: formatCheck.reason };
+                }
+
+                // Try to verify via TeleBirr URL
                 return await this.verifyTelebirrReceipt(transactionId, amount);
             } else if (method === PaymentMethod.CBE) {
+                // Validate CBE transaction format
+                const formatCheck = this.validateCBEFormat(transactionId);
+                if (!formatCheck.valid) {
+                    return { verified: false, reason: formatCheck.reason };
+                }
+
                 // CBE payments require manual verification by admin
                 console.log('CBE payment submitted for manual review:', transactionId);
                 return {
@@ -226,18 +293,79 @@ export class PaymentService {
         }
     }
 
+    private validateTelebirrFormat(transactionId: string): { valid: boolean; reason?: string } {
+        // Clean the input
+        const cleaned = transactionId.trim().toUpperCase();
+
+        // TeleBirr receipt numbers are typically:
+        // - 10-20 characters long
+        // - Alphanumeric (letters and numbers)
+        // - Often start with specific prefixes like "BM", "BP", "CT", "ADQ", etc.
+
+        if (cleaned.length < 8) {
+            return { valid: false, reason: 'Transaction ID is too short. TeleBirr receipt numbers are at least 8 characters.' };
+        }
+
+        if (cleaned.length > 25) {
+            return { valid: false, reason: 'Transaction ID is too long. Please check and try again.' };
+        }
+
+        // Must be alphanumeric
+        if (!/^[A-Z0-9]+$/i.test(cleaned)) {
+            return { valid: false, reason: 'Invalid transaction ID format. TeleBirr receipt numbers contain only letters and numbers.' };
+        }
+
+        // Common TeleBirr prefixes (can be expanded)
+        const validPrefixes = ['BM', 'BP', 'CT', 'ADQ', 'TRX', 'PAY', 'TB', 'ETB'];
+        const hasValidPrefix = validPrefixes.some(prefix => cleaned.startsWith(prefix));
+
+        // If no valid prefix, still allow but log warning
+        if (!hasValidPrefix) {
+            console.log('⚠️ TeleBirr transaction ID has unusual prefix:', cleaned.substring(0, 3));
+        }
+
+        return { valid: true };
+    }
+
+    private validateCBEFormat(transactionId: string): { valid: boolean; reason?: string } {
+        // Clean the input
+        const cleaned = transactionId.trim().toUpperCase();
+
+        // CBE transaction IDs are typically:
+        // - Start with "FT" followed by numbers
+        // - Or other alphanumeric formats
+
+        if (cleaned.length < 8) {
+            return { valid: false, reason: 'Transaction ID is too short. CBE transaction IDs are at least 8 characters.' };
+        }
+
+        if (cleaned.length > 25) {
+            return { valid: false, reason: 'Transaction ID is too long. Please check and try again.' };
+        }
+
+        // Must be alphanumeric (allow some special chars like dashes)
+        if (!/^[A-Z0-9\-]+$/i.test(cleaned)) {
+            return { valid: false, reason: 'Invalid transaction ID format. CBE transaction IDs contain only letters, numbers, and dashes.' };
+        }
+
+        return { valid: true };
+    }
+
     private async verifyTelebirrReceipt(
         receiptNo: string,
         expectedAmount: number,
     ): Promise<{ verified: boolean; reason?: string }> {
         try {
             console.log('🔍 Starting TeleBirr verification for receipt:', receiptNo);
+            console.log('💰 Expected amount:', expectedAmount, 'ETB');
 
-            // Try multiple TeleBirr receipt verification URLs
+            // Get our expected account info
+            const accounts = this.getPaymentAccounts();
+            console.log('📱 Expected receiver:', accounts.telebirr.number, '-', accounts.telebirr.name);
+
+            // Try the official Ethio Telecom receipt verification URL
             const urls = [
                 `https://transactioninfo.ethiotelecom.et/receipt/${receiptNo}`,
-                `https://telebirr.et/receipt/${receiptNo}`,
-                `https://api.ethiotelecom.et/receipt/${receiptNo}`,
             ];
 
             let lastError: any = null;
@@ -326,17 +454,22 @@ export class PaymentService {
                 }
             }
 
-            // All URLs failed
-            console.error('❌ All TeleBirr URLs failed. Last error:', lastError?.message);
+            // URL verification failed - but format was valid and not a duplicate
+            // Accept for manual review with a note
+            console.log('⚠️ TeleBirr URL verification unavailable. Receipt:', receiptNo);
+            console.log('✓ Transaction ID format is valid');
+            console.log('✓ Transaction ID is not a duplicate');
+            console.log('→ Submitting for manual admin review');
+
             return {
                 verified: false,
-                reason: 'TeleBirr verification service unavailable. Your payment will be reviewed manually within 24 hours.'
+                reason: `Transaction ID ${receiptNo} looks valid but couldn't be auto-verified. Submitted for manual review.`
             };
         } catch (error: any) {
             console.error('TeleBirr verification error:', error);
             return {
                 verified: false,
-                reason: 'Verification system error. Your payment will be reviewed manually within 24 hours.'
+                reason: 'Verification system error. Your payment will be reviewed manually.'
             };
         }
     }
@@ -545,7 +678,7 @@ export class PaymentService {
         // Send payment verification email
         if (payment.booking.user?.email) {
             const userName = payment.booking.user.profile?.firstName ||
-                            payment.booking.user.email.split('@')[0];
+                payment.booking.user.email.split('@')[0];
 
             await this.emailService.sendPaymentVerified({
                 to: payment.booking.user.email,
@@ -608,7 +741,7 @@ export class PaymentService {
         // Send payment rejection email
         if (payment.booking.user?.email) {
             const userName = payment.booking.user.profile?.firstName ||
-                            payment.booking.user.email.split('@')[0];
+                payment.booking.user.email.split('@')[0];
 
             await this.emailService.sendPaymentRejected({
                 to: payment.booking.user.email,

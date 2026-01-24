@@ -10,9 +10,10 @@ export class AssessmentsService implements OnModuleInit {
     await this.seedInitialQuestions();
   }
 
-  // Get all questions
-  async getQuestions() {
+  // Get all questions (optionally filtered by country)
+  async getQuestions(countryId?: string) {
     return this.prisma.assessmentQuestion.findMany({
+      where: countryId ? { countryId } : undefined,
       orderBy: {
         order: 'asc',
       },
@@ -107,6 +108,7 @@ export class AssessmentsService implements OnModuleInit {
         ...dto,
         order,
         options: dto.options as any,
+        countryId: dto.countryId,
       },
     });
   }
@@ -209,6 +211,15 @@ export class AssessmentsService implements OnModuleInit {
       if (count > 0) return; // Already seeded
 
       console.log('Seeding initial assessment questions...');
+
+      // Get country IDs
+      const ethiopia = await this.prisma.country.findUnique({ where: { code: 'ET' } });
+      const rwanda = await this.prisma.country.findUnique({ where: { code: 'RW' } });
+
+      if (!ethiopia) {
+        console.warn('Ethiopia country not found. Skipping seeding.');
+        return;
+      }
 
       const questions = [
         // ========== CONTACT / SETUP (No scoring) ==========
@@ -510,18 +521,35 @@ export class AssessmentsService implements OnModuleInit {
       ];
 
       for (const q of questions) {
+        // Seed for Ethiopia
         await this.prisma.assessmentQuestion.create({
           data: {
-            key: q.key,
+            key: `et_${q.key}`, // Unique key per country
             label: q.label,
             type: q.type,
             section: q.section,
             order: q.order,
             options: q.options as any,
+            countryId: ethiopia.id,
           }
         });
+
+        // Seed for Rwanda (if exists)
+        if (rwanda) {
+          await this.prisma.assessmentQuestion.create({
+            data: {
+              key: `rw_${q.key}`, // Unique key per country
+              label: q.label,
+              type: q.type,
+              section: q.section,
+              order: q.order,
+              options: q.options as any,
+              countryId: rwanda.id,
+            }
+          });
+        }
       }
-      console.log(`Seeded ${questions.length} assessment questions.`);
+      console.log(`Seeded ${questions.length} assessment questions for Ethiopia ${rwanda ? 'and Rwanda' : ''}.`);
     } catch (e) {
       console.error('Failed to seed assessment questions. Prisma client might need generation.', e);
     }
