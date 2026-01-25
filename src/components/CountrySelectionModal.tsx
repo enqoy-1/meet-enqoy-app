@@ -105,7 +105,7 @@ export const CountrySelectionModal = ({ open, onClose }: CountrySelectionModalPr
               <SelectContent>
                 {countries.map((country) => (
                   <SelectItem key={country.id} value={country.id}>
-                    {country.name} {!country.isActive && "(Coming Soon)"}
+                    {country.name}
                   </SelectItem>
                 ))}
               </SelectContent>

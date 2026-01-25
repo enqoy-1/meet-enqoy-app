@@ -254,7 +254,7 @@ const AdminAssessmentQuestions = () => {
               <SelectContent>
                 {countries.map((country) => (
                   <SelectItem key={country.id} value={country.id}>
-                    {country.name} {!country.isActive && <span className="text-muted-foreground">(Coming Soon)</span>}
+                    {country.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -377,11 +377,11 @@ const AdminAssessmentQuestions = () => {
                           {options.map((opt, idx) => (
                             <div key={idx} className="flex justify-between items-start p-2 bg-background border rounded text-sm group">
                               <div>
-                                <div className="font-medium">{opt.label}</div>
-                                <div className="text-xs text-muted-foreground">Val: {opt.value}</div>
+                                <div className="font-medium">{opt.label || "(No label)"}</div>
+                                <div className="text-xs text-muted-foreground">Value: {opt.value || "(empty)"}</div>
                                 <div className="flex gap-1 flex-wrap mt-1">
                                   {opt.scores && Object.entries(opt.scores).map(([k, v]) => (
-                                    v > 0 && <Badge key={k} variant="secondary" className="text-[10px] h-4 px-1">{k}: +{v}</Badge>
+                                    Number(v) > 0 && <Badge key={k} variant="secondary" className="text-[10px] h-4 px-1">{k}: +{v}</Badge>
                                   ))}
                                 </div>
                               </div>
