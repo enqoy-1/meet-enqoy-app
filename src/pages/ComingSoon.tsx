@@ -35,13 +35,6 @@ const ComingSoon = () => {
     }
   };
 
-  // Decorative 4-pointed star component (elongated diamond shape)
-  const Star = ({ className = "" }: { className?: string }) => (
-    <svg viewBox="0 0 40 40" fill="currentColor" className={className}>
-      <path d="M20 0 L22 17 L40 20 L22 23 L20 40 L18 23 L0 20 L18 17 Z" />
-    </svg>
-  );
-
   return (
     <div className="min-h-screen relative overflow-hidden">
       {/* Full screen background image */}
@@ -58,11 +51,11 @@ const ComingSoon = () => {
         {/* Header */}
         <header className="flex justify-between items-start px-8 md:px-16 lg:px-24 pt-8 md:pt-12">
           {/* Logo + Country Code */}
-          <div className="flex items-center gap-2">
-            <h1 className="text-white text-2xl md:text-3xl font-bold tracking-wider" style={{ fontFamily: "'Playfair Display', serif" }}>
+          <div className="flex items-center gap-3">
+            <h1 className="text-white text-4xl md:text-5xl lg:text-6xl font-bold tracking-wider" style={{ fontFamily: "'Playfair Display', serif" }}>
               ENQOY
             </h1>
-            <div className="bg-primary text-white text-xs font-bold px-2 py-1 rounded-sm">
+            <div className="bg-primary text-white text-sm md:text-base font-bold px-3 py-1.5 rounded-sm">
               {countryCode.substring(0, 2).toUpperCase()}
             </div>
           </div>
@@ -151,9 +144,9 @@ const ComingSoon = () => {
         </main>
 
         {/* Decorative stars - top right (hidden on mobile) */}
-        <div className="hidden sm:flex absolute top-20 right-16 lg:right-24 flex-col items-center gap-2 text-primary">
-          <Star className="w-16 h-16" />
-          <Star className="w-8 h-8" />
+        <div className="hidden sm:flex absolute top-20 right-16 lg:right-24 flex-col items-center gap-4">
+          <img src="/Asset 1.svg" alt="" className="w-24 h-24 lg:w-32 lg:h-32" />
+          <img src="/Asset 1.svg" alt="" className="w-12 h-12 lg:w-16 lg:h-16" />
         </div>
       </div>
     </div>
