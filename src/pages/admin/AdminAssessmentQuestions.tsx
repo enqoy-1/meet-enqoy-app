@@ -69,10 +69,10 @@ const AdminAssessmentQuestions = () => {
     try {
       const data = await countriesApi.getAll();
       setCountries(data || []);
-      // Default to first active country (Ethiopia)
-      const activeCountries = data.filter((c: Country) => c.isActive);
-      if (activeCountries.length > 0) {
-        setSelectedCountryId(activeCountries[0].id);
+      // Default to first country (prefer active ones first)
+      if (data && data.length > 0) {
+        const activeCountries = data.filter((c: Country) => c.isActive);
+        setSelectedCountryId(activeCountries.length > 0 ? activeCountries[0].id : data[0].id);
       }
     } catch (error) {
       console.error("Error fetching countries:", error);
@@ -248,13 +248,13 @@ const AdminAssessmentQuestions = () => {
           <div className="flex items-center gap-4">
             {/* Country Selector */}
             <Select value={selectedCountryId} onValueChange={setSelectedCountryId}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder="Select Country" />
               </SelectTrigger>
               <SelectContent>
-                {countries.filter(c => c.isActive).map((country) => (
+                {countries.map((country) => (
                   <SelectItem key={country.id} value={country.id}>
-                    {country.name}
+                    {country.name} {!country.isActive && <span className="text-muted-foreground">(Coming Soon)</span>}
                   </SelectItem>
                 ))}
               </SelectContent>
