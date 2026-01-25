@@ -32,6 +32,7 @@ const Assessment = () => {
   const [loadingSavedProgress, setLoadingSavedProgress] = useState(true);
   const [hasSavedProgress, setHasSavedProgress] = useState(false);
   const [step, setStep] = useState(1);
+  const [dynamicQuestions, setDynamicQuestions] = useState<AssessmentQuestion[]>([]);
   const [autoSaving, setAutoSaving] = useState(false);
 
   // Form state
@@ -289,6 +290,25 @@ const Assessment = () => {
       setCountryCode(user.profile.country.phoneCode);
     }
   }, [user?.profile?.country?.phoneCode]);
+
+  // Load dynamic questions from the database based on user's country
+  useEffect(() => {
+    const loadDynamicQuestions = async () => {
+      if (!user?.profile?.country?.id) return;
+
+      try {
+        setLoadingQuestions(true);
+        const questions = await assessmentsApi.getQuestions(user.profile.country.id);
+        setDynamicQuestions(questions || []);
+      } catch (error) {
+        console.error("Failed to load dynamic questions:", error);
+      } finally {
+        setLoadingQuestions(false);
+      }
+    };
+
+    loadDynamicQuestions();
+  }, [user?.profile?.country?.id]);
 
   // Auto-save progress whenever form values change
   useEffect(() => {
@@ -955,22 +975,70 @@ const Assessment = () => {
         );
 
       case 17:
+        // Try to get spending question from dynamic questions (database)
+        // Look for 'spending' or 'rw_spending' (country-prefixed keys)
+        const spendingQuestion = dynamicQuestions.find(q =>
+          q.key === 'spending' || q.key.endsWith('_spending')
+        );
+
+        // If we have dynamic options from the database, use those
+        if (spendingQuestion && spendingQuestion.options && spendingQuestion.options.length > 0) {
+          // Normalize options - handle both string arrays and object arrays
+          const normalizedOptions = spendingQuestion.options.map((opt: any) => {
+            if (typeof opt === 'string') {
+              return { value: opt, label: opt };
+            }
+            return { value: opt.value || '', label: opt.label || opt.value || '' };
+          });
+
+          return (
+            <div className="space-y-4">
+              <Label className="text-base">{spendingQuestion.label}</Label>
+              <RadioGroup value={spending} onValueChange={setSpending}>
+                {normalizedOptions.map((option) => (
+                  <div key={option.value} className="flex items-center space-x-2">
+                    <RadioGroupItem value={option.value} id={`spending-${option.value}`} />
+                    <Label htmlFor={`spending-${option.value}`}>{option.label}</Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </div>
+          );
+        }
+
+        // Fallback to hardcoded options if database question not found
+        const countryCode17 = user?.profile?.country?.code;
+        const getSpendingOptions = () => {
+          if (countryCode17 === 'RW') {
+            return {
+              options: [
+                { value: '5000-10000', label: '5,000 - 10,000 RWF' },
+                { value: '10000-20000', label: '10,000 - 20,000 RWF' },
+                { value: '20000+', label: 'More than 20,000 RWF' },
+              ]
+            };
+          }
+          // Default to Ethiopia (ETB)
+          return {
+            options: [
+              { value: '500-1000', label: '500 - 1,000 ETB' },
+              { value: '1000-1500', label: '1,000 - 1,500 ETB' },
+              { value: '1500+', label: 'More than 1,500 ETB' },
+            ]
+          };
+        };
+        const spendingConfig = getSpendingOptions();
+
         return (
           <div className="space-y-4">
             <Label className="text-base">How much do you usually spend on yourself when out with friends?</Label>
             <RadioGroup value={spending} onValueChange={setSpending}>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="500-1000" id="500-1000" />
-                <Label htmlFor="500-1000">500 - 1000 ETB</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="1000-1500" id="1000-1500" />
-                <Label htmlFor="1000-1500">1000 - 1500 ETB</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="1500+" id="1500+" />
-                <Label htmlFor="1500+">More than 1500 ETB</Label>
-              </div>
+              {spendingConfig.options.map((option) => (
+                <div key={option.value} className="flex items-center space-x-2">
+                  <RadioGroupItem value={option.value} id={`spending-${option.value}`} />
+                  <Label htmlFor={option.value}>{option.label}</Label>
+                </div>
+              ))}
             </RadioGroup>
           </div>
         );

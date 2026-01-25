@@ -54,6 +54,7 @@ const AdminAssessmentQuestions = () => {
   // Option editing state
   const [currentOption, setCurrentOption] = useState<QuestionOption>({ value: "", label: "", scores: {} });
   const [showOptionForm, setShowOptionForm] = useState(false);
+  const [editingOptionIndex, setEditingOptionIndex] = useState<number | null>(null);
 
   useEffect(() => {
     fetchCountries();
@@ -104,8 +105,31 @@ const AdminAssessmentQuestions = () => {
       toast.error("Value and Label are required");
       return;
     }
-    setOptions([...options, currentOption]);
+
+    if (editingOptionIndex !== null) {
+      // Update existing option
+      const newOptions = [...options];
+      newOptions[editingOptionIndex] = currentOption;
+      setOptions(newOptions);
+      setEditingOptionIndex(null);
+    } else {
+      // Add new option
+      setOptions([...options, currentOption]);
+    }
+
     setCurrentOption({ value: "", label: "", scores: {} });
+    setShowOptionForm(false);
+  };
+
+  const handleOptionEdit = (index: number) => {
+    setCurrentOption(options[index]);
+    setEditingOptionIndex(index);
+    setShowOptionForm(true);
+  };
+
+  const handleCancelOptionEdit = () => {
+    setCurrentOption({ value: "", label: "", scores: {} });
+    setEditingOptionIndex(null);
     setShowOptionForm(false);
   };
 
@@ -215,7 +239,21 @@ const AdminAssessmentQuestions = () => {
     setOrder(question.order);
     setIsActive(question.isActive);
     setPlaceholder(question.placeholder || "");
-    setOptions(question.options || []);
+
+    // Normalize options - handle both string arrays and object arrays
+    const normalizedOptions = (question.options || []).map((opt: any) => {
+      if (typeof opt === 'string') {
+        // Convert string to object format
+        return { value: opt, label: opt, scores: {} };
+      }
+      // Already an object, ensure it has all fields
+      return {
+        value: opt.value || '',
+        label: opt.label || opt.value || '',
+        scores: opt.scores || {}
+      };
+    });
+    setOptions(normalizedOptions);
     setIsDialogOpen(true);
   };
 
@@ -230,6 +268,8 @@ const AdminAssessmentQuestions = () => {
     setPlaceholder("");
     setOptions([]);
     setCurrentOption({ value: "", label: "", scores: {} });
+    setEditingOptionIndex(null);
+    setShowOptionForm(false);
   };
 
   return (
@@ -333,7 +373,13 @@ const AdminAssessmentQuestions = () => {
                       <CardContent className="pt-6">
                         <div className="flex justify-between items-center mb-4">
                           <Label>Options & Scoring</Label>
-                          <Button type="button" size="sm" variant="outline" onClick={() => setShowOptionForm(!showOptionForm)}>
+                          <Button type="button" size="sm" variant="outline" onClick={() => {
+                            if (showOptionForm) {
+                              handleCancelOptionEdit();
+                            } else {
+                              setShowOptionForm(true);
+                            }
+                          }}>
                             {showOptionForm ? "Cancel" : "Add Option"}
                           </Button>
                         </div>
@@ -368,15 +414,15 @@ const AdminAssessmentQuestions = () => {
                               ))}
                             </div>
                             <Button type="button" size="sm" onClick={handleOptionAdd} className="w-full">
-                              Save Option
+                              {editingOptionIndex !== null ? "Update Option" : "Save Option"}
                             </Button>
                           </div>
                         )}
 
                         <div className="space-y-2">
                           {options.map((opt, idx) => (
-                            <div key={idx} className="flex justify-between items-start p-2 bg-background border rounded text-sm group">
-                              <div>
+                            <div key={idx} className={`flex justify-between items-start p-2 bg-background border rounded text-sm group ${editingOptionIndex === idx ? 'ring-2 ring-primary' : ''}`}>
+                              <div className="flex-1">
                                 <div className="font-medium">{opt.label || "(No label)"}</div>
                                 <div className="text-xs text-muted-foreground">Value: {opt.value || "(empty)"}</div>
                                 <div className="flex gap-1 flex-wrap mt-1">
@@ -385,9 +431,14 @@ const AdminAssessmentQuestions = () => {
                                   ))}
                                 </div>
                               </div>
-                              <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleOptionRemove(idx)}>
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleOptionEdit(idx)}>
+                                  <Pencil className="h-3 w-3" />
+                                </Button>
+                                <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleOptionRemove(idx)}>
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
                             </div>
                           ))}
                           {options.length === 0 && <div className="text-center text-sm text-muted-foreground">No options added yet</div>}
