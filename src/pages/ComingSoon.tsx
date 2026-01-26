@@ -50,14 +50,14 @@ const ComingSoon = () => {
       <div className="relative min-h-screen flex flex-col">
         {/* Header */}
         <header className="flex justify-between items-start px-8 md:px-16 lg:px-24 pt-8 md:pt-12">
-          {/* Logo + Country Code Badge */}
-          <div className="flex items-center gap-3">
+          {/* Logo + Country Name stacked */}
+          <div className="flex flex-col">
             <h1 className="text-white text-3xl md:text-4xl lg:text-5xl font-bold tracking-wider" style={{ fontFamily: "'Playfair Display', serif" }}>
               ENQOY
             </h1>
-            <div className="bg-primary text-white text-sm md:text-base font-bold px-3 py-1.5 rounded">
-              {countryCode.substring(0, 2).toUpperCase()}
-            </div>
+            <span className="text-white text-base md:text-lg lg:text-xl tracking-wide" style={{ fontFamily: "'Playfair Display', serif" }}>
+              {countryName}
+            </span>
           </div>
 
           {/* Profile */}
@@ -113,7 +113,7 @@ const ComingSoon = () => {
               <br />
               <span className="sm:whitespace-nowrap">
                 Is Coming To{" "}
-                <span className="bg-gradient-to-r from-primary via-emerald-400 to-teal-300 bg-clip-text text-transparent">
+                <span className="inline-block bg-primary text-white px-3 py-1 rounded">
                   {countryName}
                 </span>
               </span>
