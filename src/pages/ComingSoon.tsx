@@ -113,7 +113,13 @@ const ComingSoon = () => {
               <br />
               <span className="sm:whitespace-nowrap">
                 Is Coming To{" "}
-                <span className="inline-block bg-primary text-white px-3 py-1 rounded">
+                <span
+                  className="inline-block text-white px-2 md:px-3"
+                  style={{
+                    background: 'linear-gradient(to right, transparent 0%, rgba(2, 64, 64, 0.3) 15%, rgba(2, 64, 64, 0.7) 40%, #024040 70%, #024040 100%)',
+                    borderRadius: '4px'
+                  }}
+                >
                   {countryName}
                 </span>
               </span>
