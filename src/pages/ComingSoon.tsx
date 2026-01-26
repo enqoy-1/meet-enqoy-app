@@ -50,14 +50,14 @@ const ComingSoon = () => {
       <div className="relative min-h-screen flex flex-col">
         {/* Header */}
         <header className="flex justify-between items-start px-8 md:px-16 lg:px-24 pt-8 md:pt-12">
-          {/* Logo + Country Name stacked */}
-          <div className="flex flex-col">
+          {/* Logo + Country Code Badge */}
+          <div className="flex items-center gap-2">
             <h1 className="text-white text-3xl md:text-4xl lg:text-5xl font-bold tracking-wider" style={{ fontFamily: "'Playfair Display', serif" }}>
               ENQOY
             </h1>
-            <span className="text-white text-base md:text-lg lg:text-xl tracking-wide" style={{ fontFamily: "'Playfair Display', serif" }}>
-              {countryName}
-            </span>
+            <div className="bg-primary text-white text-xs md:text-sm font-bold px-2 py-1 rounded">
+              {countryCode.substring(0, 2).toUpperCase()}
+            </div>
           </div>
 
           {/* Profile */}
