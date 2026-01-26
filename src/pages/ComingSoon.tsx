@@ -50,14 +50,14 @@ const ComingSoon = () => {
       <div className="relative min-h-screen flex flex-col">
         {/* Header */}
         <header className="flex justify-between items-start px-8 md:px-16 lg:px-24 pt-8 md:pt-12">
-          {/* Logo + Country Name */}
-          <div className="flex flex-col">
-            <h1 className="text-white text-4xl md:text-5xl lg:text-6xl font-bold tracking-wider" style={{ fontFamily: "'Playfair Display', serif" }}>
+          {/* Logo + Country Code Badge */}
+          <div className="flex items-center gap-3">
+            <h1 className="text-white text-3xl md:text-4xl lg:text-5xl font-bold tracking-wider" style={{ fontFamily: "'Playfair Display', serif" }}>
               ENQOY
             </h1>
-            <span className="text-white text-lg md:text-xl lg:text-2xl font-medium tracking-wide" style={{ fontFamily: "'Playfair Display', serif" }}>
-              {countryName}
-            </span>
+            <div className="bg-primary text-white text-sm md:text-base font-bold px-3 py-1.5 rounded">
+              {countryCode.substring(0, 2).toUpperCase()}
+            </div>
           </div>
 
           {/* Profile */}
@@ -111,7 +111,12 @@ const ComingSoon = () => {
             >
               <span className="sm:whitespace-nowrap">The Enqoy Experience</span>
               <br />
-              <span className="sm:whitespace-nowrap">Is Coming To {countryName}</span>
+              <span className="sm:whitespace-nowrap">
+                Is Coming To{" "}
+                <span className="bg-gradient-to-r from-primary via-emerald-400 to-teal-300 bg-clip-text text-transparent">
+                  {countryName}
+                </span>
+              </span>
             </h2>
 
             {/* Subtitle */}
@@ -144,7 +149,7 @@ const ComingSoon = () => {
         </main>
 
         {/* Decorative stars - top right (hidden on mobile) */}
-        <div className="hidden sm:block absolute top-12 right-8 lg:right-16 xl:right-24">
+        <div className="hidden sm:block absolute top-32 md:top-40 right-8 lg:right-16 xl:right-24">
           <img src="/Asset 1.svg" alt="" className="w-32 h-32 md:w-40 md:h-40 lg:w-48 lg:h-48 xl:w-56 xl:h-56" />
         </div>
       </div>
