@@ -47,11 +47,10 @@ const ComingSoon = () => {
         {/* Header - hidden on mobile */}
         <header className="hidden sm:flex justify-between items-start px-8 md:px-16 lg:px-24 pt-8 md:pt-10">
           {/* Logo */}
-          <div className="flex flex-col">
+          <div className="flex items-center">
             <h1 className="text-white text-3xl md:text-4xl lg:text-5xl font-bold tracking-wider" style={{ fontFamily: "'Playfair Display', serif" }}>
               ENQOY
             </h1>
-            <span className="text-white/70 text-sm tracking-wide">Rwanda</span>
           </div>
 
           {/* Profile */}
@@ -107,12 +106,11 @@ const ComingSoon = () => {
 
             {/* Main Heading */}
             <h2
-              className="text-white text-[2.75rem] leading-[1.05] sm:text-7xl md:text-8xl lg:text-9xl font-bold sm:leading-[1.1] mb-4 sm:mb-8"
+              className="text-white text-[2.75rem] sm:text-7xl md:text-8xl lg:text-9xl font-bold mb-4 sm:mb-8"
               style={{ fontFamily: "'Playfair Display', serif" }}
             >
-              <span className="whitespace-nowrap">Enqoy Is Coming</span>
-              <br />
-              <span className="whitespace-nowrap">
+              <span className="whitespace-nowrap block">Enqoy Is Coming</span>
+              <span className="whitespace-nowrap block mt-2 sm:mt-4">
                 to{" "}
                 <span
                   className="inline-block text-white px-2 md:px-3"
