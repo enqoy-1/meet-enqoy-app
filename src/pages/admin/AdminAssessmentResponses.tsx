@@ -95,8 +95,7 @@ const AdminAssessmentResponses = () => {
       "What country are you from?",
       "When is your birthday?",
       "Nickname",
-      "What's one thing people would never guess about you?",
-      "Share a fun fact about yourself",
+
     ];
 
     const csvData = filteredResponses.map((response) => {
@@ -133,8 +132,7 @@ const AdminAssessmentResponses = () => {
         answers.country || "",
         answers.birthday ? new Date(answers.birthday).toLocaleDateString() : "",
         answers.nickName || "",
-        answers.neverGuess || "",
-        answers.funFact || "",
+
       ];
     });
 
@@ -315,8 +313,7 @@ const AdminAssessmentResponses = () => {
                       <TableHead className="min-w-[250px]">What country are you from?</TableHead>
                       <TableHead className="min-w-[200px]">When is your birthday?</TableHead>
                       <TableHead className="min-w-[140px]">Nickname</TableHead>
-                      <TableHead className="min-w-[400px]">What&apos;s one thing people would never guess about you?</TableHead>
-                      <TableHead className="min-w-[400px]">Share a fun fact about yourself</TableHead>
+
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -359,12 +356,7 @@ const AdminAssessmentResponses = () => {
                           <TableCell className="whitespace-normal">{formatAnswer("country", answers.country)}</TableCell>
                           <TableCell>{formatAnswer("birthday", answers.birthday)}</TableCell>
                           <TableCell className="whitespace-normal">{formatAnswer("nickName", answers.nickName)}</TableCell>
-                          <TableCell className="whitespace-normal">
-                            {formatAnswer("neverGuess", answers.neverGuess)}
-                          </TableCell>
-                          <TableCell className="whitespace-normal">
-                            {formatAnswer("funFact", answers.funFact)}
-                          </TableCell>
+
                         </TableRow>
                       );
                     })}

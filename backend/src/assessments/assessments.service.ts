@@ -404,7 +404,7 @@ export class AssessmentsService implements OnModuleInit {
         {
           key: 'dietaryPreferences',
           label: 'Do you have any dietary preferences or restrictions?',
-          type: 'radio',
+          type: 'checkbox',
           section: 'lifestyle',
           order: 15,
           options: [

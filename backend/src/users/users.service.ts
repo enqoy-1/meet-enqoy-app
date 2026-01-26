@@ -398,12 +398,13 @@ export class UsersService {
   }
 
   async getUserCategory(userId: string) {
-    // Check if user has an assessment
+    // Check if user has a COMPLETED assessment (completedAt must be set)
     const assessment = await this.prisma.personalityAssessment.findUnique({
       where: { userId },
     });
 
-    if (!assessment) {
+    // No assessment record or assessment not completed (auto-save creates records without completedAt)
+    if (!assessment || !assessment.completedAt) {
       return {
         category: null,
         scores: null,
@@ -428,7 +429,7 @@ export class UsersService {
         category: null,
         scores: null,
         description: null,
-        hasAssessment: true,
+        hasAssessment: false,
         error: 'Failed to calculate personality category',
       };
     }

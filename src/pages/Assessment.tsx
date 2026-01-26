@@ -19,7 +19,7 @@ import { format } from "date-fns";
 // Import from QuestionRenderer to use shared types
 import { QuestionRenderer, AssessmentQuestion } from "@/components/assessment/QuestionRenderer";
 
-const TOTAL_STEPS = 23;
+const TOTAL_STEPS = 22;
 
 const Assessment = () => {
   const navigate = useNavigate();
@@ -66,8 +66,7 @@ const Assessment = () => {
   const [countryOpen, setCountryOpen] = useState(false);
   const [birthday, setBirthday] = useState<Date>();
   const [nickName, setNickName] = useState("");
-  const [neverGuess, setNeverGuess] = useState("");
-  const [funFact, setFunFact] = useState("");
+
 
   const countries = [
     { value: "afghanistan", label: "Afghanistan" },
@@ -326,7 +325,7 @@ const Assessment = () => {
     groupDynamic, humorType, wardrobeStyle, introvertScale, aloneTimeScale,
     familyScale, spiritualityScale, humorScale, meetingPriority, dietaryPreferences,
     customDietary, restaurantFrequency, spending, gender, relationshipStatus,
-    hasChildren, country, birthday, nickName, neverGuess, funFact, loadingSavedProgress
+    hasChildren, country, birthday, nickName, loadingSavedProgress
   ]);
 
   const checkAuth = async () => {
@@ -379,8 +378,7 @@ const Assessment = () => {
         if (answers.country) setCountry(answers.country);
         if (answers.birthday) setBirthday(new Date(answers.birthday));
         if (answers.nickName) setNickName(answers.nickName);
-        if (answers.neverGuess) setNeverGuess(answers.neverGuess);
-        if (answers.funFact) setFunFact(answers.funFact);
+
 
         // Show message that user can continue from where they left off
         if (!savedAssessment.isCompleted) {
@@ -426,8 +424,7 @@ const Assessment = () => {
         country,
         birthday: birthday?.toISOString(),
         nickName,
-        neverGuess,
-        funFact,
+
       };
 
       await assessmentsApi.saveProgress(answers);
@@ -562,8 +559,7 @@ const Assessment = () => {
         country,
         birthday: birthday?.toISOString(),
         nickName,
-        neverGuess,
-        funFact,
+
       };
 
       await assessmentsApi.submit(answers);
@@ -1265,32 +1261,7 @@ const Assessment = () => {
           </div>
         );
 
-      case 23:
-        return (
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground italic">These questions are optional</p>
-            <div className="space-y-2">
-              <Label htmlFor="neverGuess" className="text-base">What&apos;s one thing people would never guess about you?</Label>
-              <Textarea
-                id="neverGuess"
-                value={neverGuess}
-                onChange={(e) => setNeverGuess(e.target.value)}
-                placeholder="Share something surprising..."
-                rows={3}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="funFact" className="text-base">Share a fun fact about yourself.</Label>
-              <Textarea
-                id="funFact"
-                value={funFact}
-                onChange={(e) => setFunFact(e.target.value)}
-                placeholder="Tell us something fun..."
-                rows={3}
-              />
-            </div>
-          </div>
-        );
+
 
       default:
         return null;

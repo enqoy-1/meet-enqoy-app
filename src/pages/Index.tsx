@@ -99,7 +99,7 @@ const Index = () => {
             <Button
               size="lg"
               variant="outline"
-              onClick={() => navigate("/events")}
+              onClick={() => navigate("/auth")}
               className="text-base md:text-lg px-6 py-3 md:px-10 md:py-6 h-auto rounded-full border-2 border-primary hover:bg-primary hover:text-white"
             >
               See Upcoming Events

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import {
     Dialog,
@@ -18,7 +19,7 @@ interface QuestionOption {
 
 interface Question {
     label: string;
-    type: "radio" | "scale" | "text";
+    type: "radio" | "scale" | "text" | "checkbox";
     options?: QuestionOption[];
 }
 
@@ -92,7 +93,7 @@ export const EditAnswerModal = ({
             );
         }
 
-        if ((question.type === "radio" || question.type === "select") && question.options) {
+        if ((question.type === "radio" || (question.type as string) === "select") && question.options) {
             return (
                 <RadioGroup value={String(value)} onValueChange={setValue}>
                     {question.options.map((option) => (
@@ -104,6 +105,38 @@ export const EditAnswerModal = ({
                         </div>
                     ))}
                 </RadioGroup>
+            );
+        }
+
+        if (question.type === "checkbox" && question.options) {
+            return (
+                <div className="space-y-3">
+                    {question.options.map((option) => {
+                        const currentValues = Array.isArray(value) ? value : [];
+                        const isChecked = currentValues.includes(option.value);
+
+                        const handleCheckedChange = (checked: boolean) => {
+                            if (checked) {
+                                setValue([...currentValues, option.value]);
+                            } else {
+                                setValue(currentValues.filter((v: string) => v !== option.value));
+                            }
+                        };
+
+                        return (
+                            <div key={option.value} className="flex items-center space-x-2">
+                                <Checkbox
+                                    id={option.value}
+                                    checked={isChecked}
+                                    onCheckedChange={handleCheckedChange}
+                                />
+                                <Label htmlFor={option.value} className="cursor-pointer">
+                                    {option.label}
+                                </Label>
+                            </div>
+                        );
+                    })}
+                </div>
             );
         }
 

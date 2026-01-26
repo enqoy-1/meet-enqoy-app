@@ -57,15 +57,17 @@ const Profile = () => {
     const [editingQuestion, setEditingQuestion] = useState<string | null>(null);
 
     useEffect(() => {
-        fetchProfileData();
-    }, []);
+        if (user) {
+            fetchProfileData();
+        }
+    }, [user]);
 
     const fetchProfileData = async () => {
         try {
             const [categoryData, assessmentData, questionsData] = await Promise.all([
                 usersApi.getMyCategory(),
                 assessmentsApi.getMy(),
-                assessmentsApi.getQuestions(),
+                assessmentsApi.getQuestions(user?.profile?.countryId),
             ]);
             setCategory(categoryData);
             setAnswers(assessmentData?.answers || null);
@@ -114,6 +116,14 @@ const Profile = () => {
         if (value === undefined || value === null) return "—";
         const question = questionsMap[key];
         if (!question) return String(value);
+
+        if (Array.isArray(value)) {
+            // Mapping values to labels for array types (like checkbox)
+            if (question.options) {
+                return value.map(v => question.options?.find(o => o.value === v)?.label || v).join(", ");
+            }
+            return value.join(", ");
+        }
 
         if (question.type === "scale") return `${value}/5`;
         if ((question.type === "radio" || question.type === "select") && question.options) {
@@ -211,7 +221,7 @@ const Profile = () => {
                         <div className="flex gap-3">
                             <Button variant="outline" size="sm" onClick={() => navigate("/assessment?retake=true")}>
                                 <RefreshCw className="h-4 w-4 mr-2" />
-                                Retake Assessment
+                                {category?.hasAssessment ? "Retake Assessment" : "Take Assessment"}
                             </Button>
                             <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={handleSignOut}>
                                 <LogOut className="h-4 w-4 mr-2" />
@@ -223,13 +233,25 @@ const Profile = () => {
 
                 <Separator className="mb-10" />
 
-                {/* Answers Grid */}
-                {answers && SECTIONS.map((section) => {
+                {/* No Assessment Banner */}
+                {!category?.hasAssessment && (
+                    <div className="mb-10 p-6 rounded-xl bg-primary/5 border border-primary/20">
+                        <h3 className="font-semibold text-lg mb-2">Complete Your Assessment</h3>
+                        <p className="text-muted-foreground mb-4">
+                            Take the personality assessment to discover your type and get matched with like-minded people at our events.
+                        </p>
+                        <Button onClick={() => navigate("/assessment")} className="bg-primary text-white">
+                            Take Assessment
+                        </Button>
+                    </div>
+                )}
+
+                {/* Answers Grid - Show questions even without answers */}
+                {SECTIONS.map((section) => {
                     const sectionQuestions = getQuestionsForSection(section.id);
 
-                    // Only show section if there are answers for its questions
-                    const hasAnswers = sectionQuestions.some(q => answers[q.key] !== undefined);
-                    if (!hasAnswers && sectionQuestions.length === 0) return null;
+                    // Skip if no questions in this section
+                    if (sectionQuestions.length === 0) return null;
 
                     const Icon = section.icon;
 
@@ -243,25 +265,23 @@ const Profile = () => {
                             </div>
 
                             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                                {sectionQuestions.length > 0 ? (
-                                    sectionQuestions.map((question) => {
-                                        const value = answers[question.key];
-                                        // Skip if no answer and maybe hidden? For now show all.
+                                {sectionQuestions.map((question) => {
+                                    const value = answers?.[question.key];
+                                    const hasValue = value !== undefined && value !== null;
 
-                                        return (
-                                            <button
-                                                key={question.key}
-                                                onClick={() => setEditingQuestion(question.key)}
-                                                className="group text-left p-4 rounded-xl border border-transparent hover:border-border hover:bg-muted/30 transition-all"
-                                            >
-                                                <p className="text-xs text-muted-foreground mb-1">{question.label}</p>
-                                                <p className="text-sm font-medium">{getDisplayValue(question.key, value)}</p>
-                                            </button>
-                                        );
-                                    })
-                                ) : (
-                                    <p className="text-sm text-muted-foreground col-span-full">No questions in this section.</p>
-                                )}
+                                    return (
+                                        <button
+                                            key={question.key}
+                                            onClick={() => hasValue ? setEditingQuestion(question.key) : navigate("/assessment")}
+                                            className="group text-left p-4 rounded-xl border border-transparent hover:border-border hover:bg-muted/30 transition-all"
+                                        >
+                                            <p className="text-xs text-muted-foreground mb-1">{question.label}</p>
+                                            <p className={`text-sm font-medium ${!hasValue ? "text-muted-foreground/50" : ""}`}>
+                                                {getDisplayValue(question.key, value)}
+                                            </p>
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
                     );
