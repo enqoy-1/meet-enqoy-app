@@ -285,8 +285,11 @@ const Assessment = () => {
 
   // Set default phone country code based on user's country
   useEffect(() => {
-    if (user?.profile?.country?.phoneCode && !phone) {
-      setCountryCode(user.profile.country.phoneCode);
+    if (user?.profile?.country?.phoneCode) {
+      // Only set if countryCode is still the default (+251) or not matching user's country
+      if (countryCode === "+251" || !countryCode.startsWith("+")) {
+        setCountryCode(user.profile.country.phoneCode);
+      }
     }
   }, [user?.profile?.country?.phoneCode]);
 
@@ -352,6 +355,10 @@ const Assessment = () => {
             setCountryCode(phoneMatch[1]);
             setPhone(phoneMatch[2]);
             setPhoneVerify(phoneMatch[2]);
+          } else {
+            // Phone was saved without country code - just load the number
+            setPhone(answers.phone);
+            setPhoneVerify(answers.phone);
           }
         }
         if (answers.city) setCity(answers.city);

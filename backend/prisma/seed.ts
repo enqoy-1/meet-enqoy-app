@@ -159,28 +159,9 @@ async function main() {
   });
   console.log('✅ Created events');
 
-  // Create assessment questions
-  const questions = [
-    { key: 'age', label: 'What is your age?', type: 'number', section: 'basics', order: 1, options: [], isActive: true },
-    { key: 'gender', label: 'What is your gender?', type: 'select', section: 'basics', order: 2, options: ['male', 'female', 'non_binary', 'prefer_not_to_say'], isActive: true },
-    { key: 'relationship', label: 'Are you in a relationship?', type: 'select', section: 'basics', order: 3, options: ['single', 'in_a_relationship', 'married', 'complicated'], isActive: true },
-    { key: 'children', label: 'Do you have children?', type: 'select', section: 'basics', order: 4, options: ['yes', 'no'], isActive: true },
-    { key: 'city', label: 'What city do you live in?', type: 'text', section: 'basics', order: 5, options: [], isActive: true },
-    { key: 'personality', label: 'How would you describe yourself?', type: 'select', section: 'personality', order: 6, options: ['introvert', 'extrovert', 'ambivert'], isActive: true },
-    { key: 'humor', label: 'What is your humor style?', type: 'select', section: 'personality', order: 7, options: ['sarcastic', 'witty', 'silly', 'dry'], isActive: true },
-    { key: 'spending', label: 'How do you prefer to spend money?', type: 'select', section: 'lifestyle', order: 8, options: ['saver', 'spender', 'balanced'], isActive: true },
-    { key: 'diet', label: 'What are your dietary preferences?', type: 'multiselect', section: 'lifestyle', order: 9, options: ['none', 'vegetarian', 'vegan', 'gluten_free', 'halal', 'kosher'], isActive: true },
-    { key: 'hobbies', label: 'What are your hobbies?', type: 'text', section: 'interests', order: 10, options: [], isActive: true },
-  ];
-
-  for (const q of questions) {
-    await prisma.assessmentQuestion.upsert({
-      where: { key: q.key },
-      update: q,
-      create: q,
-    });
-  }
-  console.log(`✅ Created ${questions.length} assessment questions`);
+  // Note: Assessment questions are seeded by the AssessmentsService.onModuleInit()
+  // with country-specific prefixes (et_*, rw_*). Don't duplicate them here.
+  console.log('ℹ️ Assessment questions are seeded by AssessmentsService on startup');
 
   // Create icebreaker questions
   const icebreakers = [

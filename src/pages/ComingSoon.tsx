@@ -125,7 +125,12 @@ const ComingSoon = () => {
             </h2>
 
             {/* Subtitle */}
-            <p className="text-white/90 text-xl sm:text-2xl md:text-3xl mb-8 sm:mb-12 max-w-md sm:max-w-2xl mx-auto sm:mx-0 leading-relaxed italic font-medium">
+            <p
+              className="text-white text-xl sm:text-2xl md:text-3xl mb-8 sm:mb-12 max-w-md sm:max-w-2xl mx-auto sm:mx-0 leading-relaxed italic font-medium"
+              style={{
+                textShadow: '0 2px 8px rgba(0,0,0,0.8), 0 4px 16px rgba(0,0,0,0.6), 0 0 40px rgba(0,0,0,0.4)'
+              }}
+            >
               Curated dining experiences designed to help you meet new people and form real connections. Take the assessment now and be the first to know when Enqoy hosts its very first event in Kigali.
             </p>
 

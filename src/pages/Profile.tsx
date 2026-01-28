@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import {
     ArrowLeft, Ticket, Edit2, RefreshCw, LogOut,
-    MessageCircle, Sparkles, Utensils, User, Heart
+    MessageCircle, Sparkles, Utensils, User, Heart, Phone
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -32,11 +32,11 @@ interface AssessmentQuestion {
 }
 
 const SECTIONS = [
+    { id: "contact", label: "Contact", icon: Phone, color: "bg-teal-500" },
     { id: "social", label: "Social Preferences", icon: MessageCircle, color: "bg-blue-500" },
     { id: "personality", label: "Personality", icon: Sparkles, color: "bg-purple-500" },
     { id: "lifestyle", label: "Lifestyle", icon: Utensils, color: "bg-orange-500" },
     { id: "personal", label: "Personal", icon: User, color: "bg-green-500" },
-    { id: "fun", label: "Fun Facts", icon: Heart, color: "bg-pink-500" },
 ];
 
 const CATEGORY_EMOJIS: Record<string, string> = {
@@ -88,6 +88,14 @@ const Profile = () => {
         }, {} as Record<string, AssessmentQuestion>);
     }, [questions]);
 
+    // Helper to get the base answer key (strips country prefix like "rw_" or "et_")
+    const getAnswerKey = (questionKey: string): string => {
+        // Question keys are prefixed with country code (e.g., "rw_phone", "et_city")
+        // Answers are stored without the prefix (e.g., "phone", "city")
+        const match = questionKey.match(/^(et|rw)_(.+)$/);
+        return match ? match[2] : questionKey;
+    };
+
     const handleAnswerUpdate = async (questionKey: string, newValue: any) => {
         try {
             await assessmentsApi.updateAnswer(questionKey, newValue);
@@ -112,9 +120,9 @@ const Profile = () => {
         navigate("/");
     };
 
-    const getDisplayValue = (key: string, value: any): string => {
+    const getDisplayValue = (questionKey: string, value: any): string => {
         if (value === undefined || value === null) return "—";
-        const question = questionsMap[key];
+        const question = questionsMap[questionKey];
         if (!question) return String(value);
 
         if (Array.isArray(value)) {
@@ -266,7 +274,8 @@ const Profile = () => {
 
                             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                                 {sectionQuestions.map((question) => {
-                                    const value = answers?.[question.key];
+                                    const answerKey = getAnswerKey(question.key);
+                                    const value = answers?.[answerKey];
                                     const hasValue = value !== undefined && value !== null;
 
                                     return (
@@ -293,9 +302,9 @@ const Profile = () => {
                 <EditAnswerModal
                     isOpen={!!editingQuestion}
                     onClose={() => setEditingQuestion(null)}
-                    questionKey={editingQuestion}
+                    questionKey={getAnswerKey(editingQuestion)}
                     question={questionsMap[editingQuestion] as any}
-                    currentValue={answers?.[editingQuestion]}
+                    currentValue={answers?.[getAnswerKey(editingQuestion)]}
                     onSave={handleAnswerUpdate}
                 />
             )}

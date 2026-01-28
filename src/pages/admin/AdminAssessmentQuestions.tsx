@@ -349,10 +349,14 @@ const AdminAssessmentQuestions = () => {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="radio">Radio (Multiple Choice)</SelectItem>
+                        <SelectItem value="radio">Radio (Single Choice)</SelectItem>
+                        <SelectItem value="checkbox">Checkbox (Multi-Select)</SelectItem>
+                        <SelectItem value="multiselect">Multi-Select Dropdown</SelectItem>
                         <SelectItem value="scale">Scale (1-5)</SelectItem>
                         <SelectItem value="text">Text Input</SelectItem>
-                        <SelectItem value="select">Dropdown</SelectItem>
+                        <SelectItem value="number">Number Input</SelectItem>
+                        <SelectItem value="select">Dropdown (Single)</SelectItem>
+                        <SelectItem value="date">Date Picker</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -368,7 +372,7 @@ const AdminAssessmentQuestions = () => {
                     />
                   </div>
 
-                  {(type === "radio" || type === "select" || type === "scale") && (
+                  {(type === "radio" || type === "checkbox" || type === "multiselect" || type === "select" || type === "scale") && (
                     <Card className="bg-muted/50">
                       <CardContent className="pt-6">
                         <div className="flex justify-between items-center mb-4">
