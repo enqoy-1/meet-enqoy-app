@@ -471,7 +471,19 @@ const Assessment = () => {
       case 12: return spiritualityScale !== undefined && spiritualityScale >= 1 && spiritualityScale <= 5;
       case 13: return humorScale !== undefined && humorScale >= 1 && humorScale <= 5;
       case 14: return !!meetingPriority;
-      case 15: return !!dietaryPreferences && (dietaryPreferences !== "other" || !!customDietary);
+      case 15: {
+        // Handle both array (checkbox) and string (radio) values
+        const hasValue = Array.isArray(dietaryPreferences)
+          ? dietaryPreferences.length > 0
+          : !!dietaryPreferences;
+
+        const hasOther = Array.isArray(dietaryPreferences)
+          ? dietaryPreferences.includes("other")
+          : dietaryPreferences === "other";
+
+        // If "other" is selected, custom dietary must be filled
+        return hasValue && (!hasOther || !!customDietary);
+      }
       case 16: return !!restaurantFrequency;
       case 17: return !!spending;
       case 18: return !!gender;
@@ -916,7 +928,39 @@ const Assessment = () => {
           </div>
         );
 
-      case 15:
+      case 15: {
+        // Use dynamic dietary preferences question from database
+        const dietaryQuestion = dynamicQuestions.find(q => q.key.includes('dietaryPreferences'));
+
+        if (dietaryQuestion) {
+          // Check if "other" is selected (works for both string and array values)
+          const hasOther = Array.isArray(dietaryPreferences)
+            ? dietaryPreferences.includes("other")
+            : dietaryPreferences === "other";
+
+          return (
+            <div className="space-y-4">
+              <QuestionRenderer
+                question={dietaryQuestion}
+                value={dietaryPreferences}
+                onChange={setDietaryPreferences}
+              />
+              {hasOther && (
+                <div className="space-y-2 mt-4">
+                  <Label htmlFor="customDietary">Please specify</Label>
+                  <Input
+                    id="customDietary"
+                    value={customDietary}
+                    onChange={(e) => setCustomDietary(e.target.value)}
+                    placeholder="Enter your dietary restrictions"
+                  />
+                </div>
+              )}
+            </div>
+          );
+        }
+
+        // Fallback to hardcoded options if dynamic question not found
         return (
           <div className="space-y-4">
             <Label className="text-base">Do you have any dietary preferences or restrictions?</Label>
@@ -928,14 +972,6 @@ const Assessment = () => {
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="fasting" id="fasting" />
                 <Label htmlFor="fasting">Fasting</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="vegan" id="vegan" />
-                <Label htmlFor="vegan">Vegan</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="gluten_free" id="gluten_free" />
-                <Label htmlFor="gluten_free">Gluten-free</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="other" id="other_diet" />
@@ -955,6 +991,7 @@ const Assessment = () => {
             )}
           </div>
         );
+      }
 
       case 16:
         return (
@@ -1277,7 +1314,16 @@ const Assessment = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background to-muted">
-      {showUnderageMessage ? (
+      {loadingQuestions ? (
+        <Card className="w-full max-w-2xl">
+          <CardContent className="py-12">
+            <div className="text-center space-y-4">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+              <p className="text-muted-foreground">Loading assessment questions...</p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : showUnderageMessage ? (
         <Card className="w-full max-w-2xl">
           <CardHeader>
             <CardTitle>Age Requirement</CardTitle>

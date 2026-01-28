@@ -1,6 +1,7 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -53,6 +54,40 @@ export const QuestionRenderer = ({ question, value, onChange }: QuestionRenderer
                             </div>
                         ))}
                     </RadioGroup>
+                );
+
+            case "checkbox":
+                // Multi-select checkbox
+                const selectedValues = Array.isArray(value) ? value : (value ? [value] : []);
+
+                const handleCheckboxChange = (optValue: string, checked: boolean) => {
+                    let newValues: string[];
+                    if (checked) {
+                        newValues = [...selectedValues, optValue];
+                    } else {
+                        newValues = selectedValues.filter((v: string) => v !== optValue);
+                    }
+                    onChange(newValues);
+                };
+
+                return (
+                    <div className="space-y-3">
+                        {options.map((opt, idx) => (
+                            <div key={idx} className="flex items-center space-x-2">
+                                <Checkbox
+                                    id={`${key}-${opt.value}`}
+                                    checked={selectedValues.includes(opt.value)}
+                                    onCheckedChange={(checked) => handleCheckboxChange(opt.value, checked as boolean)}
+                                />
+                                <Label
+                                    htmlFor={`${key}-${opt.value}`}
+                                    className="font-normal cursor-pointer"
+                                >
+                                    {opt.label}
+                                </Label>
+                            </div>
+                        ))}
+                    </div>
                 );
 
             case "scale":

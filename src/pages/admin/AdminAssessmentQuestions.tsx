@@ -176,7 +176,7 @@ const AdminAssessmentQuestions = () => {
 
       resetForm();
       setIsDialogOpen(false);
-      fetchQuestions();
+      await fetchQuestions();
     } catch (error) {
       console.error("Error saving question:", error);
       toast.error("Failed to save question");
