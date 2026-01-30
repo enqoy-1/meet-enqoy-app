@@ -478,8 +478,8 @@ const Assessment = () => {
           : !!dietaryPreferences;
 
         const hasOther = Array.isArray(dietaryPreferences)
-          ? dietaryPreferences.includes("other")
-          : dietaryPreferences === "other";
+          ? dietaryPreferences.some((v: string) => v.toLowerCase().trim() === "other")
+          : (typeof dietaryPreferences === 'string' && dietaryPreferences.toLowerCase().trim() === "other");
 
         // If "other" is selected, custom dietary must be filled
         return hasValue && (!hasOther || !!customDietary);
@@ -933,10 +933,10 @@ const Assessment = () => {
         const dietaryQuestion = dynamicQuestions.find(q => q.key.includes('dietaryPreferences'));
 
         if (dietaryQuestion) {
-          // Check if "other" is selected (works for both string and array values)
+          // Check if "other" is selected (case-insensitive to handle admin edits)
           const hasOther = Array.isArray(dietaryPreferences)
-            ? dietaryPreferences.includes("other")
-            : dietaryPreferences === "other";
+            ? dietaryPreferences.some((v: string) => v.toLowerCase().trim() === "other")
+            : (typeof dietaryPreferences === 'string' && dietaryPreferences.toLowerCase().trim() === "other");
 
           return (
             <div className="space-y-4">
