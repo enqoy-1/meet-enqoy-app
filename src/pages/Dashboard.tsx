@@ -99,12 +99,29 @@ const Dashboard = () => {
       if (!user.profile.country.isActive) {
         // Inactive countries go to Coming Soon page
         navigate("/coming-soon", { replace: true });
+      } else if (user.profile.country.code === 'RW') {
+        // Rwanda users go directly to events (Dashboard hidden/bypassed)
+        navigate("/events", { replace: true });
       } else {
         // Active countries (like Ethiopia) redirect to Framer website
-        window.location.href = "https://enqoy.com/";
+        // Use replace to avoid back-button showing this page
+        window.location.replace("https://enqoy.com/");
       }
     }
   }, [user, navigate]);
+
+  // Prevent rendering dashboard content if we're going to redirect
+  if (user?.profile?.country && (
+    !user.profile.country.isActive ||
+    user.profile.country.code === 'RW' ||
+    (user.profile.country.isActive && user.profile.country.code !== 'RW')
+  )) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-pulse">Loading...</div>
+      </div>
+    );
+  }
 
   // Auto-cycle announcements
   useEffect(() => {

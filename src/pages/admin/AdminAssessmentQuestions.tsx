@@ -423,29 +423,73 @@ const AdminAssessmentQuestions = () => {
                           </div>
                         )}
 
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                           {options.map((opt, idx) => (
-                            <div key={idx} className={`flex justify-between items-start p-2 bg-background border rounded text-sm group ${editingOptionIndex === idx ? 'ring-2 ring-primary' : ''}`}>
-                              <div className="flex-1">
-                                <div className="font-medium">{opt.label || "(No label)"}</div>
-                                <div className="text-xs text-muted-foreground">Value: {opt.value || "(empty)"}</div>
-                                <div className="flex gap-1 flex-wrap mt-1">
-                                  {opt.scores && Object.entries(opt.scores).map(([k, v]) => (
-                                    Number(v) > 0 && <Badge key={k} variant="secondary" className="text-[10px] h-4 px-1">{k}: +{v}</Badge>
-                                  ))}
-                                </div>
-                              </div>
-                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleOptionEdit(idx)}>
-                                  <Pencil className="h-3 w-3" />
-                                </Button>
-                                <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleOptionRemove(idx)}>
+                            <div key={idx} className="p-3 bg-background border rounded space-y-3">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium text-muted-foreground">Option {idx + 1}</span>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 text-destructive hover:text-destructive"
+                                  onClick={() => handleOptionRemove(idx)}
+                                >
                                   <Trash2 className="h-3 w-3" />
                                 </Button>
                               </div>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                  <Label className="text-xs">Value</Label>
+                                  <Input
+                                    value={opt.value}
+                                    onChange={(e) => {
+                                      const newOptions = [...options];
+                                      newOptions[idx] = { ...newOptions[idx], value: e.target.value };
+                                      setOptions(newOptions);
+                                    }}
+                                    placeholder="e.g. fasting"
+                                    className="h-8"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-xs">Label</Label>
+                                  <Input
+                                    value={opt.label}
+                                    onChange={(e) => {
+                                      const newOptions = [...options];
+                                      newOptions[idx] = { ...newOptions[idx], label: e.target.value };
+                                      setOptions(newOptions);
+                                    }}
+                                    placeholder="e.g. Fasting"
+                                    className="h-8"
+                                  />
+                                </div>
+                              </div>
+                              {/* Personality Scores - Collapsible */}
+                              {opt.scores && Object.keys(opt.scores).length > 0 && (
+                                <div className="pt-2 border-t">
+                                  <Label className="text-xs text-muted-foreground mb-2 block">Personality Scores</Label>
+                                  <div className="flex gap-1 flex-wrap">
+                                    {Object.entries(opt.scores).map(([k, v]) => (
+                                      Number(v) > 0 && <Badge key={k} variant="secondary" className="text-[10px] h-4 px-1">{k}: +{v}</Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              {/* Score Edit Button */}
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="w-full h-7 text-xs"
+                                onClick={() => handleOptionEdit(idx)}
+                              >
+                                <Pencil className="h-3 w-3 mr-1" /> Edit Personality Scores
+                              </Button>
                             </div>
                           ))}
-                          {options.length === 0 && <div className="text-center text-sm text-muted-foreground">No options added yet</div>}
+                          {options.length === 0 && <div className="text-center text-sm text-muted-foreground py-4">No options added yet. Click "Add Option" to create one.</div>}
                         </div>
                       </CardContent>
                     </Card>
