@@ -105,7 +105,7 @@ const Dashboard = () => {
       } else {
         // Active countries (like Ethiopia) redirect to Framer website
         // Use replace to avoid back-button showing this page
-        window.location.replace("https://enqoy.com/");
+        window.location.replace("https://beta.enqoy.com/");
       }
     }
   }, [user, navigate]);
