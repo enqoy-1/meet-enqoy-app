@@ -28,11 +28,12 @@ async function main() {
     update: {
       phoneCode: '+250',
       mainCity: 'Kigali',
+      isActive: true, // Make Rwanda active
     },
     create: {
       name: 'Rwanda',
       code: 'RW',
-      isActive: false,
+      isActive: true, // Make Rwanda active
       currency: 'RWF',
       phoneCode: '+250',
       mainCity: 'Kigali',
