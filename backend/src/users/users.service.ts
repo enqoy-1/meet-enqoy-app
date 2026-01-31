@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { PairingAlgorithmService, PersonalityCategory } from '../pairing/pairing-algorithm.service';
+import { sanitizeSearchQuery, containsSqlPatterns, logSecurityThreat } from '../common/utils/sanitize.util';
 
 interface UserFilters {
   startDate?: Date;
@@ -447,12 +448,28 @@ export class UsersService {
   }
 
   async searchUsers(query: string) {
-    // Search users by email or phone
+    // SECURITY: Sanitize search query for defense-in-depth
+    const sanitizedQuery = sanitizeSearchQuery(query);
+
+    // SECURITY: Detect and log potential SQL injection attempts
+    if (containsSqlPatterns(query)) {
+      logSecurityThreat('sql_injection', {
+        originalQuery: query,
+        sanitizedQuery,
+        endpoint: 'users/search',
+      });
+      // Continue with sanitized query instead of blocking
+      // This allows legitimate searches while logging suspicious activity
+    }
+
+    // Search users by email, phone, or name
     const users = await this.prisma.user.findMany({
       where: {
         OR: [
-          { email: { contains: query, mode: 'insensitive' } },
-          { profile: { phone: { contains: query, mode: 'insensitive' } } },
+          { email: { contains: sanitizedQuery, mode: 'insensitive' } },
+          { profile: { phone: { contains: sanitizedQuery, mode: 'insensitive' } } },
+          { profile: { firstName: { contains: sanitizedQuery, mode: 'insensitive' } } },
+          { profile: { lastName: { contains: sanitizedQuery, mode: 'insensitive' } } },
         ],
       },
       include: {

@@ -759,9 +759,6 @@ const Assessment = () => {
         return (
           <div className="space-y-4">
             <Label className="text-base">Would you prefer to attend an Enqoy experience during lunch or dinner?</Label>
-            <p className="text-sm text-muted-foreground">
-              Dinners take place on Thursdays for a relaxed evening vibe, and lunches take place on Saturdays for a casual midday gathering. Let us know your preference! 😊
-            </p>
             <RadioGroup value={preferredTime} onValueChange={setPreferredTime}>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="dinner" id="dinner" />

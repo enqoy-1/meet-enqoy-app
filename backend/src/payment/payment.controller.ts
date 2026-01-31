@@ -8,6 +8,7 @@ import {
     UseGuards,
     Request,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { PaymentService } from './payment.service';
 import { SubmitPaymentDto, AdminReviewPaymentDto } from './dto/payment.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -25,8 +26,9 @@ export class PaymentController {
         return this.paymentService.getPaymentInfo();
     }
 
-    // Submit payment proof
+    // Submit payment proof - rate limited to prevent spam
     @Post()
+    @Throttle({ default: { limit: 5, ttl: 60000 } })
     async submitPayment(@Request() req, @Body() dto: SubmitPaymentDto) {
         return this.paymentService.submitPayment(req.user.id, dto);
     }

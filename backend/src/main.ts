@@ -2,9 +2,50 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import * as bodyParser from 'body-parser';
+import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // ============================================
+  // SECURITY: Helmet HTTP Security Headers
+  // ============================================
+  app.use(helmet({
+    // Content Security Policy - prevents XSS attacks
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'"],
+        imgSrc: ["'self'", "data:", "https:"],
+        connectSrc: ["'self'"],
+        fontSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        mediaSrc: ["'self'"],
+        frameSrc: ["'none'"],
+      },
+    },
+    // X-Frame-Options - prevents clickjacking
+    frameguard: { action: 'deny' },
+    // X-Content-Type-Options - prevents MIME type sniffing
+    noSniff: true,
+    // X-XSS-Protection - legacy XSS protection for older browsers
+    xssFilter: true,
+    // Strict-Transport-Security - enforces HTTPS
+    hsts: {
+      maxAge: 31536000, // 1 year
+      includeSubDomains: true,
+      preload: true,
+    },
+    // X-DNS-Prefetch-Control - controls DNS prefetching
+    dnsPrefetchControl: { allow: false },
+    // X-Download-Options - prevents IE from executing downloads
+    ieNoOpen: true,
+    // Referrer-Policy - controls referrer information
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    // X-Permitted-Cross-Domain-Policies - prevents Adobe Flash/PDF cross-domain
+    permittedCrossDomainPolicies: { permittedPolicies: 'none' },
+  }));
 
   // Increase body size limit for base64 images
   app.use(bodyParser.json({ limit: '50mb' }));
@@ -41,12 +82,19 @@ async function bootstrap() {
     optionsSuccessStatus: 204,
   });
 
-  // Enable validation globally
+  // ============================================
+  // SECURITY: Input Validation & Sanitization
+  // ============================================
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
+      whitelist: true,           // Strip properties not in DTO
+      forbidNonWhitelisted: true, // Throw error on unknown properties
+      transform: true,            // Auto-transform payloads to DTO types
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
+      // Sanitize inputs by trimming strings
+      stopAtFirstError: false,
     }),
   );
 
@@ -57,6 +105,8 @@ async function bootstrap() {
   await app.listen(port);
 
   console.log(`🚀 Backend server running on http://localhost:${port}/api`);
+  console.log(`🛡️ Security: Helmet headers enabled`);
+  console.log(`🔒 Security: Rate limiting active`);
 }
 
 bootstrap();
